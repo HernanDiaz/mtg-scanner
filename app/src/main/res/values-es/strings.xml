@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pestañas -->
+    <string name="tab_scan">Escanear</string>
+    <string name="tab_collection">Colección</string>
+
+    <!-- Comunes -->
+    <string name="cancel">Cancelar</string>
+    <string name="close">Cerrar</string>
+    <string name="save">Guardar</string>
+    <string name="create">Crear</string>
+    <string name="clear">Borrar</string>
+    <string name="more_options">Más opciones</string>
+    <string name="no_deck">Sin mazo</string>
+    <string name="deck_named">Mazo: %1$s</string>
+    <string name="deck_with_count">%1$s (%2$d)</string>
+    <plurals name="cards">
+        <item quantity="one">%d carta</item>
+        <item quantity="other">%d cartas</item>
+    </plurals>
+    <plurals name="decks">
+        <item quantity="one">%d mazo</item>
+        <item quantity="other">%d mazos</item>
+    </plurals>
+
+    <!-- Escáner -->
+    <string name="camera_needed">La app necesita la cámara para escanear cartas.</string>
+    <string name="grant_permission">Dar permiso</string>
+    <string name="loading_catalog">Cargando catálogo…</string>
+    <string name="point_at_card">Apunta a una carta</string>
+    <string name="foil">Foil</string>
+    <string name="torch">Linterna</string>
+    <string name="scan_deck_question">¿A qué mazo van las cartas?</string>
+    <string name="or_new_deck">O un mazo nuevo</string>
+    <string name="doubtful_edition">Edición dudosa: revísala en Colección</string>
+    <string name="undo">Deshacer</string>
+
+    <!-- Colección: cabecera y filtros -->
+    <string name="export_share">Exportar y compartir lo que se ve</string>
+    <string name="add_manually">Añadir a mano</string>
+    <string name="update_prices">Actualizar precios</string>
+    <string name="backup_import">Copia de seguridad e importar</string>
+    <string name="save_backup">Guardar copia de seguridad</string>
+    <string name="import_cards">Importar cartas o copia…</string>
+    <string name="review_editions">Revisar ediciones (%1$d pendientes)</string>
+    <string name="all_cards">Todas</string>
+    <string name="deck_add">Mazo</string>
+    <string name="rename_deck">Renombrar mazo</string>
+    <string name="delete_deck">Borrar mazo</string>
+    <string name="search_collection">Buscar en la colección</string>
+    <string name="pending_review">Por revisar</string>
+    <string name="sort_recent">Recientes</string>
+    <string name="sort_value">Valor</string>
+    <string name="sort_name">Nombre</string>
+    <string name="price_label">Precio: %1$s</string>
+    <string name="empty_deck">Mazo vacío. Mueve cartas aquí desde el menú de cada carta, o escanea con este mazo como destino.</string>
+    <string name="empty_collection">Aún no hay cartas. Ve a Escanear.</string>
+    <string name="no_match">Ninguna carta coincide.</string>
+    <string name="whole_collection">Toda la colección</string>
+    <string name="scope_deck">Mazo %1$s</string>
+    <string name="colors_or">" o "</string>
+    <string name="color_selected">%1$s, seleccionado</string>
+    <string name="color_white">Blanco</string>
+    <string name="color_blue">Azul</string>
+    <string name="color_black">Negro</string>
+    <string name="color_red">Rojo</string>
+    <string name="color_green">Verde</string>
+    <string name="color_colorless">Incoloro</string>
+
+    <!-- Precios -->
+    <string name="price_trend">Tendencia</string>
+    <string name="price_trend_desc">El precio de tendencia de Cardmarket (el habitual).</string>
+    <string name="price_low">Más bajo</string>
+    <string name="price_low_desc">La oferta más barata en Cardmarket: lo que costaría comprarla hoy.</string>
+    <string name="price_avg30">Media 30 días</string>
+    <string name="price_avg30_desc">La media de las ventas del último mes: cambia menos de un día a otro.</string>
+    <string name="prices_updated">Precios actualizados (%1$d cartas)</string>
+    <string name="prices_failed">No se pudieron actualizar los precios: %1$s</string>
+
+    <!-- Mazos -->
+    <string name="delete_deck_question">¿Borrar el mazo %1$s?</string>
+    <string name="delete_deck_explain">Sus cartas (%1$s) no se borran: vuelven a la colección, sin mazo.</string>
+    <string name="new_deck">Nuevo mazo</string>
+    <string name="deck_name">Nombre del mazo</string>
+    <string name="move_title">Mover %1$s</string>
+    <string name="copies">Copias:</string>
+    <string name="n_of_m">%1$d de %2$d</string>
+    <string name="take_out_of_deck">Sacar del mazo (sin mazo)</string>
+    <string name="or_to_new_deck">O a un mazo nuevo</string>
+    <string name="create_and_move">Crear y mover</string>
+
+    <!-- Fila de la colección -->
+    <string name="move_to_deck">Mover a un mazo…</string>
+    <string name="change_edition">Cambiar edición o idioma</string>
+    <string name="remove_one">Quitar una copia</string>
+
+    <!-- Selector de edición -->
+    <string name="reviewing_left">Revisando: quedan %1$d</string>
+    <string name="suggested_edition">Edición sugerida</string>
+    <string name="current_edition">Edición actual</string>
+    <string name="is_correct">Es correcta</string>
+    <string name="language">Idioma</string>
+    <string name="lang_en">Inglés</string>
+    <string name="lang_es">Español</string>
+    <string name="search_edition">Buscar edición: nombre, código, número o año</string>
+    <string name="editions_count">%1$d de %2$d ediciones</string>
+    <string name="sorted_by_photo">ordenadas por parecido con tu foto</string>
+    <string name="sorted_by_date">de la más reciente a la más antigua</string>
+    <string name="similarity">Parecido con tu foto: %1$d %%</string>
+    <string name="choose_edition_to_add">Elige la edición para añadirla</string>
+    <string name="add_card">Añadir carta</string>
+    <string name="card_name_hint">Nombre (inglés o español)</string>
+
+    <!-- Exportar -->
+    <string name="export_title">Exportar: %1$s (%2$s)</string>
+    <string name="format_csv">Hoja de cálculo (CSV)</string>
+    <string name="format_csv_desc">Todo, con precios. Para Excel, Google Sheets u otras apps (incluye el ID de Scryfall).</string>
+    <string name="format_moxfield">Moxfield (CSV)</string>
+    <string name="format_moxfield_desc">Para importar las cartas en Moxfield.</string>
+    <string name="format_text">Lista de texto</string>
+    <string name="format_text_desc">"2 Lightning Bolt (M11) 149": para pegar en un mensaje o un foro.</string>
+    <string name="share_subject">Cartas MTG: %1$s (%2$s)</string>
+    <string name="share_title">Compartir: %1$s</string>
+
+    <!-- Copia de seguridad e importar -->
+    <string name="backup_file_prefix">mtg-scanner-copia</string>
+    <string name="backup_saved">Copia de seguridad guardada (%1$s)</string>
+    <string name="backup_failed">No se pudo guardar la copia: %1$s</string>
+    <string name="read_failed">No se pudo leer el fichero: %1$s</string>
+    <string name="file_too_big">el fichero es demasiado grande</string>
+    <string name="file_default_name">fichero</string>
+    <string name="import_title">Importar %1$s</string>
+    <string name="import_none">No se ha reconocido ninguna carta. Se admiten CSV (de esta app, Moxfield, ManaBox, Deckbox, TCGplayer…) y listas de texto como "4 Lightning Bolt (M11) 149".</string>
+    <string name="import_recognised">%1$s reconocidas</string>
+    <string name="import_in_decks">En %1$s: %2$s</string>
+    <string name="import_pending">%1$s con la edición por revisar</string>
+    <string name="import_target_deck">Al añadir, las que no traen mazo irán a %1$s.</string>
+    <plurals name="lines_not_recognised">
+        <item quantity="one">%d línea no reconocida:</item>
+        <item quantity="other">%d líneas no reconocidas:</item>
+    </plurals>
+    <string name="import_line">Línea %1$d: %2$s</string>
+    <string name="and_n_more">… y %1$d más</string>
+    <string name="replace">Sustituir</string>
+    <string name="add">Añadir</string>
+    <string name="import_action">Importar</string>
+    <string name="replace_question">¿Sustituir la colección?</string>
+    <string name="replace_explain">Se borrarán las %1$s actuales%2$s, y quedarán solo las %3$s del fichero. No se puede deshacer.</string>
+    <string name="replace_explain_decks">" y %1$s"</string>
+    <string name="collection_replaced">Colección sustituida: %1$s</string>
+    <string name="cards_added">Añadidas: %1$s</string>
+    <string name="import_failed">No se pudo importar: %1$s</string>
+</resources>

@@ -1,5 +1,7 @@
 package com.hernan.mtgscanner.data
 
+import androidx.annotation.StringRes
+import com.hernan.mtgscanner.R
 import java.util.Locale
 
 /**
@@ -8,10 +10,10 @@ import java.util.Locale
  */
 object CollectionExport {
 
-    enum class Format(val label: String, val extension: String, val mime: String) {
-        CSV("Hoja de cálculo (CSV)", "csv", "text/csv"),
-        MOXFIELD("Moxfield (CSV)", "csv", "text/csv"),
-        TEXT("Lista de texto", "txt", "text/plain"),
+    enum class Format(@StringRes val label: Int, val extension: String, val mime: String) {
+        CSV(R.string.format_csv, "csv", "text/csv"),
+        MOXFIELD(R.string.format_moxfield, "csv", "text/csv"),
+        TEXT(R.string.format_text, "txt", "text/plain"),
     }
 
     /** Una línea exportada: copias de la misma impresión, acabado, estado e idioma. */
@@ -50,8 +52,8 @@ object CollectionExport {
                 deck = if (detailed) deckName(g.deckId) else null, needsReview = detailed && g.needsReview)
         }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, Line::name).thenBy { it.setCode }.thenBy { it.deck.orEmpty() })
 
-    fun render(format: Format, lines: List<Line>, currency: Currency): String = when (format) {
-        Format.CSV -> csv(lines, currency)
+    fun render(format: Format, lines: List<Line>, currency: Currency, english: Boolean = false): String = when (format) {
+        Format.CSV -> csv(lines, currency, english)
         Format.MOXFIELD -> moxfield(lines)
         Format.TEXT -> text(lines)
     }
@@ -61,12 +63,19 @@ object CollectionExport {
      * de cálculo. Lleva todo lo necesario para volver a importarlo (CollectionImport),
      * así que es también la copia de seguridad.
      */
-    fun csv(lines: List<Line>, currency: Currency): String = buildString {
-        row("Cantidad", "Nombre", "Edición", "Código", "Número", "Idioma", "Estado", "Foil", "Mazo", "Por revisar",
-            "Precio unidad (${currency.name})", "Precio total (${currency.name})", "Scryfall ID")
+    fun csv(lines: List<Line>, currency: Currency, english: Boolean = false): String = buildString {
+        val c = currency.name
+        if (english) {
+            row("Quantity", "Name", "Set name", "Set code", "Number", "Language", "Condition", "Foil", "Deck", "Needs review",
+                "Unit price ($c)", "Total price ($c)", "Scryfall ID")
+        } else {
+            row("Cantidad", "Nombre", "Edición", "Código", "Número", "Idioma", "Estado", "Foil", "Mazo", "Por revisar",
+                "Precio unidad ($c)", "Precio total ($c)", "Scryfall ID")
+        }
+        val yes = if (english) "yes" else "sí"
         for (l in lines) {
             row(l.quantity.toString(), l.name, l.setName, l.setCode.uppercase(), l.collectorNumber,
-                l.lang.uppercase(), l.condition, if (l.foil) "sí" else "no", l.deck.orEmpty(), if (l.needsReview) "sí" else "",
+                l.lang.uppercase(), l.condition, if (l.foil) yes else "no", l.deck.orEmpty(), if (l.needsReview) yes else "",
                 l.unitPrice?.let(::money) ?: "", l.unitPrice?.let { money(it * l.quantity) } ?: "", l.cardId)
         }
     }

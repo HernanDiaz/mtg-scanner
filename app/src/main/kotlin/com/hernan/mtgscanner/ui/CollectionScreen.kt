@@ -59,6 +59,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.hernan.mtgscanner.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -78,12 +81,12 @@ import java.text.Normalizer
 private val REVIEW_COLOR = Color(0xFFFFB74D)
 
 /** Idiomas que se pueden asignar a una carta de la colección. */
-private val LANGUAGES = listOf("en" to "Inglés", "es" to "Español")
+private val LANGUAGES = listOf("en" to R.string.lang_en, "es" to R.string.lang_es)
 
 private val SORTS = listOf(
-    CollectionStore.Sort.RECENT to "Recientes",
-    CollectionStore.Sort.VALUE to "Valor",
-    CollectionStore.Sort.NAME to "Nombre",
+    CollectionStore.Sort.RECENT to R.string.sort_recent,
+    CollectionStore.Sort.VALUE to R.string.sort_value,
+    CollectionStore.Sort.NAME to R.string.sort_name,
 )
 
 @Composable
@@ -99,6 +102,7 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
     /** Diálogo de nombre de mazo: crear (id null) o renombrar. */
     var deckDialog by remember { mutableStateOf<Pair<Long?, String>?>(null) }
     var deletingDeck by remember { mutableStateOf<CollectionStore.Deck?>(null) }
+    val context = LocalContext.current
     var fileMenu by remember { mutableStateOf(false) }
     var importing by remember { mutableStateOf<ImportPreview?>(null) }
     var readingFile by remember { mutableStateOf(false) }
@@ -110,12 +114,12 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
             readingFile = true
             runCatching { vm.readImport(uri) }
                 .onSuccess { importing = it }
-                .onFailure { vm.showMessage("No se pudo leer el fichero: ${it.message}") }
+                .onFailure { vm.showMessage(context.getString(R.string.read_failed, it.message)) }
             readingFile = false
         }
     }
-    val context = LocalContext.current
     val currentDeck = ui.decks.firstOrNull { it.id == ui.filter.deckId }
+    val scopeLabel = ui.scopeLabel(context.resources)
 
     fun openNext(next: CollectionStore.Group?) {
         editing = if (reviewing) next else null
@@ -129,27 +133,27 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                     Column(Modifier.weight(1f)) {
                         Text(formatPrice(ui.summary.total, ui.currency),
                             style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                        Text("${ui.scopeLabel()} · ${cardsLabel(ui.summary.cards)}", style = MaterialTheme.typography.bodyMedium,
+                        Text("$scopeLabel · ${cardsLabel(ui.summary.cards)}", style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     IconButton(onClick = { exporting = true }, enabled = ui.summary.cards > 0) {
-                        Icon(Icons.Default.Share, "Exportar y compartir lo que se ve")
+                        Icon(Icons.Default.Share, stringResource(R.string.export_share))
                     }
-                    IconButton(onClick = { searching = true }) { Icon(Icons.Default.Add, "Añadir a mano") }
+                    IconButton(onClick = { searching = true }) { Icon(Icons.Default.Add, stringResource(R.string.add_manually)) }
                     if (ui.updatingPrices || readingFile) {
                         CircularProgressIndicator(Modifier.size(24.dp).padding(2.dp))
                     } else {
-                        IconButton(onClick = { vm.updatePrices() }) { Icon(Icons.Default.Refresh, "Actualizar precios") }
+                        IconButton(onClick = { vm.updatePrices() }) { Icon(Icons.Default.Refresh, stringResource(R.string.update_prices)) }
                     }
                     Box {
-                        IconButton(onClick = { fileMenu = true }) { Icon(Icons.Default.MoreVert, "Copia de seguridad e importar") }
+                        IconButton(onClick = { fileMenu = true }) { Icon(Icons.Default.MoreVert, stringResource(R.string.backup_import)) }
                         DropdownMenu(expanded = fileMenu, onDismissRequest = { fileMenu = false }) {
                             DropdownMenuItem(
-                                text = { Text("Guardar copia de seguridad") },
+                                text = { Text(stringResource(R.string.save_backup)) },
                                 onClick = { fileMenu = false; backupLauncher.launch(vm.backupFileName()) },
                             )
                             DropdownMenuItem(
-                                text = { Text("Importar cartas o copia…") },
+                                text = { Text(stringResource(R.string.import_cards)) },
                                 onClick = { fileMenu = false; importLauncher.launch(arrayOf("*/*")) },
                             )
                         }
@@ -164,7 +168,7 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                             }
                         },
                         modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                    ) { Text("Revisar ediciones (${ui.pendingTotal} pendientes)") }
+                    ) { Text(stringResource(R.string.review_editions, ui.pendingTotal)) }
                 }
 
                 // Mazos
@@ -173,22 +177,22 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    FilterChip(selected = ui.filter.deckId == null, onClick = { vm.showDeck(null) }, label = { Text("Todas") })
+                    FilterChip(selected = ui.filter.deckId == null, onClick = { vm.showDeck(null) }, label = { Text(stringResource(R.string.all_cards)) })
                     ui.decks.forEach { d ->
                         FilterChip(selected = ui.filter.deckId == d.id, onClick = { vm.showDeck(d.id) },
-                            label = { Text("${d.name} (${d.cards})") })
+                            label = { Text(stringResource(R.string.deck_with_count, d.name, d.cards)) })
                     }
                     if (ui.decks.isNotEmpty()) {
                         FilterChip(selected = ui.filter.deckId == CollectionStore.NO_DECK,
-                            onClick = { vm.showDeck(CollectionStore.NO_DECK) }, label = { Text("Sin mazo") })
+                            onClick = { vm.showDeck(CollectionStore.NO_DECK) }, label = { Text(stringResource(R.string.no_deck)) })
                     }
                     FilterChip(selected = false, onClick = { deckDialog = null to "" },
-                        leadingIcon = { Icon(Icons.Default.Add, null, Modifier.size(18.dp)) }, label = { Text("Mazo") })
+                        leadingIcon = { Icon(Icons.Default.Add, null, Modifier.size(18.dp)) }, label = { Text(stringResource(R.string.deck_add)) })
                 }
                 currentDeck?.let { d ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = { deckDialog = d.id to d.name }) { Text("Renombrar mazo") }
-                        TextButton(onClick = { deletingDeck = d }) { Text("Borrar mazo") }
+                        TextButton(onClick = { deckDialog = d.id to d.name }) { Text(stringResource(R.string.rename_deck)) }
+                        TextButton(onClick = { deletingDeck = d }) { Text(stringResource(R.string.delete_deck)) }
                     }
                 }
 
@@ -202,11 +206,11 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
 
                 OutlinedTextField(
                     value = ui.filter.query, onValueChange = vm::setQuery, singleLine = true,
-                    placeholder = { Text("Buscar en la colección") },
+                    placeholder = { Text(stringResource(R.string.search_collection)) },
                     leadingIcon = { Icon(Icons.Default.Search, null) },
                     trailingIcon = {
                         if (ui.filter.query.isNotEmpty()) {
-                            IconButton(onClick = { vm.setQuery("") }) { Icon(Icons.Default.Close, "Borrar") }
+                            IconButton(onClick = { vm.setQuery("") }) { Icon(Icons.Default.Close, stringResource(R.string.clear)) }
                         }
                     },
                     modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
@@ -218,10 +222,10 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                 ) {
                     FilterChip(
                         selected = ui.filter.onlyPending, onClick = { vm.setOnlyPending(!ui.filter.onlyPending) },
-                        label = { Text("Por revisar") },
+                        label = { Text(stringResource(R.string.pending_review)) },
                     )
                     SORTS.forEach { (sort, label) ->
-                        FilterChip(selected = ui.sort == sort, onClick = { vm.setSort(sort) }, label = { Text(label) })
+                        FilterChip(selected = ui.sort == sort, onClick = { vm.setSort(sort) }, label = { Text(stringResource(label)) })
                     }
                     Currency.entries.forEach { c ->
                         FilterChip(selected = ui.currency == c, onClick = { vm.setCurrency(c) }, label = { Text(c.symbol) })
@@ -231,14 +235,14 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                         Box {
                             var open by remember { mutableStateOf(false) }
                             FilterChip(selected = ui.priceKind != PriceKind.TREND, onClick = { open = true },
-                                label = { Text("Precio: ${ui.priceKind.label}") })
+                                label = { Text(stringResource(R.string.price_label, stringResource(ui.priceKind.label))) })
                             DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                                 PriceKind.entries.forEach { k ->
                                     DropdownMenuItem(
                                         text = {
                                             Column {
-                                                Text(k.label, fontWeight = if (k == ui.priceKind) FontWeight.Bold else null)
-                                                Text(k.description, style = MaterialTheme.typography.bodySmall)
+                                                Text(stringResource(k.label), fontWeight = if (k == ui.priceKind) FontWeight.Bold else null)
+                                                Text(stringResource(k.description), style = MaterialTheme.typography.bodySmall)
                                             }
                                         },
                                         onClick = { open = false; vm.setPriceKind(k) },
@@ -255,15 +259,14 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
             }
         }
 
-        if (ui.groups.isEmpty()) {
+        if (ui.loaded && ui.groups.isEmpty()) {
             val onlyDeck = ui.filter.query.isEmpty() && !ui.filter.onlyPending && ui.filter.colors.isEmpty()
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     when {
-                        currentDeck != null && onlyDeck ->
-                            "Mazo vacío. Mueve cartas aquí desde el menú de cada carta, o escanea con este mazo como destino."
-                        ui.filter.deckId == null && onlyDeck -> "Aún no hay cartas. Ve a Escanear."
-                        else -> "Ninguna carta coincide."
+                        currentDeck != null && onlyDeck -> stringResource(R.string.empty_deck)
+                        ui.filter.deckId == null && onlyDeck -> stringResource(R.string.empty_collection)
+                        else -> stringResource(R.string.no_match)
                     },
                     modifier = Modifier.padding(24.dp),
                 )
@@ -287,7 +290,7 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
         var lang by remember(group) { mutableStateOf(group.lang) }
         PrintingPicker(
             title = group.name,
-            subtitle = if (reviewing) "Revisando: quedan ${ui.pendingTotal}" else null,
+            subtitle = if (reviewing) stringResource(R.string.reviewing_left, ui.pendingTotal) else null,
             load = { vm.optionsFor(group.name, group.art) },
             currentId = group.cardId,
             currency = ui.currency,
@@ -314,7 +317,7 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
     }
     deckDialog?.let { (id, initial) ->
         DeckNameDialog(
-            title = if (id == null) "Nuevo mazo" else "Renombrar mazo", initial = initial,
+            title = stringResource(if (id == null) R.string.new_deck else R.string.rename_deck), initial = initial,
             onConfirm = { name -> if (id == null) vm.createDeck(name) else vm.renameDeck(id, name); deckDialog = null },
             onDismiss = { deckDialog = null },
         )
@@ -322,10 +325,10 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
     deletingDeck?.let { d ->
         AlertDialog(
             onDismissRequest = { deletingDeck = null },
-            title = { Text("¿Borrar el mazo ${d.name}?") },
-            text = { Text("Sus cartas (${cardsLabel(d.cards)}) no se borran: vuelven a la colección, sin mazo.") },
-            confirmButton = { TextButton(onClick = { vm.deleteDeck(d.id); deletingDeck = null }) { Text("Borrar mazo") } },
-            dismissButton = { TextButton(onClick = { deletingDeck = null }) { Text("Cancelar") } },
+            title = { Text(stringResource(R.string.delete_deck_question, d.name)) },
+            text = { Text(stringResource(R.string.delete_deck_explain, cardsLabel(d.cards))) },
+            confirmButton = { TextButton(onClick = { vm.deleteDeck(d.id); deletingDeck = null }) { Text(stringResource(R.string.delete_deck)) } },
+            dismissButton = { TextButton(onClick = { deletingDeck = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
     if (searching) {
@@ -340,7 +343,7 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
     }
     if (exporting) {
         ExportDialog(
-            scope = ui.scopeLabel(),
+            scope = scopeLabel,
             cards = ui.summary.cards,
             onPick = { format ->
                 exporting = false
@@ -354,6 +357,8 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
 /** Botón redondo de color (W U B R G y C = incoloro), como los símbolos de maná. */
 @Composable
 private fun ColorToggle(c: Char, selected: Boolean, onClick: () -> Unit) {
+    val context = LocalContext.current
+    val name = stringResource(COLOR_NAMES.getValue(c))
     val (fill, ink) = when (c) {
         'W' -> Color(0xFFF8F1D8) to Color.Black
         'U' -> Color(0xFF2E7FD1) to Color.White
@@ -368,7 +373,7 @@ private fun ColorToggle(c: Char, selected: Boolean, onClick: () -> Unit) {
             .background(if (selected) fill else fill.copy(alpha = 0.25f))
             .border(2.dp, if (selected) MaterialTheme.colorScheme.primary else Color.Transparent, CircleShape)
             .clickable(onClick = onClick)
-            .semantics { contentDescription = "${COLOR_NAMES[c]}${if (selected) ", seleccionado" else ""}" },
+            .semantics { contentDescription = if (selected) context.getString(R.string.color_selected, name) else name },
         contentAlignment = Alignment.Center,
     ) {
         Text(c.toString(), color = if (selected) ink else MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
@@ -386,43 +391,41 @@ private fun ImportDialog(preview: ImportPreview, onImport: (replace: Boolean) ->
     if (confirmReplace) {
         AlertDialog(
             onDismissRequest = { confirmReplace = false },
-            title = { Text("¿Sustituir la colección?") },
+            title = { Text(stringResource(R.string.replace_question)) },
             text = {
-                Text("Se borrarán las ${cardsLabel(preview.currentCards)} actuales" +
-                    (if (preview.currentDecks > 0) " y ${decksLabel(preview.currentDecks)}" else "") +
-                    ", y quedarán solo las ${cardsLabel(r.cards)} del fichero. No se puede deshacer.")
+                val decks = if (preview.currentDecks > 0) stringResource(R.string.replace_explain_decks, decksLabel(preview.currentDecks)) else ""
+                Text(stringResource(R.string.replace_explain, cardsLabel(preview.currentCards), decks, cardsLabel(r.cards)))
             },
-            confirmButton = { TextButton(onClick = { onImport(true) }) { Text("Sustituir") } },
-            dismissButton = { TextButton(onClick = { confirmReplace = false }) { Text("Cancelar") } },
+            confirmButton = { TextButton(onClick = { onImport(true) }) { Text(stringResource(R.string.replace)) } },
+            dismissButton = { TextButton(onClick = { confirmReplace = false }) { Text(stringResource(R.string.cancel)) } },
         )
         return
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Importar ${preview.fileName}") },
+        title = { Text(stringResource(R.string.import_title, preview.fileName)) },
         text = {
             Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
                 if (r.items.isEmpty()) {
-                    Text("No se ha reconocido ninguna carta. Se admiten CSV (de esta app, Moxfield, ManaBox, " +
-                        "Deckbox, TCGplayer...) y listas de texto como \"4 Lightning Bolt (M11) 149\".")
+                    Text(stringResource(R.string.import_none))
                 } else {
-                    Text("${cardsLabel(r.cards)} reconocidas", fontWeight = FontWeight.Bold)
-                    if (r.decks.isNotEmpty()) Text("En ${decksLabel(r.decks.size)}: ${r.decks.joinToString(", ")}")
-                    if (r.pending > 0) Text("${cardsLabel(r.pending)} con la edición por revisar", color = REVIEW_COLOR)
+                    Text(stringResource(R.string.import_recognised, cardsLabel(r.cards)), fontWeight = FontWeight.Bold)
+                    if (r.decks.isNotEmpty()) Text(stringResource(R.string.import_in_decks, decksLabel(r.decks.size), r.decks.joinToString(", ")))
+                    if (r.pending > 0) Text(stringResource(R.string.import_pending, cardsLabel(r.pending)), color = REVIEW_COLOR)
                     if (preview.targetDeck != null) {
-                        Text("Al añadir, las que no traen mazo irán a ${preview.targetDeck.name}.",
+                        Text(stringResource(R.string.import_target_deck, preview.targetDeck.name),
                             style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
                     }
                 }
                 if (r.failed.isNotEmpty()) {
-                    Text("${r.failed.size} ${if (r.failed.size == 1) "línea no reconocida" else "líneas no reconocidas"}:",
+                    Text(pluralStringResource(R.plurals.lines_not_recognised, r.failed.size, r.failed.size),
                         fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp))
                     r.failed.take(MAX_FAILED_SHOWN).forEach {
-                        Text("Línea ${it.line}: ${it.text}", style = MaterialTheme.typography.bodySmall,
+                        Text(stringResource(R.string.import_line, it.line, it.text), style = MaterialTheme.typography.bodySmall,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     if (r.failed.size > MAX_FAILED_SHOWN) {
-                        Text("… y ${r.failed.size - MAX_FAILED_SHOWN} más", style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.and_n_more, r.failed.size - MAX_FAILED_SHOWN), style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
@@ -430,42 +433,45 @@ private fun ImportDialog(preview: ImportPreview, onImport: (replace: Boolean) ->
         confirmButton = {
             Row {
                 if (r.items.isNotEmpty()) {
-                    if (preview.currentCards > 0) TextButton(onClick = { confirmReplace = true }) { Text("Sustituir") }
-                    TextButton(onClick = { onImport(false) }) { Text(if (preview.currentCards > 0) "Añadir" else "Importar") }
+                    if (preview.currentCards > 0) TextButton(onClick = { confirmReplace = true }) { Text(stringResource(R.string.replace)) }
+                    TextButton(onClick = { onImport(false) }) {
+                        Text(stringResource(if (preview.currentCards > 0) R.string.add else R.string.import_action))
+                    }
                 }
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
 private const val MAX_FAILED_SHOWN = 20
 
-private fun decksLabel(n: Int) = if (n == 1) "1 mazo" else "$n mazos"
+@Composable
+private fun decksLabel(n: Int) = pluralStringResource(R.plurals.decks, n, n)
 
 /** Elegir formato de exportación de lo que se está viendo; luego se abre el menú de compartir de Android. */
 @Composable
 private fun ExportDialog(scope: String, cards: Int, onPick: (CollectionExport.Format) -> Unit, onDismiss: () -> Unit) {
     val descriptions = mapOf(
-        CollectionExport.Format.CSV to "Todo, con precios. Para Excel, Google Sheets u otras apps (incluye el ID de Scryfall).",
-        CollectionExport.Format.MOXFIELD to "Para importar las cartas en Moxfield.",
-        CollectionExport.Format.TEXT to "\"2 Lightning Bolt (M11) 149\": para pegar en un mensaje o un foro.",
+        CollectionExport.Format.CSV to R.string.format_csv_desc,
+        CollectionExport.Format.MOXFIELD to R.string.format_moxfield_desc,
+        CollectionExport.Format.TEXT to R.string.format_text_desc,
     )
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Exportar: $scope (${cardsLabel(cards)})") },
+        title = { Text(stringResource(R.string.export_title, scope, cardsLabel(cards))) },
         text = {
             Column {
                 CollectionExport.Format.entries.forEach { f ->
                     Column(Modifier.fillMaxWidth().clickable { onPick(f) }.padding(vertical = 10.dp)) {
-                        Text(f.label, fontWeight = FontWeight.Bold)
-                        Text(descriptions.getValue(f), style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(f.label), fontWeight = FontWeight.Bold)
+                        Text(stringResource(descriptions.getValue(f)), style = MaterialTheme.typography.bodySmall)
                     }
                     HorizontalDivider()
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -483,7 +489,7 @@ private fun GroupRow(
         Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (g.needsReview) {
-                    Icon(Icons.Default.Warning, "Por revisar", tint = REVIEW_COLOR, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Warning, stringResource(R.string.pending_review), tint = REVIEW_COLOR, modifier = Modifier.size(16.dp))
                 }
                 Text(g.name, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
@@ -492,7 +498,7 @@ private fun GroupRow(
                 style = MaterialTheme.typography.bodySmall,
             )
             deckName?.let {
-                Text("Mazo: $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary,
+                Text(stringResource(R.string.deck_named, it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
@@ -501,11 +507,11 @@ private fun GroupRow(
             Text(formatPrice(g.unitPrice?.times(g.quantity), currency), fontWeight = FontWeight.Bold)
         }
         Box {
-            IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, "Más opciones") }
+            IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, stringResource(R.string.more_options)) }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(text = { Text("Mover a un mazo…") }, onClick = { menu = false; onMove() })
-                DropdownMenuItem(text = { Text("Cambiar edición o idioma") }, onClick = { menu = false; onClick() })
-                DropdownMenuItem(text = { Text("Quitar una copia") }, onClick = { menu = false; onRemove() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.move_to_deck)) }, onClick = { menu = false; onMove() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.change_edition)) }, onClick = { menu = false; onClick() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.remove_one)) }, onClick = { menu = false; onRemove() })
             }
         }
     }
@@ -524,41 +530,41 @@ private fun MoveToDeckDialog(
     var newName by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Mover ${group.name}") },
+        title = { Text(stringResource(R.string.move_title, group.name)) },
         text = {
             Column {
                 if (group.quantity > 1) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Copias:", Modifier.weight(1f))
+                        Text(stringResource(R.string.copies), Modifier.weight(1f))
                         TextButton(onClick = { if (count > 1) count-- }) { Text("−") }
-                        Text("$count de ${group.quantity}", fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.n_of_m, count, group.quantity), fontWeight = FontWeight.Bold)
                         TextButton(onClick = { if (count < group.quantity) count++ }) { Text("+") }
                     }
                 }
                 LazyColumn(Modifier.heightIn(max = 300.dp)) {
                     if (group.deckId != null) {
                         item {
-                            Text("Sacar del mazo (sin mazo)", Modifier.fillMaxWidth().clickable { onMove(null, count) }
+                            Text(stringResource(R.string.take_out_of_deck), Modifier.fillMaxWidth().clickable { onMove(null, count) }
                                 .padding(vertical = 12.dp))
                             HorizontalDivider()
                         }
                     }
                     items(decks.filter { it.id != group.deckId }, key = { it.id }) { d ->
-                        Text("${d.name} (${d.cards})", Modifier.fillMaxWidth().clickable { onMove(d.id, count) }
+                        Text(stringResource(R.string.deck_with_count, d.name, d.cards), Modifier.fillMaxWidth().clickable { onMove(d.id, count) }
                             .padding(vertical = 12.dp))
                         HorizontalDivider()
                     }
                 }
                 OutlinedTextField(
                     value = newName, onValueChange = { newName = it }, singleLine = true,
-                    label = { Text("O a un mazo nuevo") }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    label = { Text(stringResource(R.string.or_to_new_deck)) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = { onCreateAndMove(newName, count) }, enabled = newName.isNotBlank()) { Text("Crear y mover") }
+            TextButton(onClick = { onCreateAndMove(newName, count) }, enabled = newName.isNotBlank()) { Text(stringResource(R.string.create_and_move)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -570,10 +576,10 @@ private fun DeckNameDialog(title: String, initial: String, onConfirm: (String) -
         title = { Text(title) },
         text = {
             OutlinedTextField(value = name, onValueChange = { name = it }, singleLine = true,
-                label = { Text("Nombre del mazo") }, modifier = Modifier.fillMaxWidth())
+                label = { Text(stringResource(R.string.deck_name)) }, modifier = Modifier.fillMaxWidth())
         },
-        confirmButton = { TextButton(onClick = { onConfirm(name) }, enabled = name.isNotBlank()) { Text("Guardar") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+        confirmButton = { TextButton(onClick = { onConfirm(name) }, enabled = name.isNotBlank()) { Text(stringResource(R.string.save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -609,7 +615,7 @@ private fun PrintingPicker(
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                         subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = REVIEW_COLOR) }
                     }
-                    IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, "Cerrar") }
+                    IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, stringResource(R.string.close)) }
                 }
 
                 val list = options
@@ -619,7 +625,7 @@ private fun PrintingPicker(
                         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             CardThumb(current.smallImageUrl, 64.dp)
                             Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
-                                Text(if (onConfirm != null) "Edición sugerida" else "Edición actual",
+                                Text(stringResource(if (onConfirm != null) R.string.suggested_edition else R.string.current_edition),
                                     style = MaterialTheme.typography.labelMedium)
                                 Text(current.setName, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                 Text("${current.setCode.uppercase()} #${current.collectorNumber} · ${current.releasedAt?.take(4) ?: ""} · " +
@@ -629,7 +635,7 @@ private fun PrintingPicker(
                                 Button(onClick = onConfirm) {
                                     Icon(Icons.Default.Check, null, Modifier.size(18.dp))
                                     Spacer(Modifier.size(4.dp))
-                                    Text("Es correcta")
+                                    Text(stringResource(R.string.is_correct))
                                 }
                             }
                         }
@@ -637,14 +643,14 @@ private fun PrintingPicker(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Idioma", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.language), style = MaterialTheme.typography.bodySmall)
                     LANGUAGES.forEach { (code, label) ->
-                        FilterChip(selected = lang == code, onClick = { onLangChange(code) }, label = { Text(label) })
+                        FilterChip(selected = lang == code, onClick = { onLangChange(code) }, label = { Text(stringResource(label)) })
                     }
                 }
                 OutlinedTextField(
                     value = query, onValueChange = { query = it }, singleLine = true,
-                    placeholder = { Text("Buscar edición: nombre, código, número o año") },
+                    placeholder = { Text(stringResource(R.string.search_edition)) },
                     leadingIcon = { Icon(Icons.Default.Search, null) },
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -655,8 +661,8 @@ private fun PrintingPicker(
                     val filtered = list.filter { matchesPrinting(it.printing, query) }
                     val byPhoto = list.any { it.similarity != null }
                     Text(
-                        "${filtered.size} de ${list.size} ediciones · " +
-                            if (byPhoto) "ordenadas por parecido con tu foto" else "de la más reciente a la más antigua",
+                        stringResource(R.string.editions_count, filtered.size, list.size) + " · " +
+                            stringResource(if (byPhoto) R.string.sorted_by_photo else R.string.sorted_by_date),
                         style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 6.dp),
                     )
                     LazyColumn(Modifier.fillMaxSize()) {
@@ -687,7 +693,7 @@ private fun PrintingRow(opt: PrintingOption, isCurrent: Boolean, currency: Curre
             Text("${p.setCode.uppercase()} #${p.collectorNumber} · ${p.releasedAt?.take(4) ?: ""}",
                 style = MaterialTheme.typography.bodySmall)
             opt.similarity?.let {
-                Text("Parecido con tu foto: ${(it.coerceAtLeast(0.0) * 100).toInt()} %",
+                Text(stringResource(R.string.similarity, (it.coerceAtLeast(0.0) * 100).toInt()),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (it >= 0.6) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -725,7 +731,7 @@ private fun ManualAddDialog(vm: CollectionViewModel, currency: Currency, onDismi
     val name = chosen
     if (name != null) {
         PrintingPicker(
-            title = name, subtitle = "Elige la edición para añadirla",
+            title = name, subtitle = stringResource(R.string.choose_edition_to_add),
             load = { vm.optionsFor(name, null) }, currentId = null, currency = currency, foil = false,
             lang = lang, onLangChange = { lang = it }, onConfirm = null,
             onPick = { vm.addManual(it, foil = false, lang = lang); chosen = null },
@@ -736,11 +742,11 @@ private fun ManualAddDialog(vm: CollectionViewModel, currency: Currency, onDismi
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Añadir carta") },
+        title = { Text(stringResource(R.string.add_card)) },
         text = {
             Column {
                 OutlinedTextField(value = query, onValueChange = { query = it }, singleLine = true,
-                    label = { Text("Nombre (inglés o español)") }, modifier = Modifier.fillMaxWidth())
+                    label = { Text(stringResource(R.string.card_name_hint)) }, modifier = Modifier.fillMaxWidth())
                 LazyColumn(Modifier.heightIn(max = 360.dp)) {
                     items(results) { n ->
                         Text(n, Modifier.fillMaxWidth().clickable { chosen = n }.padding(vertical = 10.dp))
@@ -748,6 +754,6 @@ private fun ManualAddDialog(vm: CollectionViewModel, currency: Currency, onDismi
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cerrar") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
     )
 }

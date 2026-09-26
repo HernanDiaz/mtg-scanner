@@ -21,6 +21,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.hernan.mtgscanner.R
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,12 +37,12 @@ class MainActivity : ComponentActivity() {
                             NavigationBarItem(
                                 selected = tab == 0, onClick = { tab = 0 },
                                 icon = { Icon(Icons.Default.Search, null) },
-                                label = { Text("Escanear") },
+                                label = { Text(stringResource(R.string.tab_scan)) },
                             )
                             NavigationBarItem(
                                 selected = tab == 1, onClick = { tab = 1 },
                                 icon = { Icon(Icons.AutoMirrored.Filled.List, null) },
-                                label = { Text("Colección") },
+                                label = { Text(stringResource(R.string.tab_collection)) },
                             )
                         }
                     },

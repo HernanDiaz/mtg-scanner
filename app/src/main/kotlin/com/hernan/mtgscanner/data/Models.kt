@@ -1,5 +1,8 @@
 package com.hernan.mtgscanner.data
 
+import androidx.annotation.StringRes
+import com.hernan.mtgscanner.R
+
 /** Una impresión concreta de una carta (edición + número de coleccionista). */
 data class CardPrinting(
     val id: String,
@@ -57,10 +60,10 @@ enum class Currency(val symbol: String) { EUR("€"), USD("$") }
  * dólares son siempre los de TCGplayer). La tendencia es la que da Scryfall;
  * los otros vienen de la guía de precios de Cardmarket.
  */
-enum class PriceKind(val label: String, val description: String) {
-    TREND("Tendencia", "El precio de tendencia de Cardmarket (el habitual)."),
-    LOW("Más bajo", "La oferta más barata en Cardmarket: lo que costaría comprarla hoy."),
-    AVG30("Media 30 días", "La media de las ventas del último mes: cambia menos de un día a otro."),
+enum class PriceKind(@StringRes val label: Int, @StringRes val description: Int) {
+    TREND(R.string.price_trend, R.string.price_trend_desc),
+    LOW(R.string.price_low, R.string.price_low_desc),
+    AVG30(R.string.price_avg30, R.string.price_avg30_desc),
 }
 
 /** Estados estándar de Cardmarket. */

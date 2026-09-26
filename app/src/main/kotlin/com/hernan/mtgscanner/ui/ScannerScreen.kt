@@ -52,6 +52,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.hernan.mtgscanner.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
@@ -78,9 +80,9 @@ fun ScannerScreen(vm: ScannerViewModel = viewModel()) {
     if (!granted) {
         Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("La app necesita la cámara para escanear cartas.")
+            Text(stringResource(R.string.camera_needed))
             Spacer(Modifier.size(12.dp))
-            Button(onClick = { launcher.launch(Manifest.permission.CAMERA) }) { Text("Dar permiso") }
+            Button(onClick = { launcher.launch(Manifest.permission.CAMERA) }) { Text(stringResource(R.string.grant_permission)) }
         }
         return
     }
@@ -111,7 +113,7 @@ fun ScannerScreen(vm: ScannerViewModel = viewModel()) {
                     fontWeight = FontWeight.Bold)
             }
             Text(
-                if (ui.loading) "Cargando catálogo…" else ui.reading ?: "Apunta a una carta",
+                if (ui.loading) stringResource(R.string.loading_catalog) else ui.reading ?: stringResource(R.string.point_at_card),
                 style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.7f),
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
@@ -124,11 +126,14 @@ fun ScannerScreen(vm: ScannerViewModel = viewModel()) {
             ui.lastAdded?.let { added -> LastAddedCard(added, currency, onUndo = vm::undo) }
             Spacer(Modifier.size(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected = ui.foil, onClick = vm::toggleFoil, label = { Text("Foil") })
-                FilterChip(selected = ui.torch, onClick = vm::toggleTorch, label = { Text("Linterna") })
+                FilterChip(selected = ui.foil, onClick = vm::toggleFoil, label = { Text(stringResource(R.string.foil)) })
+                FilterChip(selected = ui.torch, onClick = vm::toggleTorch, label = { Text(stringResource(R.string.torch)) })
                 FilterChip(
                     selected = ui.scanDeck != null, onClick = { choosingDeck = true },
-                    label = { Text(ui.scanDeck?.let { "Mazo: ${it.name}" } ?: "Sin mazo", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    label = {
+                        Text(ui.scanDeck?.let { stringResource(R.string.deck_named, it.name) } ?: stringResource(R.string.no_deck),
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    },
                 )
             }
         }
@@ -153,23 +158,23 @@ private fun ScanDeckDialog(
     var newName by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("¿A qué mazo van las cartas?") },
+        title = { Text(stringResource(R.string.scan_deck_question)) },
         text = {
             Column {
-                Text(if (current == null) "✓ Sin mazo" else "Sin mazo",
+                Text((if (current == null) "✓ " else "") + stringResource(R.string.no_deck),
                     Modifier.fillMaxWidth().clickable { onPick(null) }.padding(vertical = 12.dp))
                 decks.forEach { d ->
-                    Text("${if (d.id == current) "✓ " else ""}${d.name} (${d.cards})",
+                    Text((if (d.id == current) "✓ " else "") + stringResource(R.string.deck_with_count, d.name, d.cards),
                         Modifier.fillMaxWidth().clickable { onPick(d.id) }.padding(vertical = 12.dp))
                 }
                 OutlinedTextField(
                     value = newName, onValueChange = { newName = it }, singleLine = true,
-                    label = { Text("O un mazo nuevo") }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    label = { Text(stringResource(R.string.or_new_deck)) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 )
             }
         },
-        confirmButton = { TextButton(onClick = { onCreate(newName) }, enabled = newName.isNotBlank()) { Text("Crear") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+        confirmButton = { TextButton(onClick = { onCreate(newName) }, enabled = newName.isNotBlank()) { Text(stringResource(R.string.create)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -184,13 +189,13 @@ private fun LastAddedCard(added: AddedCard, currency: com.hernan.mtgscanner.data
                 Text("${p.setName} · #${p.collectorNumber} · ${added.lang.uppercase()}${if (added.foil) " · Foil" else ""}",
                     style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (added.needsReview) {
-                    Text("Edición dudosa: revísala en Colección", style = MaterialTheme.typography.bodySmall,
+                    Text(stringResource(R.string.doubtful_edition), style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFFFB74D))
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(formatPrice(p.prices.of(currency, added.foil), currency), fontWeight = FontWeight.Bold)
-                TextButton(onClick = onUndo) { Text("Deshacer") }
+                TextButton(onClick = onUndo) { Text(stringResource(R.string.undo)) }
             }
         }
     }

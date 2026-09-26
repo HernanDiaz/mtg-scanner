@@ -264,7 +264,7 @@ object CollectionImport {
     private val CONDITION = setOf("estado", "condition")
     private val FOIL = setOf("foil", "printing", "finish", "isfoil")
     private val DECK = setOf("mazo", "deck", "deckname")
-    private val REVIEW = setOf("porrevisar", "revisar")
+    private val REVIEW = setOf("porrevisar", "revisar", "needsreview", "review")
 
     private val SECTIONS = setOf("deck", "mazo", "sideboard", "banquillo", "commander", "comandante", "companion", "maybeboard")
 

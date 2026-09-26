@@ -594,6 +594,23 @@ class CollectionImportTest {
         assertEquals("EX", b.condition)
     }
 
+    /** La copia exportada con la app en inglés también se importa igual. */
+    @Test fun englishBackupRoundTrip() {
+        val g = com.hernan.mtgscanner.data.CollectionStore.Group(
+            cardId = borborygmos.id, name = borborygmos.name, setCode = "gtc", collectorNumber = "143", foil = true,
+            condition = "EX", lang = "es", quantity = 2, needsReview = true, unitPrice = 1.0, lastEntryId = 1, deckId = 3,
+        )
+        val csv = export.csv(export.lines(listOf(g), { "Gatecrash" }, { "Gruul" }, detailed = true),
+            com.hernan.mtgscanner.data.Currency.EUR, english = true)
+        assertTrue(csv.startsWith("Quantity,Name,Set name,Set code,Number,Language,Condition,Foil,Deck,Needs review,"))
+        val item = resolve(csv).items.single()
+        assertEquals(borborygmos, item.card)
+        assertEquals(2, item.quantity)
+        assertTrue(item.foil && item.needsReview)
+        assertEquals("Gruul", item.deck)
+        assertEquals("es", item.lang)
+    }
+
     @Test fun moxfieldCsv() {
         val r = resolve(
             "Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Tags,Last Modified,Collector Number\r\n" +
