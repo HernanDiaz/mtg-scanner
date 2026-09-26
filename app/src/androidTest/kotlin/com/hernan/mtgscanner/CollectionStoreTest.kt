@@ -3,7 +3,10 @@ package com.hernan.mtgscanner
 import android.database.sqlite.SQLiteDatabase
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.hernan.mtgscanner.data.CardmarketPrices
 import com.hernan.mtgscanner.data.Catalog
+import com.hernan.mtgscanner.data.PriceKind
+import com.hernan.mtgscanner.data.Prices
 import com.hernan.mtgscanner.data.CollectionExport
 import com.hernan.mtgscanner.data.CollectionFilter
 import com.hernan.mtgscanner.data.CollectionImport
@@ -184,6 +187,62 @@ class CollectionStoreTest {
         return store.groups(Currency.EUR).map {
             listOf(it.cardId, it.foil, it.condition, it.lang, it.needsReview, it.quantity, names[it.deckId], it.colors)
         }.toSet()
+    }
+
+    @Test fun cardmarketGuideIsParsedStreaming() {
+        val json = """{"version":1,"priceGuides":[
+            {"idProduct":1,"idCategory":1,"avg":0.09,"low":0.02,"trend":0.07,"avg30":0.09,"low-foil":0.05,"trend-foil":0.38,"avg30-foil":0.36},
+            {"idProduct":2,"low":0.5,"trend":0,"avg30":null},
+            {"idProduct":3,"low":9.99}]}"""
+        val prices = CardmarketPrices.parse(json.byteInputStream(), setOf(1, 2))
+        assertEquals(setOf(1, 2), prices.keys)
+        assertEquals(CardmarketPrices.Guide(trend = 0.07, trendFoil = 0.38, low = 0.02, lowFoil = 0.05, avg30 = 0.09, avg30Foil = 0.36), prices[1])
+        assertEquals(CardmarketPrices.Guide(low = 0.5), prices[2]) // 0 y null = sin precio
+    }
+
+    /** El valor de la colección según el precio elegido; sin datos de la guía, el de tendencia. */
+    @Test fun priceKinds() {
+        val bolt = catalog.printingsOf("Lightning Bolt").first { it.cardmarketId != null }
+        val swamp = catalog.printingsOf("Swamp").first { it.cardmarketId != null && it.cardmarketId != bolt.cardmarketId }
+        store.add(bolt, false, "NM", needsReview = false)
+        store.add(swamp, false, "NM", needsReview = false)
+        store.updatePrices(mapOf(bolt.id to Prices(2.0, 3.0, null, null), swamp.id to Prices(0.2, null, null, null)))
+        store.updateCardmarketPrices(mapOf(bolt.cardmarketId!! to CardmarketPrices.Guide(trend = 2.5, low = 1.0, avg30 = 2.2)))
+
+        assertEquals(setOf(bolt.cardmarketId, swamp.cardmarketId), store.cardmarketIds())
+        assertEquals(2.7, store.summary(Currency.EUR).total, 1e-9)                       // 2.5 (tendencia de hoy) + 0.2
+        assertEquals(1.2, store.summary(Currency.EUR, kind = PriceKind.LOW).total, 1e-9)    // 1.0 + 0.2 (sin guía)
+        assertEquals(2.4, store.summary(Currency.EUR, kind = PriceKind.AVG30).total, 1e-9)
+        // Scryfall no borra lo de Cardmarket.
+        store.updatePrices(mapOf(bolt.id to Prices(2.1, 3.0, 1.9, null)))
+        assertEquals(1.2, store.summary(Currency.EUR, kind = PriceKind.LOW).total, 1e-9)
+    }
+
+    /** Desde la versión 4 (la actual del móvil): se conservan los precios y se añade la guía. */
+    @Test fun upgradesFromVersion4() {
+        store.close()
+        context.deleteDatabase(DB)
+        val bolt = catalog.printingsOf("Lightning Bolt").first { it.cardmarketId != null }
+        val path = context.getDatabasePath(DB).apply { parentFile?.mkdirs() }
+        SQLiteDatabase.openOrCreateDatabase(path, null).use { db ->
+            db.execSQL("""
+                CREATE TABLE entries (id INTEGER PRIMARY KEY AUTOINCREMENT, card_id TEXT NOT NULL, name TEXT NOT NULL,
+                  set_code TEXT NOT NULL, collector_number TEXT NOT NULL, foil INTEGER NOT NULL, condition TEXT NOT NULL,
+                  lang TEXT NOT NULL DEFAULT 'en', needs_review INTEGER NOT NULL, added_at INTEGER NOT NULL, art BLOB,
+                  deck_id INTEGER, colors TEXT)
+            """)
+            db.execSQL("CREATE TABLE prices (card_id TEXT PRIMARY KEY, eur REAL, eur_foil REAL, usd REAL, usd_foil REAL, updated_at INTEGER NOT NULL)")
+            db.execSQL("CREATE TABLE decks (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)")
+            db.execSQL("INSERT INTO entries (card_id, name, set_code, collector_number, foil, condition, needs_review, added_at, colors) " +
+                "VALUES ('${bolt.id}', 'Lightning Bolt', '${bolt.setCode}', '${bolt.collectorNumber}', 0, 'NM', 0, 0, 'R')")
+            db.execSQL("INSERT INTO prices VALUES ('${bolt.id}', 1.5, NULL, NULL, NULL, 0)")
+            db.version = 4
+        }
+        store = CollectionStore(context, DB)
+        assertEquals(1.5, store.summary(Currency.EUR).total, 1e-9)
+        assertTrue(store.cardmarketIds().isEmpty())
+        store.backfillCardmarketIds { id -> catalog.byId(id)?.cardmarketId }
+        assertEquals(setOf(bolt.cardmarketId), store.cardmarketIds())
     }
 
     /** El móvil con la versión anterior (base de datos v3) conserva sus cartas y recupera los colores. */

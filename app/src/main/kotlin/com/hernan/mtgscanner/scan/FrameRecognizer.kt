@@ -46,13 +46,20 @@ data class FrameResult(
     val lang: String = "en",
     /** La edición se decidió comparando la ilustración. */
     val byArt: Boolean = false,
+    /** La edición se decidió (o se acotó) comparando el símbolo de edición. */
+    val bySymbol: Boolean = false,
     /** Miniatura de la ilustración fotografiada, si se llegó a calcular (edición dudosa). */
     val photoArt: ArtSignature? = null,
 )
 
-/** Huella de la ilustración de la imagen actual en una región (coordenadas de la imagen derecha). */
+/** Los píxeles de la imagen actual, en coordenadas de la imagen derecha (las del OCR). */
 fun interface ArtSampler {
-    fun signature(left: Float, top: Float, right: Float, bottom: Float): ArtSignature?
+    /** Color 0xRRGGBB; fuera de la imagen, el del borde más cercano. */
+    fun rgb(x: Int, y: Int): Int
+
+    /** Huella de la ilustración en una región. */
+    fun signature(left: Float, top: Float, right: Float, bottom: Float): ArtSignature? =
+        ArtSignature.compute(left, top, right, bottom, ::rgb)
 }
 
 /**
@@ -70,11 +77,14 @@ class FrameRecognizer(
     private val printingsOf: (String) -> List<CardPrinting>,
     private val bySetAndNumber: (set: String, number: String) -> CardPrinting? = { _, _ -> null },
     private val artOf: (Int) -> ArtSignature? = { null },
+    private val symbols: SetSymbols? = null,
 ) {
 
     /** [art]: si se da, las ediciones dudosas se deciden comparando la ilustración. */
     fun recognize(lines: List<OcrLine>, art: ArtSampler? = null): FrameResult? {
         artDebug = null
+        symbolDebug = null
+        lastSymbolWindow = null
         lastPhotoArt = null
         val sorted = lines.sortedBy { it.top }
         return byName(sorted, art) ?: byCollectorOnly(sorted)
@@ -103,13 +113,33 @@ class FrameRecognizer(
         if (printings.isEmpty()) return null
         val collector = parseCollector(sorted.drop(nameIndex + 1), setCodes)
         val lang = detectLanguage(sorted, match, collector)
-        val (printing, exact) = resolve(printings, collector, lang == "es")
+        val spanish = lang == "es"
+        var (printing, exact) = resolve(printings, collector, spanish)
+        var decidedByArt = false
+        var decidedBySymbol = false
         if (!exact && art != null) {
-            byArt(printings, collector, lang == "es", sorted, nameIndex, art)?.let { (p, e) ->
-                return FrameResult(p.name, p, e, collector, lang, byArt = true, photoArt = lastPhotoArt)
+            // 1. La ilustración separa las impresiones con dibujos distintos.
+            var candidates = printings
+            byArt(printings, sorted, nameIndex, art)?.let { artId ->
+                candidates = printings.filter { it.artId == artId }
+                decidedByArt = true
+                val r = if (candidates.size == 1) candidates[0] to true else resolve(candidates, collector, spanish)
+                printing = r.first
+                exact = r.second
+            }
+            // 2. El símbolo de edición, las reimpresiones con el mismo dibujo. Solo si es
+            //    seguro: acotar con un símbolo dudoso empeora la sugerencia más que la mejora.
+            if (!exact) {
+                bySymbol(candidates, sorted, nameIndex, art)?.let { winners ->
+                    decidedBySymbol = true
+                    val r = if (winners.size == 1) winners[0] to true else resolve(winners, collector, spanish)
+                    printing = r.first
+                    exact = r.second
+                }
             }
         }
-        return FrameResult(printing.name, printing, exact, collector, lang, photoArt = lastPhotoArt)
+        return FrameResult(printing.name, printing, exact, collector, lang, byArt = decidedByArt,
+            bySymbol = decidedBySymbol, photoArt = lastPhotoArt)
     }
 
     /**
@@ -123,10 +153,8 @@ class FrameRecognizer(
     var artDebug: String? = null
         private set
 
-    private fun byArt(
-        printings: List<CardPrinting>, info: CollectorInfo, spanish: Boolean,
-        sorted: List<OcrLine>, nameIndex: Int, art: ArtSampler,
-    ): Pair<CardPrinting, Boolean>? {
+    /** La ilustración ganadora (su id), o null si ninguna destaca claramente. */
+    private fun byArt(printings: List<CardPrinting>, sorted: List<OcrLine>, nameIndex: Int, art: ArtSampler): Int? {
         val artIds = printings.mapNotNull { it.artId }.distinct()
         if (artIds.size < 2) return null.also { artDebug = "una_ilustracion" }
         val region = artRegion(sorted, nameIndex) ?: return null.also { artDebug = "sin_region" }
@@ -138,10 +166,104 @@ class FrameRecognizer(
         val best = ranked.firstOrNull() ?: return null
         val second = ranked.getOrNull(1)?.second ?: -1.0
         if (best.second < ART_MIN_SIMILARITY || best.second - second < ART_MIN_MARGIN) return null
-        val sameArt = printings.filter { it.artId == best.first }
-        if (sameArt.size == 1) return sameArt[0] to true
-        return resolve(sameArt, info, spanish)
+        return best.first
     }
+
+    /** Diagnóstico de la última comparación de símbolos (solo para las evaluaciones). */
+    var symbolDebug: String? = null
+        private set
+
+    /** Zona de la foto que se comparó con los símbolos (solo para las evaluaciones). */
+    var lastSymbolWindow: SymbolWindow? = null
+        private set
+
+    /**
+     * Compara el símbolo de edición de la foto con el de cada edición candidata y
+     * devuelve las impresiones de la ganadora, solo si es segura. No lo es si otra
+     * candidata tiene un símbolo casi igual (o el mismo icono), imprime el de otra
+     * edición o no tiene referencia: entonces no se compara nada (y no se gasta tiempo).
+     */
+    private fun bySymbol(
+        candidates: List<CardPrinting>, sorted: List<OcrLine>, nameIndex: Int, art: ArtSampler,
+    ): List<CardPrinting>? {
+        val symbols = symbols ?: return null
+        if (candidates.map { it.setCode }.distinct().size < 2) return null
+        val groups = candidates.groupBy { Triple(it.setCode, it.rarity, it.style) }
+        if (groups.size > SYMBOL_MAX_CANDIDATES) return null.also { symbolDebug = "demasiadas" }
+        val kinds = groups.keys.associateWith { (set, rarity, style) -> symbols.kind(set, rarity, style) }
+        // The List lleva el símbolo de la edición original: casi nunca es la que se tiene.
+        val unknown = kinds.filter { (key, kind) ->
+            (kind == SetSymbols.Kind.OTHER || kind == SetSymbols.Kind.UNKNOWN) && key.first != "plst"
+        }
+        if (unknown.isNotEmpty()) {
+            return null.also { symbolDebug = "indecidible " + unknown.keys.joinToString(" ") { "${it.first}/${it.second?.take(1)}${it.third}" } }
+        }
+        val refs = groups.keys.mapNotNull { key -> symbols.ref(key.first, key.second, key.third)?.let { key to it } }
+        if (refs.size < 2) return null
+        val window = symbolWindow(sorted, nameIndex, art) ?: return null.also { symbolDebug = "sin_ventana" }
+        lastSymbolWindow = window
+        val (cx, cy) = SetSymbols.locate(window, refs.map { it.second }.distinct().take(SYMBOL_LOCATE_REFS))
+            ?: return null
+        val scored = refs.map { (key, ref) -> Triple(key, ref, SetSymbols.scoreNear(window, ref, cx, cy)) }
+            .sortedByDescending { it.third }
+        symbolDebug = scored.joinToString(" ") {
+            "${it.first.first}/${it.first.second?.take(1)}${it.first.third}:${"%.2f".format(java.util.Locale.ROOT, it.third)}"
+        }
+        val best = scored.first()
+        if (best.third < SYMBOL_MIN) return null
+        // Sin símbolo impreso: solo se descartan si el de la foto coincide muy bien con otro.
+        if (kinds.values.any { it == SetSymbols.Kind.NONE } && best.third < SYMBOL_NONE_MIN) return null
+        val second = scored.getOrNull(1)?.third ?: -1.0
+        if (best.third - second < SYMBOL_MARGIN) return null
+        // Casi iguales a la ganadora: la foto no las distingue.
+        val twin = scored.drop(1).any {
+            symbols.sameIcon(best.first.first, it.first.first) || symbols.similarity(best.second, it.second) >= SYMBOL_TWIN
+        }
+        if (twin) return null.also { symbolDebug += " gemelas" }
+        return groups.getValue(best.first)
+    }
+
+    /**
+     * La zona de la foto a la derecha de la línea de tipo, donde va el símbolo,
+     * remuestreada con la carta a [SetSymbols.CARD_W] px. El ancho de la carta se
+     * estima por el del texto de reglas (ocupa ~84% de la carta).
+     */
+    private fun symbolWindow(sorted: List<OcrLine>, nameIndex: Int, art: ArtSampler): SymbolWindow? {
+        val name = sorted.getOrNull(nameIndex) ?: return null
+        val typeIndex = typeLineIndex(sorted, nameIndex) ?: return null
+        val type = sorted[typeIndex]
+        val body = sorted.drop(typeIndex + 1)
+        if (body.isEmpty()) return null
+        val widest = body.maxOf { it.right - it.left }
+        val wide = body.filter { it.right - it.left >= widest * 0.6f }
+        val left = minOf(wide.minOf { it.left }, name.left, type.left).toFloat()
+        val right = maxOf(wide.maxOf { it.right }, type.right).toFloat()
+        val cardW = (right - left) / TEXT_WIDTH_FRACTION
+        if (cardW < 100) return null
+        val cardLeft = left - (1 - TEXT_WIDTH_FRACTION) / 2 * cardW
+        val centerY = (type.top + type.bottom) / 2f
+        val k = SetSymbols.CARD_W / cardW // px de la ventana por px de la foto
+        // Holgada: con la carta un poco girada, el símbolo queda bastante más arriba o abajo
+        // que el centro de la línea de tipo (medido en las fotos de prueba).
+        val x0 = cardLeft + 0.60f * cardW
+        val y0 = centerY - 0.13f * cardW
+        val w = (0.44f * SetSymbols.CARD_W).toInt()
+        val h = (0.26f * SetSymbols.CARD_W).toInt()
+        val rgb = FloatArray(w * h * 3)
+        // Cada píxel de la ventana, media de 2×2 muestras de la foto (reduce el ruido).
+        for (gy in 0 until h) for (gx in 0 until w) {
+            var r = 0; var g = 0; var b = 0
+            for (sy in 0..1) for (sx in 0..1) {
+                val c = art.rgb((x0 + (gx + 0.25f + 0.5f * sx) / k).toInt(), (y0 + (gy + 0.25f + 0.5f * sy) / k).toInt())
+                r += (c shr 16) and 0xFF; g += (c shr 8) and 0xFF; b += c and 0xFF
+            }
+            val i = (gy * w + gx) * 3
+            rgb[i] = r / 1020f; rgb[i + 1] = g / 1020f; rgb[i + 2] = b / 1020f
+        }
+        return SymbolWindow(w, h, rgb)
+    }
+
+    private fun typeLineIndex(sorted: List<OcrLine>, nameIndex: Int) = typeIndexAfter(sorted, nameIndex)
 
     /**
      * Sin nombre legible (tierras de arte completo, Secret Lair con letras
@@ -209,6 +331,23 @@ class FrameRecognizer(
         private const val ART_MIN_MARGIN = 0.15
 
         /**
+         * Umbrales de la comparación de símbolos de edición (correlación). Medidos con
+         * cartas de prueba: por debajo, el símbolo no se ve bien o se parece a otro.
+         */
+        private const val SYMBOL_MIN = 0.6
+        private const val SYMBOL_MARGIN = 0.15
+        /** Con esta coincidencia seguro que hay un símbolo: descarta las ediciones sin él. */
+        private const val SYMBOL_NONE_MIN = 0.7
+        /** Más ediciones candidatas que estas (tierras básicas...) no se comparan: sería lento. */
+        private const val SYMBOL_MAX_CANDIDATES = 40
+        /** Referencias con las que se busca dónde está el símbolo en la foto. */
+        private const val SYMBOL_LOCATE_REFS = 8
+        /** Dos referencias así de parecidas no se distinguen en una foto. */
+        private const val SYMBOL_TWIN = 0.8
+        /** Fracción del ancho de la carta que ocupa el texto de reglas. */
+        private const val TEXT_WIDTH_FRACTION = 0.84f
+
+        /**
          * Dónde está la ilustración en la foto: entre el nombre y la línea de tipo,
          * y a lo ancho del texto de reglas (que ocupa casi todo el ancho del marco).
          * Se recorta un poco hacia dentro para no coger el marco. null si no se puede
@@ -216,9 +355,7 @@ class FrameRecognizer(
          */
         fun artRegion(sorted: List<OcrLine>, nameIndex: Int): GuideRegion.Rect? {
             val name = sorted.getOrNull(nameIndex) ?: return null
-            val typeIndex = (nameIndex + 1 until sorted.size).firstOrNull { i ->
-                sorted[i].top > name.bottom && isTypeWord(sorted[i])
-            } ?: return null
+            val typeIndex = typeIndexAfter(sorted, nameIndex) ?: return null
             val type = sorted[typeIndex]
             val lineH = (name.bottom - name.top).toFloat()
             val top = name.bottom + 0.4f * lineH
@@ -235,6 +372,11 @@ class FrameRecognizer(
             if (w / h !in 0.9f..2.2f) return null
             val inset = 0.04f
             return GuideRegion.Rect(left + w * inset, top + h * inset, right - w * inset, bottom - h * inset)
+        }
+
+        private fun typeIndexAfter(sorted: List<OcrLine>, nameIndex: Int): Int? {
+            val name = sorted[nameIndex]
+            return (nameIndex + 1 until sorted.size).firstOrNull { i -> sorted[i].top > name.bottom && isTypeWord(sorted[i]) }
         }
 
         private fun isTypeWord(line: OcrLine): Boolean {

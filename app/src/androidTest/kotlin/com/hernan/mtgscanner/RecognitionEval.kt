@@ -44,23 +44,27 @@ class RecognitionEval {
             subset!!,
             guide = args.getString("guide", "true").toBoolean(),
             useArt = args.getString("art", "true").toBoolean(),
+            useSymbols = args.getString("symbols", "true").toBoolean(),
         )
     }
 
-    private fun evaluate(subset: String, guide: Boolean, useArt: Boolean) {
+    private fun evaluate(subset: String, guide: Boolean, useArt: Boolean, useSymbols: Boolean) {
         val instr = InstrumentationRegistry.getInstrumentation()
         val filesDir = instr.targetContext.getExternalFilesDir(null)!!
         val dir = File(filesDir, "testset/$subset")
         val catalog = Catalog(instr.targetContext)
-        val recognizer = FrameRecognizer(catalog.names, catalog.setCodes, catalog::printingsOf, catalog::bySetAndNumber, catalog::art)
+        val recognizer = FrameRecognizer(catalog.names, catalog.setCodes, catalog::printingsOf, catalog::bySetAndNumber, catalog::art,
+            if (useSymbols) catalog.symbols else null)
         val ocr = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
         val rows = parseCsv(File(dir, "labels.csv").readText())
         val header = rows.first()
         val out = StringBuilder(
-            "file\tgroup\tdifficulty\toutcome\texpected\tgot\tgot_id\tset_read\tnumber_read\tms\tlang_expected\tlang_read\tlines\tart_true\tart_debug\n"
+            "file\tgroup\tdifficulty\toutcome\texpected\tgot\tgot_id\tset_read\tnumber_read\tms\tlang_expected\tlang_read\tlines\tart_true\tart_debug\tsymbol_debug\n"
         )
         val counts = sortedMapOf<String, Int>()
+        var dumped = 0
+        File(filesDir, "symwin_$subset").deleteRecursively()
 
         for (values in rows.drop(1)) {
             val r = header.zip(values).toMap()
@@ -75,13 +79,26 @@ class RecognitionEval {
                 val viewH = bitmap.width * 2200 / 1080
                 lines = GuideRegion.filter(lines, GuideRegion.inImage(bitmap.width, viewH, bitmap.width, bitmap.height))
             }
-            val art = if (!useArt) null else ArtSampler { l, t, r, b ->
-                ArtSignature.compute(l, t, r, b) { x, y ->
-                    bitmap.getPixel(x.coerceIn(0, bitmap.width - 1), y.coerceIn(0, bitmap.height - 1)) and 0xFFFFFF
-                }
+            val art = if (!useArt) null else ArtSampler { x, y ->
+                bitmap.getPixel(x.coerceIn(0, bitmap.width - 1), y.coerceIn(0, bitmap.height - 1)) and 0xFFFFFF
             }
             val result = recognizer.recognize(lines, art)
             val ms = SystemClock.elapsedRealtime() - t0
+            // Las zonas donde se buscó el símbolo, para revisarlas a ojo.
+            recognizer.lastSymbolWindow?.let { win ->
+                if (dumped++ < 150) {
+                    val bmp = Bitmap.createBitmap(win.w, win.h, Bitmap.Config.ARGB_8888)
+                    for (y in 0 until win.h) for (x in 0 until win.w) {
+                        val i = (y * win.w + x) * 3
+                        fun c(k: Int) = (win.rgb[i + k] * 255).toInt().coerceIn(0, 255)
+                        bmp.setPixel(x, y, (0xFF shl 24) or (c(0) shl 16) or (c(1) shl 8) or c(2))
+                    }
+                    val dir = File(filesDir, "symwin_$subset").apply { mkdirs() }
+                    File(dir, r.getValue("file").substringBeforeLast('.') + ".png").outputStream().use {
+                        bmp.compress(Bitmap.CompressFormat.PNG, 100, it)
+                    }
+                }
+            }
 
             val expectedId = r["card_id"].orEmpty()
             val samePrinting = result != null && (result.printing.id == expectedId ||
@@ -101,6 +118,9 @@ class RecognitionEval {
             counts.merge("${r["group"]}:$outcome", 1, Int::plus)
             if (result != null) counts.merge("idioma_${if (result.lang == langExpected) "ok" else "mal"}", 1, Int::plus)
             if (result?.byArt == true) counts.merge("por_imagen_${if (samePrinting) "bien" else "mal"}", 1, Int::plus)
+            if (result?.bySymbol == true) {
+                counts.merge("por_simbolo_${if (samePrinting) "bien" else "mal"}${if (result.exact) "_exacta" else ""}", 1, Int::plus)
+            }
             out.append(listOf(
                 r["file"], r["group"], r["difficulty"], outcome,
                 "${r["name"]} [${r["set_code"]} ${r["collector_number"]}]",
@@ -111,6 +131,7 @@ class RecognitionEval {
                 lines.sortedBy { it.top }.joinToString(" | ") { it.text.replace('\t', ' ') },
                 catalog.byId(expectedId)?.artId?.toString() ?: "",
                 recognizer.artDebug ?: "",
+                recognizer.symbolDebug ?: "",
             ).joinToString("\t")).append('\n')
         }
 

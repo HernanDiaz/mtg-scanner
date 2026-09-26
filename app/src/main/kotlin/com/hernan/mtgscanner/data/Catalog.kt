@@ -5,6 +5,8 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import java.io.File
 import com.hernan.mtgscanner.scan.ArtSignature
+import com.hernan.mtgscanner.scan.SetSymbols
+import com.hernan.mtgscanner.scan.SymbolRef
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -21,6 +23,8 @@ class Catalog(context: Context) {
     private val sets: Map<String, SetInfo>
     private val printingsCache = ConcurrentHashMap<String, List<CardPrinting>>()
     private val arts = HashMap<Int, ArtSignature>()
+    /** Símbolos de edición de referencia; null con un catálogo antiguo que no los trae. */
+    val symbols: SetSymbols?
 
     init {
         val file = ensureCopied(context)
@@ -44,6 +48,27 @@ class Catalog(context: Context) {
         db.rawQuery("SELECT id, thumb FROM arts", null).use { c ->
             while (c.moveToNext()) arts[c.getInt(0)] = ArtSignature.fromPacked(c.getBlob(1))
         }
+
+        symbols = runCatching {
+            val refs = HashMap<String, SymbolRef>()
+            db.rawQuery("SELECT set_code, rarity, style, w, h, rgb FROM symbols", null).use { c ->
+                while (c.moveToNext()) {
+                    refs[SetSymbols.key(c.getString(0), c.getString(1), c.getString(2))] =
+                        SymbolRef.fromBytes(c.getInt(3), c.getInt(4), c.getBlob(5))
+                }
+            }
+            val icons = HashMap<String, String>()
+            val none = HashSet<String>()
+            val other = HashSet<String>()
+            db.rawQuery("SELECT set_code, icon, kind FROM set_icons", null).use { c ->
+                while (c.moveToNext()) {
+                    val set = c.getString(0)
+                    if (!c.isNull(1)) icons[set] = c.getString(1)
+                    when (c.getString(2)) { "none" -> none += set; "other" -> other += set }
+                }
+            }
+            SetSymbols(refs, none, other, icons)
+        }.getOrNull()
     }
 
     /** Huella de una ilustración, para elegir edición por la imagen. */
@@ -125,6 +150,8 @@ class Catalog(context: Context) {
         prices = Prices(c.doubleOrNull(10), c.doubleOrNull(11), c.doubleOrNull(12), c.doubleOrNull(13)),
         artId = if (c.isNull(14)) null else c.getInt(14),
         colors = c.getString(15),
+        style = c.getString(16),
+        cardmarketId = if (c.isNull(17)) null else c.getInt(17),
     )
 
     private fun Cursor.doubleOrNull(i: Int) = if (isNull(i)) null else getDouble(i)
@@ -132,7 +159,7 @@ class Catalog(context: Context) {
     companion object {
         private const val ASSET = "catalog.sqlite"
         private const val COLUMNS = "id, name, set_code, collector_number, number_norm, rarity, " +
-            "released_at, finishes, promo, lang, eur, eur_foil, usd, usd_foil, art_id, colors"
+            "released_at, finishes, promo, lang, eur, eur_foil, usd, usd_foil, art_id, colors, style, cm_id"
 
         private fun ensureCopied(context: Context): File {
             val file = File(context.filesDir, ASSET)

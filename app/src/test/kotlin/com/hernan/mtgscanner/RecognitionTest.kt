@@ -669,3 +669,61 @@ class CollectionImportTest {
         assertTrue(r.items.single().needsReview)
     }
 }
+
+class SetSymbolsTest {
+    /** Símbolo de prueba: una figura oscura (según [shape]) sobre fondo claro. */
+    private fun ref(w: Int, h: Int, shape: (x: Int, y: Int) -> Boolean) =
+        com.hernan.mtgscanner.scan.SymbolRef(w, h, FloatArray(w * h * 3) { i ->
+            val p = i / 3
+            if (shape(p % w, p / w)) 0.1f else 0.9f
+        })
+
+    private val cross = ref(20, 20) { x, y -> x in 8..11 || y in 8..11 }
+    private val ring = ref(20, 20) { x, y -> ((x - 10) * (x - 10) + (y - 10) * (y - 10)) in 36..81 }
+
+    /** Ventana de 120×60 con [r] pegado en (x0, y0), a escala [scale], y algo de ruido. */
+    private fun window(r: com.hernan.mtgscanner.scan.SymbolRef, x0: Int, y0: Int, scale: Float = 1f): com.hernan.mtgscanner.scan.SymbolWindow {
+        val w = 120; val h = 60
+        val rnd = java.util.Random(1)
+        val rgb = FloatArray(w * h * 3) { 0.85f + rnd.nextFloat() * 0.1f }
+        val sw = (r.w * scale).toInt(); val sh = (r.h * scale).toInt()
+        for (y in 0 until sh) for (x in 0 until sw) for (c in 0 until 3) {
+            val sx = (x / scale).toInt().coerceAtMost(r.w - 1); val sy = (y / scale).toInt().coerceAtMost(r.h - 1)
+            rgb[((y0 + y) * w + x0 + x) * 3 + c] = r.rgb[(sy * r.w + sx) * 3 + c] + rnd.nextFloat() * 0.05f
+        }
+        return com.hernan.mtgscanner.scan.SymbolWindow(w, h, rgb)
+    }
+
+    @Test fun findsTheSymbolAnywhereAndAtOtherSizes() {
+        val s = com.hernan.mtgscanner.scan.SetSymbols
+        assertTrue(s.score(window(cross, 73, 21), cross) > 0.9)
+        assertTrue(s.score(window(cross, 5, 30, scale = 1.12f), cross) > 0.8)
+        assertTrue(s.score(window(cross, 40, 10), ring) < 0.6)
+    }
+
+    @Test fun locatesOnceThenComparesNearby() {
+        val s = com.hernan.mtgscanner.scan.SetSymbols
+        val win = window(cross, 73, 21)
+        val (cx, cy) = s.locate(win, listOf(ring, cross))!!
+        assertEquals(83f, cx, 3f)
+        assertEquals(31f, cy, 3f)
+        assertTrue(s.scoreNear(win, cross, cx, cy) > 0.9)
+        assertTrue(s.scoreNear(win, ring, cx, cy) < 0.6)
+    }
+
+    @Test fun kindsAndTwins() {
+        val symbols = com.hernan.mtgscanner.scan.SetSymbols(
+            mapOf("m11|common|2003" to cross, "m12|common|2003" to ring), noSymbol = setOf("lea"), otherSymbol = setOf("chr"),
+            icons = mapOf("m11" to "i_m11.svg", "pm11" to "i_m11.svg", "m12" to "i_m12.svg"),
+        )
+        assertEquals(com.hernan.mtgscanner.scan.SetSymbols.Kind.OWN, symbols.kind("m11", "common", "2003"))
+        assertEquals(com.hernan.mtgscanner.scan.SetSymbols.Kind.UNKNOWN, symbols.kind("m11", "rare", "2003"))
+        assertEquals(com.hernan.mtgscanner.scan.SetSymbols.Kind.UNKNOWN, symbols.kind("m11", "common", "2003x"))
+        assertEquals(com.hernan.mtgscanner.scan.SetSymbols.Kind.NONE, symbols.kind("lea", "common", "1993"))
+        assertEquals(com.hernan.mtgscanner.scan.SetSymbols.Kind.OTHER, symbols.kind("chr", "common", "1993"))
+        assertTrue(symbols.sameIcon("m11", "pm11"))
+        assertFalse(symbols.sameIcon("m11", "m12"))
+        assertTrue(symbols.similarity(cross, cross) > 0.95)
+        assertTrue(symbols.similarity(cross, ring) < 0.8)
+    }
+}

@@ -33,7 +33,7 @@ USER_AGENT = "MTGScanner/0.1 (proyecto personal)"
 BULK_INDEX = "https://api.scryfall.com/bulk-data"
 
 # Versión del esquema: la app la compara para saber si debe recopiar el asset.
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 10
 
 # Layouts que no son cartas "de colección" normales.
 SKIP_LAYOUTS = {"art_series", "token", "double_faced_token", "emblem", "vanguard", "scheme", "planar"}
@@ -84,6 +84,17 @@ def norm_number(s):
     s = s.lower()
     stripped = s.lstrip("0")
     return stripped if stripped else s
+
+
+SPECIAL_EFFECTS = {"showcase", "extendedart", "inverted", "etched", "fullart", "textless"}
+
+
+def symbol_style(c):
+    """Cómo va impreso el símbolo: el marco ("2015"...) y "x" si es una variante
+    (sin borde, showcase, arte extendido...), que lo dibujan distinto."""
+    effects = set(c.get("frame_effects") or [])
+    special = c.get("full_art") or c.get("border_color") == "borderless" or effects & SPECIAL_EFFECTS
+    return (c.get("frame") or "") + ("x" if special else "")
 
 
 def card_colors(c):
@@ -160,8 +171,22 @@ def load_art_signatures():
                 for i, r in enumerate(csv.DictReader(f), 1) if r.get("thumb")}
 
 
+def load_set_symbols():
+    """Símbolos de referencia de data/set_symbols.json (tools/build_set_symbols.py), si existe."""
+    path = os.path.join(DATA_DIR, "set_symbols.json")
+    if not os.path.exists(path):
+        return [], []
+    with open(path) as f:
+        data = json.load(f)
+    refs = [(*key.split("|"), v["w"], v["h"], bytes.fromhex(v["rgb"])) for key, v in data["refs"].items()]
+    kind = {code: "none" for code in data["no_symbol"]} | {code: "other" for code in data["other_symbol"]}
+    icons = [(code, icon, kind.get(code, "own")) for code, icon in data["icons"].items()]
+    return refs, icons
+
+
 def build(jsonl_path, updated_at, extra_names):
     arts = load_art_signatures()
+    symbols, symbol_kinds = load_set_symbols()
     art_ids = {ill: v[0] for ill, v in arts.items()}
     set_info = fetch_sets()
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
@@ -192,11 +217,27 @@ def build(jsonl_path, updated_at, extra_names):
             lang TEXT NOT NULL,          -- "en" salvo impresiones que no existen en inglés
             colors TEXT NOT NULL,        -- "WUBRG" en ese orden; "" = incolora
             usd REAL, usd_foil REAL, eur REAL, eur_foil REAL,
-            art_id INTEGER               -- arts.id, solo si la carta tiene varias ilustraciones
+            art_id INTEGER,              -- arts.id, solo si la carta tiene varias ilustraciones
+            style TEXT NOT NULL,         -- cómo va impreso el símbolo (symbol_style)
+            cm_id INTEGER                -- idProduct de Cardmarket (para su guía de precios)
         );
         CREATE TABLE arts (
             id INTEGER PRIMARY KEY,
             thumb BLOB NOT NULL          -- 16×12 RGB, 4 bits/canal (tools/build_art_signatures.py)
+        );
+        CREATE TABLE symbols (
+            set_code TEXT NOT NULL,
+            rarity TEXT NOT NULL,
+            style TEXT NOT NULL,         -- cards.style
+            w INTEGER NOT NULL,          -- con la carta a 400 px de ancho
+            h INTEGER NOT NULL,
+            rgb BLOB NOT NULL,           -- w×h×3 bytes (tools/build_set_symbols.py)
+            PRIMARY KEY (set_code, rarity, style)
+        ) WITHOUT ROWID;
+        CREATE TABLE set_icons (
+            set_code TEXT PRIMARY KEY,
+            icon TEXT,                   -- icono de Scryfall; ediciones con el mismo no se distinguen
+            kind TEXT NOT NULL           -- "own"; "none": sin símbolo; "other": imprime el de otra edición
         );
         CREATE TABLE names (
             norm TEXT NOT NULL,          -- nombre normalizado de una cara
@@ -229,7 +270,7 @@ def build(jsonl_path, updated_at, extra_names):
             finishes, 1 if c.get("promo") else 0, c.get("lang", "en"),
             price(p, "usd"), price(p, "usd_foil"), price(p, "eur"), price(p, "eur_foil"),
             art_ids.get(c.get("illustration_id") or (c.get("card_faces") or [{}])[0].get("illustration_id")),
-            card_colors(c),
+            card_colors(c), symbol_style(c), c.get("cardmarket_id"),
         ))
         sets.setdefault(c["set"], (c["set"], c["set_name"], c.get("released_at")))
         # "_____ Goblin" (Unfinity) se normalizaría a "goblin" y casaría con cualquier
@@ -241,10 +282,12 @@ def build(jsonl_path, updated_at, extra_names):
 
     db.executemany(
         "INSERT INTO cards (id,name,set_code,collector_number,number_norm,rarity,released_at,"
-        "finishes,promo,lang,usd,usd_foil,eur,eur_foil,art_id,colors) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "finishes,promo,lang,usd,usd_foil,eur,eur_foil,art_id,colors,style,cm_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         rows,
     )
     db.executemany("INSERT INTO arts VALUES (?,?)", arts.values())
+    db.executemany("INSERT INTO symbols VALUES (?,?,?,?,?,?)", symbols)
+    db.executemany("INSERT INTO set_icons VALUES (?,?,?)", symbol_kinds)
     db.executemany(
         "INSERT INTO sets VALUES (?,?,?,?,?)",
         [(*v, *set_info.get(v[0], (None, None))) for v in sets.values()],
@@ -276,7 +319,8 @@ def build(jsonl_path, updated_at, extra_names):
 
     size_mb = os.path.getsize(OUT_PATH) / 1e6
     print(f"Cartas: {kept} (descartadas {skipped}) | ediciones: {len(sets)} | nombres: {len(names)}"
-          f" + {len(foreign)} alias en otros idiomas | huellas de ilustración: {len(arts)}")
+          f" + {len(foreign)} alias en otros idiomas | huellas de ilustración: {len(arts)}"
+          f" | símbolos de edición: {len(symbols)}")
     print(f"Generado {OUT_PATH} ({size_mb:.1f} MB)")
 
 

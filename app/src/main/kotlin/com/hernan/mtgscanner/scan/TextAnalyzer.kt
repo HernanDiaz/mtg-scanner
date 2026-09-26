@@ -40,12 +40,10 @@ class TextAnalyzer(
                 // La imagen en color solo se convierte si hace falta comparar ilustraciones
                 // (edición dudosa): convertir cada fotograma costaría ~20 ms.
                 val bitmap by lazy { proxy.toBitmap() }
-                val art = ArtSampler { l, t, r, b ->
+                val art = ArtSampler { x, y ->
                     val bmp = bitmap
-                    ArtSignature.compute(l, t, r, b) { x, y ->
-                        val (sx, sy) = uprightToSensor(x, y, rotation, bmp.width, bmp.height)
-                        bmp.getPixel(sx.coerceIn(0, bmp.width - 1), sy.coerceIn(0, bmp.height - 1)) and 0xFFFFFF
-                    }
+                    val (sx, sy) = uprightToSensor(x, y, rotation, bmp.width, bmp.height)
+                    bmp.getPixel(sx.coerceIn(0, bmp.width - 1), sy.coerceIn(0, bmp.height - 1)) and 0xFFFFFF
                 }
                 val result = recognizer.recognize(lines, art)
                 onResult(result, lines.minByOrNull { it.top }?.text)

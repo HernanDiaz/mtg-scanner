@@ -22,6 +22,10 @@ data class CardPrinting(
     val artId: Int? = null,
     /** Colores "WUBRG" (en ese orden); vacío = incolora. */
     val colors: String = "",
+    /** Cómo va impreso el símbolo de edición: marco ("2015"...) y "x" si es una variante. */
+    val style: String = "",
+    /** Producto en Cardmarket (su guía de precios), si lo tiene. */
+    val cardmarketId: Int? = null,
 ) {
     val releaseYear: Int? get() = releasedAt?.take(4)?.toIntOrNull()
 
@@ -47,6 +51,17 @@ data class Prices(
 }
 
 enum class Currency(val symbol: String) { EUR("€"), USD("$") }
+
+/**
+ * Qué precio de Cardmarket se usa para valorar la colección (en euros; los
+ * dólares son siempre los de TCGplayer). La tendencia es la que da Scryfall;
+ * los otros vienen de la guía de precios de Cardmarket.
+ */
+enum class PriceKind(val label: String, val description: String) {
+    TREND("Tendencia", "El precio de tendencia de Cardmarket (el habitual)."),
+    LOW("Más bajo", "La oferta más barata en Cardmarket: lo que costaría comprarla hoy."),
+    AVG30("Media 30 días", "La media de las ventas del último mes: cambia menos de un día a otro."),
+}
 
 /** Estados estándar de Cardmarket. */
 val CONDITIONS = listOf("M", "NM", "EX", "GD", "LP", "PL", "PO")

@@ -66,14 +66,18 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     init {
         viewModelScope.launch {
             val catalog = app.catalog.await()
-            val recognizer = FrameRecognizer(catalog.names, catalog.setCodes, catalog::printingsOf, catalog::bySetAndNumber, catalog::art)
+            val recognizer = FrameRecognizer(catalog.names, catalog.setCodes, catalog::printingsOf, catalog::bySetAndNumber, catalog::art, catalog.symbols)
             _analyzer.value = TextAnalyzer(recognizer, analysisExecutor, ::onFrame)
             _ui.update { it.copy(loading = false) }
         }
         viewModelScope.launch {
-            combine(store.version, settings.currency, settings.scanDeck) { _, currency, deck -> currency to deck }
-                .collect { (currency, deckId) ->
-                    val (summary, decks) = withContext(Dispatchers.IO) { store.summary(currency) to store.decks() }
+            combine(store.version, settings.currency, settings.scanDeck, settings.priceKind) { _, currency, deck, kind ->
+                Triple(currency, deck, kind)
+            }
+                .collect { (currency, deckId, kind) ->
+                    val (summary, decks) = withContext(Dispatchers.IO) {
+                        store.summary(currency, kind = kind) to store.decks()
+                    }
                     val deck = decks.firstOrNull { it.id == deckId }
                     if (deckId != null && deck == null) settings.setScanDeck(null) // el mazo se borró
                     _ui.update { it.copy(summary = summary, decks = decks, scanDeck = deck) }

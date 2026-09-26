@@ -4,7 +4,8 @@
 #   Subconjuntos = carpetas de testset/ (synthetic, basicas, espanol, ingles, real...).
 #   Sin argumentos: synthetic basicas espanol real.
 #   "real" se evalúa sin marco guía (son fotos sin encuadrar).
-#   ART=false tools/run_eval.sh ...  evalúa sin comparar ilustraciones.
+#   ART=false tools/run_eval.sh ...  evalúa sin comparar ilustraciones (ni símbolos).
+#   SYMBOLS=false tools/run_eval.sh ...  evalúa sin comparar símbolos de edición.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export JAVA_HOME="${JAVA_HOME:-/d/AndroidStudio/jbr}"
@@ -31,8 +32,9 @@ for s in "${SUBSETS[@]}"; do
     "$ADB" push -q "testset/$s" "$FILES/testset/" >/dev/null
   fi
   guide=true; [ "$s" = real ] && guide=false
-  "$ADB" shell am instrument -w -e class $PKG.RecognitionEval -e subset "$s" -e guide $guide -e art "${ART:-true}" \
+  "$ADB" shell am instrument -w -e class $PKG.RecognitionEval -e subset "$s" -e guide $guide -e art "${ART:-true}" -e symbols "${SYMBOLS:-true}" \
     $PKG.test/androidx.test.runner.AndroidJUnitRunner | tail -1
   for f in eval_$s.tsv eval_${s}_summary.tsv; do "$ADB" pull -q "$FILES/$f" build/eval/; done
+  rm -rf "build/eval/symwin_$s"; "$ADB" pull -q "$FILES/symwin_$s" build/eval/ 2>/dev/null || true
   echo "== $s"; grep -v ":" "build/eval/eval_${s}_summary.tsv"
 done

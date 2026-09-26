@@ -25,6 +25,16 @@ class Settings(context: Context) {
         _scanDeck.value = id
     }
 
+    private val _priceKind = MutableStateFlow(
+        runCatching { PriceKind.valueOf(prefs.getString("price_kind", null)!!) }.getOrDefault(PriceKind.TREND)
+    )
+    val priceKind: StateFlow<PriceKind> = _priceKind
+
+    fun setPriceKind(k: PriceKind) {
+        prefs.edit().putString("price_kind", k.name).apply()
+        _priceKind.value = k
+    }
+
     fun setCurrency(c: Currency) {
         prefs.edit().putString("currency", c.name).apply()
         _currency.value = c

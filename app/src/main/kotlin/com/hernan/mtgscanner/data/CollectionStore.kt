@@ -23,7 +23,7 @@ data class CollectionFilter(
  * Cada carta física puede estar en un mazo (`decks`) o en ninguno.
  */
 class CollectionStore(context: Context, dbName: String = "collection.db") :
-    SQLiteOpenHelper(context, dbName, null, 4) {
+    SQLiteOpenHelper(context, dbName, null, 5) {
 
     /** Se incrementa en cada cambio para que la UI vuelva a consultar. */
     private val _version = MutableStateFlow(0)
@@ -82,7 +82,9 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
             CREATE TABLE prices (
                 card_id TEXT PRIMARY KEY,
                 eur REAL, eur_foil REAL, usd REAL, usd_foil REAL,
-                updated_at INTEGER NOT NULL
+                updated_at INTEGER NOT NULL,
+                cm_id INTEGER,
+                eur_low REAL, eur_low_foil REAL, eur_avg30 REAL, eur_avg30_foil REAL
             )
             """
         )
@@ -99,6 +101,12 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
             db.execSQL("ALTER TABLE entries ADD COLUMN deck_id INTEGER")
             db.execSQL("ALTER TABLE entries ADD COLUMN colors TEXT")
             createDecksTable(db)
+        }
+        // v5: precios de la guía de Cardmarket (el id lo rellena backfillCardmarketIds).
+        if (oldVersion < 5) {
+            for (col in listOf("cm_id INTEGER", "eur_low REAL", "eur_low_foil REAL", "eur_avg30 REAL", "eur_avg30_foil REAL")) {
+                db.execSQL("ALTER TABLE prices ADD COLUMN $col")
+            }
         }
     }
 
@@ -288,6 +296,54 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
 
     // ------------------------------------------------------------------ precios
 
+    /** Rellena el producto de Cardmarket de las cartas guardadas antes de la versión 5. */
+    fun backfillCardmarketIds(idOf: (cardId: String) -> Int?) {
+        val ids = readableDatabase.rawQuery("SELECT card_id FROM prices WHERE cm_id IS NULL", null).use { c ->
+            buildList { while (c.moveToNext()) add(c.getString(0)) }
+        }
+        if (ids.isEmpty()) return
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            for (id in ids) {
+                val cm = idOf(id) ?: continue
+                db.update("prices", ContentValues().apply { put("cm_id", cm) }, "card_id = ?", arrayOf(id))
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    /** Productos de Cardmarket de las cartas de la colección. */
+    fun cardmarketIds(): Set<Int> =
+        readableDatabase.rawQuery(
+            "SELECT DISTINCT cm_id FROM prices WHERE cm_id IS NOT NULL AND card_id IN (SELECT card_id FROM entries)", null
+        ).use { c -> buildSet { while (c.moveToNext()) add(c.getInt(0)) } }
+
+    /** Guarda los precios de la guía de Cardmarket (por producto). */
+    fun updateCardmarketPrices(prices: Map<Int, CardmarketPrices.Guide>) {
+        val db = writableDatabase
+        val now = System.currentTimeMillis()
+        db.beginTransaction()
+        try {
+            for ((cm, g) in prices) {
+                db.update("prices", ContentValues().apply {
+                    // La tendencia es la misma que da Scryfall, pero de hoy.
+                    g.trend?.let { put("eur", it) }
+                    g.trendFoil?.let { put("eur_foil", it) }
+                    put("eur_low", g.low); put("eur_low_foil", g.lowFoil)
+                    put("eur_avg30", g.avg30); put("eur_avg30_foil", g.avg30Foil)
+                    put("updated_at", now)
+                }, "cm_id = ?", arrayOf(cm.toString()))
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+            changed()
+        }
+    }
+
     fun distinctCardIds(): List<String> =
         readableDatabase.rawQuery("SELECT DISTINCT card_id FROM entries", null).use { c ->
             buildList { while (c.moveToNext()) add(c.getString(0)) }
@@ -298,8 +354,12 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         val now = System.currentTimeMillis()
         db.beginTransaction()
         try {
-            for ((id, p) in prices) db.insertWithOnConflict("prices", null, p.toValues(id, now),
-                SQLiteDatabase.CONFLICT_REPLACE)
+            for ((id, p) in prices) {
+                // REPLACE borraría el id y los precios de Cardmarket de la fila.
+                if (db.update("prices", p.toUpdateValues(now), "card_id = ?", arrayOf(id)) == 0) {
+                    db.insert("prices", null, p.toValues(id, now))
+                }
+            }
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
@@ -316,10 +376,10 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
     // ------------------------------------------------------------------ consultas
 
     /** Totales de la parte de la colección que se está viendo. */
-    fun summary(currency: Currency, filter: CollectionFilter = CollectionFilter()): Summary {
+    fun summary(currency: Currency, filter: CollectionFilter = CollectionFilter(), kind: PriceKind = PriceKind.TREND): Summary {
         val (where, args) = filterSql(filter)
         return readableDatabase.rawQuery(
-            "SELECT COUNT(*), COALESCE(SUM(${priceExpr(currency)}), 0), COALESCE(SUM(e.needs_review), 0) " +
+            "SELECT COUNT(*), COALESCE(SUM(${priceExpr(currency, kind)}), 0), COALESCE(SUM(e.needs_review), 0) " +
                 "FROM entries e LEFT JOIN prices p ON p.card_id = e.card_id WHERE $where", args
         ).use { c ->
             c.moveToFirst()
@@ -332,8 +392,11 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
      * y mazo. Las pendientes de revisar van en filas aparte de las confirmadas, para
      * que una copia nueva sin revisar no vuelva a marcar las que ya se revisaron.
      */
-    fun groups(currency: Currency, filter: CollectionFilter = CollectionFilter(), sort: Sort = Sort.RECENT): List<Group> {
-        val price = priceExpr(currency)
+    fun groups(
+        currency: Currency, filter: CollectionFilter = CollectionFilter(), sort: Sort = Sort.RECENT,
+        kind: PriceKind = PriceKind.TREND,
+    ): List<Group> {
+        val price = priceExpr(currency, kind)
         val order = when (sort) {
             Sort.RECENT -> "e.needs_review DESC, MAX(e.id) DESC"
             Sort.VALUE -> "COUNT(*) * COALESCE($price, 0) DESC"
@@ -395,12 +458,18 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
 
     private fun seedPrice(db: SQLiteDatabase, card: CardPrinting) {
         // Precio del catálogo como punto de partida; la actualización online lo sustituye.
-        db.insertWithOnConflict("prices", null, card.prices.toValues(card.id, 0),
+        db.insertWithOnConflict("prices", null, card.prices.toValues(card.id, 0).apply { put("cm_id", card.cardmarketId) },
             SQLiteDatabase.CONFLICT_IGNORE)
     }
 
     private fun Prices.toValues(id: String, updatedAt: Long) = ContentValues().apply {
         put("card_id", id)
+        put("eur", eur); put("eur_foil", eurFoil); put("usd", usd); put("usd_foil", usdFoil)
+        put("updated_at", updatedAt)
+    }
+
+    /** Precios de Scryfall: sin tocar los de la guía de Cardmarket ni su id. */
+    private fun Prices.toUpdateValues(updatedAt: Long) = ContentValues().apply {
         put("eur", eur); put("eur_foil", eurFoil); put("usd", usd); put("usd_foil", usdFoil)
         put("updated_at", updatedAt)
     }
@@ -416,10 +485,19 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         private const val GROUP_WHERE =
             "card_id = ? AND foil = ? AND condition = ? AND lang = ? AND needs_review = ? AND COALESCE(deck_id, 0) = CAST(? AS INTEGER)"
 
-        /** Mismo criterio que [Prices.of]: si falta el precio del acabado, se usa el otro. */
-        private fun priceExpr(currency: Currency) = when (currency) {
-            Currency.EUR -> "CASE WHEN e.foil = 1 THEN COALESCE(p.eur_foil, p.eur) ELSE COALESCE(p.eur, p.eur_foil) END"
+        /**
+         * Mismo criterio que [Prices.of]: si falta el precio del acabado, se usa el otro.
+         * Sin precio de la guía de Cardmarket (aún no descargada), el de tendencia.
+         */
+        private fun priceExpr(currency: Currency, kind: PriceKind = PriceKind.TREND) = when (currency) {
             Currency.USD -> "CASE WHEN e.foil = 1 THEN COALESCE(p.usd_foil, p.usd) ELSE COALESCE(p.usd, p.usd_foil) END"
+            Currency.EUR -> when (kind) {
+                PriceKind.TREND -> "CASE WHEN e.foil = 1 THEN COALESCE(p.eur_foil, p.eur) ELSE COALESCE(p.eur, p.eur_foil) END"
+                PriceKind.LOW -> "CASE WHEN e.foil = 1 THEN COALESCE(p.eur_low_foil, p.eur_low, p.eur_foil, p.eur) " +
+                    "ELSE COALESCE(p.eur_low, p.eur_low_foil, p.eur, p.eur_foil) END"
+                PriceKind.AVG30 -> "CASE WHEN e.foil = 1 THEN COALESCE(p.eur_avg30_foil, p.eur_avg30, p.eur_foil, p.eur) " +
+                    "ELSE COALESCE(p.eur_avg30, p.eur_avg30_foil, p.eur, p.eur_foil) END"
+            }
         }
     }
 }

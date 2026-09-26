@@ -70,6 +70,7 @@ import com.hernan.mtgscanner.data.CardPrinting
 import com.hernan.mtgscanner.data.CollectionExport
 import com.hernan.mtgscanner.data.CollectionStore
 import com.hernan.mtgscanner.data.Currency
+import com.hernan.mtgscanner.data.PriceKind
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.Normalizer
@@ -224,6 +225,27 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                     }
                     Currency.entries.forEach { c ->
                         FilterChip(selected = ui.currency == c, onClick = { vm.setCurrency(c) }, label = { Text(c.symbol) })
+                    }
+                    // Qué precio de Cardmarket se usa (solo en euros).
+                    if (ui.currency == Currency.EUR) {
+                        Box {
+                            var open by remember { mutableStateOf(false) }
+                            FilterChip(selected = ui.priceKind != PriceKind.TREND, onClick = { open = true },
+                                label = { Text("Precio: ${ui.priceKind.label}") })
+                            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                                PriceKind.entries.forEach { k ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Column {
+                                                Text(k.label, fontWeight = if (k == ui.priceKind) FontWeight.Bold else null)
+                                                Text(k.description, style = MaterialTheme.typography.bodySmall)
+                                            }
+                                        },
+                                        onClick = { open = false; vm.setPriceKind(k) },
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
                 ui.message?.let {

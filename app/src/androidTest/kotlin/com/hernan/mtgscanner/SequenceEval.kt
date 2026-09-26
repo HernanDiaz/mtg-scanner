@@ -33,7 +33,7 @@ class SequenceEval {
         // Fotogramas copiados al dispositivo por tools/run_sequences.sh.
         val root = File(instr.targetContext.getExternalFilesDir(null)!!, "testset/secuencias")
         val catalog = Catalog(instr.targetContext)
-        val recognizer = FrameRecognizer(catalog.names, catalog.setCodes, catalog::printingsOf, catalog::bySetAndNumber, catalog::art)
+        val recognizer = FrameRecognizer(catalog.names, catalog.setCodes, catalog::printingsOf, catalog::bySetAndNumber, catalog::art, catalog.symbols)
         val ocr = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
         val summary = StringBuilder("secuencia\tesperadas\tañadidas\tbien\tperdidas\tsobrantes\tdetalle\n")
@@ -53,10 +53,8 @@ class SequenceEval {
                 }
                 val viewH = bitmap.width * 2200 / 1080
                 val inGuide = GuideRegion.filter(lines, GuideRegion.inImage(bitmap.width, viewH, bitmap.width, bitmap.height))
-                val art = ArtSampler { l, t, r, b ->
-                    ArtSignature.compute(l, t, r, b) { x, y ->
-                        bitmap.getPixel(x.coerceIn(0, bitmap.width - 1), y.coerceIn(0, bitmap.height - 1)) and 0xFFFFFF
-                    }
+                val art = ArtSampler { x, y ->
+                    bitmap.getPixel(x.coerceIn(0, bitmap.width - 1), y.coerceIn(0, bitmap.height - 1)) and 0xFFFFFF
                 }
                 val result = recognizer.recognize(inGuide, art)
                 val accepted = session.onFrame(result, t)

@@ -11,18 +11,22 @@ import java.net.URL
 
 /**
  * Actualiza los precios de las cartas de la colección con el endpoint
- * /cards/collection de Scryfall (75 cartas por petición).
+ * /cards/collection de Scryfall (75 cartas por petición) y, si se pide, con la
+ * guía de precios de Cardmarket (precio más bajo y media de 30 días).
  */
-class PriceUpdater(private val store: CollectionStore) {
+class PriceUpdater(private val store: CollectionStore, private val cardmarket: CardmarketPrices? = null) {
 
     /** Devuelve cuántas impresiones se actualizaron. */
-    suspend fun updateAll(): Int = withContext(Dispatchers.IO) {
+    suspend fun updateAll(withCardmarketGuide: Boolean = false): Int = withContext(Dispatchers.IO) {
         var updated = 0
         for (batch in store.distinctCardIds().chunked(BATCH)) {
             val prices = fetch(batch)
             store.updatePrices(prices)
             updated += prices.size
             delay(REQUEST_GAP_MS) // Scryfall pide no superar ~10 peticiones/s
+        }
+        if (withCardmarketGuide && cardmarket != null) {
+            store.updateCardmarketPrices(cardmarket.pricesFor(store.cardmarketIds()))
         }
         updated
     }

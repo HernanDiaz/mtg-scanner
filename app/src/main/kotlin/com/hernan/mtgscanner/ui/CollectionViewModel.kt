@@ -14,6 +14,8 @@ import com.hernan.mtgscanner.data.CollectionImport
 import com.hernan.mtgscanner.data.CollectionFilter
 import com.hernan.mtgscanner.data.CollectionStore
 import com.hernan.mtgscanner.data.Currency
+import com.hernan.mtgscanner.data.CardmarketPrices
+import com.hernan.mtgscanner.data.PriceKind
 import com.hernan.mtgscanner.data.PriceUpdater
 import com.hernan.mtgscanner.scan.ArtSignature
 import kotlinx.coroutines.Dispatchers
@@ -35,6 +37,8 @@ data class CollectionUi(
     /** Pendientes de revisar en toda la colección (el botón de revisar no depende del filtro). */
     val pendingTotal: Int = 0,
     val currency: Currency = Currency.EUR,
+    /** Precio de Cardmarket con que se valora (en euros). */
+    val priceKind: PriceKind = PriceKind.TREND,
     val filter: CollectionFilter = CollectionFilter(),
     val sort: CollectionStore.Sort = CollectionStore.Sort.RECENT,
     val decks: List<CollectionStore.Deck> = emptyList(),
@@ -78,7 +82,7 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     private val app = application as App
     private val store = app.collection
     private val settings = app.settings
-    private val updater = PriceUpdater(store)
+    private val updater = PriceUpdater(store, CardmarketPrices(application.cacheDir))
 
     private val filter = MutableStateFlow(CollectionFilter())
     private val sort = MutableStateFlow(CollectionStore.Sort.RECENT)
@@ -87,19 +91,21 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
 
     init {
         viewModelScope.launch {
-            combine(store.version, settings.currency, filter, sort) { _, c, f, s -> Triple(c, f, s) }
-                .collect { (currency, f, s) ->
+            combine(store.version, settings.currency, filter, sort, settings.priceKind) { _, c, f, s, k ->
+                Query(c, f, s, k)
+            }
+                .collect { (currency, f, s, kind) ->
                     val result = withContext(Dispatchers.IO) {
                         Loaded(
-                            groups = store.groups(currency, f, s),
-                            summary = store.summary(currency, f),
+                            groups = store.groups(currency, f, s, kind),
+                            summary = store.summary(currency, f, kind),
                             pendingTotal = store.summary(currency).pendingReview,
                             decks = store.decks(),
                         )
                     }
                     _ui.update {
                         it.copy(groups = result.groups, summary = result.summary, pendingTotal = result.pendingTotal,
-                            decks = result.decks, currency = currency, filter = f, sort = s)
+                            decks = result.decks, currency = currency, filter = f, sort = s, priceKind = kind)
                     }
                 }
         }
@@ -107,6 +113,7 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch(Dispatchers.IO) {
             val catalog = app.catalog.await()
             store.backfillColors { id -> catalog.byId(id)?.colors }
+            store.backfillCardmarketIds { id -> catalog.byId(id)?.cardmarketId }
         }
         // Precios del día: si los más antiguos tienen más de 24 h, se actualizan solos.
         viewModelScope.launch {
@@ -114,6 +121,10 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
             if (oldest != null && System.currentTimeMillis() - oldest > DAY_MS) updatePrices()
         }
     }
+
+    private data class Query(
+        val currency: Currency, val filter: CollectionFilter, val sort: CollectionStore.Sort, val kind: PriceKind,
+    )
 
     private class Loaded(
         val groups: List<CollectionStore.Group>,
@@ -166,7 +177,9 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
         if (_ui.value.updatingPrices) return
         _ui.update { it.copy(updatingPrices = true, message = if (quiet) it.message else null) }
         viewModelScope.launch {
-            val msg = runCatching { updater.updateAll() }.fold(
+            // La guía de Cardmarket (~26 MB) solo hace falta para el precio más bajo o la media.
+            val guide = settings.priceKind.value != PriceKind.TREND
+            val msg = runCatching { updater.updateAll(withCardmarketGuide = guide) }.fold(
                 onSuccess = { if (quiet) null else "Precios actualizados ($it cartas)" },
                 onFailure = { "No se pudieron actualizar los precios: ${it.message}" },
             )
@@ -175,6 +188,13 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun setCurrency(c: Currency) = settings.setCurrency(c)
+
+    /** Al elegir el precio más bajo o la media por primera vez hace falta descargar la guía. */
+    fun setPriceKind(k: PriceKind) {
+        if (k == settings.priceKind.value) return
+        settings.setPriceKind(k)
+        if (k != PriceKind.TREND && _ui.value.summary.cards + _ui.value.pendingTotal > 0) updatePrices()
+    }
 
     fun removeOne(group: CollectionStore.Group) {
         viewModelScope.launch(Dispatchers.IO) { store.delete(group.lastEntryId) }
@@ -238,7 +258,7 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     suspend fun exportIntent(format: CollectionExport.Format): Intent = withContext(Dispatchers.IO) {
         val catalog = app.catalog.await()
         val ui = _ui.value
-        val lines = CollectionExport.lines(store.groups(ui.currency, ui.filter), catalog::setName, ::deckName,
+        val lines = CollectionExport.lines(store.groups(ui.currency, ui.filter, kind = ui.priceKind), catalog::setName, ::deckName,
             detailed = format == CollectionExport.Format.CSV)
         val content = CollectionExport.render(format, lines, ui.currency)
         val date = SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date())
@@ -274,7 +294,8 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
                 withContext(Dispatchers.IO) {
                     val catalog = app.catalog.await()
                     val currency = _ui.value.currency
-                    val lines = CollectionExport.lines(store.groups(currency), catalog::setName, ::deckName, detailed = true)
+                    val lines = CollectionExport.lines(store.groups(currency, kind = _ui.value.priceKind), catalog::setName,
+                        ::deckName, detailed = true)
                     val content = Char(0xFEFF) + CollectionExport.csv(lines, currency)
                     app.contentResolver.openOutputStream(uri, "wt")!!.use { it.write(content.toByteArray(Charsets.UTF_8)) }
                     lines.sumOf { it.quantity }
