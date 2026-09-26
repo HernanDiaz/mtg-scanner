@@ -511,7 +511,7 @@ class CollectionExportTest {
         group("Borborygmos, Enraged", "gtc", "143", 1, foil = true, lang = "es", price = null),
         group("Lightning Bolt", "m11", "149", 4, price = 1.25),
     )
-    private val lines = export.lines(groups) { it.uppercase() + " set" }
+    private val lines = export.lines(groups, { it.uppercase() + " set" })
 
     @Test fun reviewedAndPendingCopiesAreMerged() {
         assertEquals(3, lines.size)
@@ -520,9 +520,9 @@ class CollectionExportTest {
 
     @Test fun csvQuotesCommasAndComputesTotals() {
         val csv = export.csv(lines, com.hernan.mtgscanner.data.Currency.EUR).split("\r\n")
-        assertEquals("Cantidad,Nombre,Edición,Código,Número,Idioma,Estado,Foil,Precio unidad (EUR),Precio total (EUR),Scryfall ID", csv[0])
-        assertEquals("1,\"Borborygmos, Enraged\",GTC set,GTC,143,ES,NM,sí,,,gtc-143", csv[1])
-        assertEquals("4,Lightning Bolt,M11 set,M11,149,EN,NM,no,1.25,5.00,m11-149", csv[2])
+        assertEquals("Cantidad,Nombre,Edición,Código,Número,Idioma,Estado,Foil,Mazo,Por revisar,Precio unidad (EUR),Precio total (EUR),Scryfall ID", csv[0])
+        assertEquals("1,\"Borborygmos, Enraged\",GTC set,GTC,143,ES,NM,sí,,,,,gtc-143", csv[1])
+        assertEquals("4,Lightning Bolt,M11 set,M11,149,EN,NM,no,,,1.25,5.00,m11-149", csv[2])
     }
 
     @Test fun moxfieldFormat() {
@@ -536,5 +536,136 @@ class CollectionExportTest {
             "1 Borborygmos, Enraged (GTC) 143 *F* ES\n4 Lightning Bolt (M11) 149\n3 Swamp (M20) 276\n",
             export.text(lines),
         )
+    }
+}
+
+class CollectionImportTest {
+    private val import = com.hernan.mtgscanner.data.CollectionImport
+    private val export = com.hernan.mtgscanner.data.CollectionExport
+    private val borborygmos = card("Borborygmos, Enraged", "gtc", "143", "2013-02-01")
+    private val delver = card("Delver of Secrets // Insectile Aberration", "isd", "51", "2011-09-30")
+    private val all = BOLTS + SHOCK + borborygmos + delver
+    private val spanish = mapOf("relampago" to "Lightning Bolt", "descarga" to "Shock")
+
+    private val lookup = object : com.hernan.mtgscanner.data.CollectionImport.Lookup {
+        override fun byId(id: String) = all.firstOrNull { it.id == id }
+        override fun bySetAndNumber(setCode: String, numberNorm: String) =
+            all.firstOrNull { it.setCode == setCode && it.numberNorm == numberNorm }
+        override fun printingsOf(name: String): List<CardPrinting> {
+            val n = NameMatcher.normalize(name)
+            val english = spanish[n] ?: all.firstOrNull {
+                NameMatcher.normalize(it.name) == n || NameMatcher.normalize(it.name.substringBefore(" // ")) == n
+            }?.name
+            return all.filter { it.name == english }
+        }
+        override fun setCode(value: String): String? =
+            value.lowercase().takeIf { c -> all.any { it.setCode == c } }
+                ?: all.firstOrNull { it.setName.equals(value.removeSuffix(" set"), ignoreCase = true) }?.setCode
+        override fun isForeignName(name: String) = NameMatcher.normalize(name) in spanish
+    }
+
+    private fun resolve(text: String) = import.resolve(import.parse(text), lookup)
+
+    /** La copia de seguridad (nuestro CSV) vuelve a dar exactamente lo mismo, con mazos y revisión. */
+    @Test fun ownCsvRoundTrip() {
+        fun g(c: CardPrinting, qty: Int, deck: Long?, review: Boolean = false, foil: Boolean = false, lang: String = "en") =
+            com.hernan.mtgscanner.data.CollectionStore.Group(
+                cardId = c.id, name = c.name, setCode = c.setCode, collectorNumber = c.collectorNumber, foil = foil,
+                condition = "EX", lang = lang, quantity = qty, needsReview = review, unitPrice = 1.0, lastEntryId = 1, deckId = deck,
+            )
+        val groups = listOf(
+            g(BOLTS[3], 2, deck = 7), g(BOLTS[3], 1, deck = null), g(BOLTS[3], 1, deck = null, review = true),
+            g(borborygmos, 1, deck = 7, foil = true, lang = "es"),
+        )
+        val csv = export.csv(export.lines(groups, { "$it set" }, { if (it == 7L) "Rojo, agresivo" else null }, detailed = true),
+            com.hernan.mtgscanner.data.Currency.EUR)
+        val r = resolve("﻿" + csv)
+
+        assertTrue(r.failed.isEmpty())
+        assertEquals(5, r.cards)
+        assertEquals(listOf("Rojo, agresivo"), r.decks)
+        val bolts = r.items.filter { it.card == BOLTS[3] }
+        assertEquals(2, bolts.single { it.deck == "Rojo, agresivo" }.quantity)
+        assertEquals(1, bolts.single { it.deck == null && it.needsReview }.quantity)
+        assertEquals(1, bolts.single { it.deck == null && !it.needsReview }.quantity)
+        val b = r.items.single { it.card == borborygmos }
+        assertTrue(b.foil)
+        assertEquals("es", b.lang)
+        assertEquals("EX", b.condition)
+    }
+
+    @Test fun moxfieldCsv() {
+        val r = resolve(
+            "Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Tags,Last Modified,Collector Number\r\n" +
+                "4,0,Lightning Bolt,m10,Near Mint,Spanish,,,,146\r\n" +
+                "1,0,\"Borborygmos, Enraged\",gtc,Good (Lightly Played),English,foil,,,143\r\n"
+        )
+        assertEquals(listOf(4, 1), r.items.map { it.quantity })
+        assertEquals(BOLTS[4], r.items[0].card)
+        assertEquals("es", r.items[0].lang)
+        assertEquals("EX", r.items[1].condition)
+        assertTrue(r.items[1].foil)
+        assertFalse(r.items.any { it.needsReview })
+    }
+
+    @Test fun manaBoxCsvWithScryfallId() {
+        val r = resolve(
+            "Name,Set code,Set name,Collector number,Foil,Rarity,Quantity,ManaBox ID,Scryfall ID,Purchase price,Misprint,Altered,Condition,Language,Purchase price currency\n" +
+                "Shock,M20,Core Set 2020,163,normal,common,3,1,m20-163,0.1,false,false,near_mint,en,EUR\n" +
+                "Lightning Bolt,M11,Magic 2011,149,foil,common,1,2,,0.1,false,false,light_played,es,EUR\n"
+        )
+        assertEquals(SHOCK[0], r.items[0].card)
+        assertEquals(3, r.items[0].quantity)
+        assertEquals(BOLTS[3], r.items[1].card)
+        assertTrue(r.items[1].foil)
+        assertEquals("LP", r.items[1].condition)
+    }
+
+    /** Excel en español guarda con punto y coma; las ediciones pueden venir por nombre. */
+    @Test fun semicolonsAndSetNames() {
+        val r = resolve("Cantidad;Nombre;Edición;Número\n2;Lightning Bolt;M10;146\n1;Relámpago;;\n")
+        assertEquals(BOLTS[4], r.items[0].card)
+        assertFalse(r.items[0].needsReview)
+        // Solo el nombre (en español): la impresión más común, por revisar.
+        assertEquals("Lightning Bolt", r.items[1].card.name)
+        assertTrue(r.items[1].needsReview)
+        assertEquals("es", r.items[1].lang) // escrita en español
+        assertEquals("en", r.items[0].lang)
+    }
+
+    @Test fun textListsAndDeckFormats() {
+        val r = resolve(
+            """
+            Deck
+            4 Lightning Bolt (M11) 149
+            2x Borborygmos, Enraged [GTC] *F* ES
+            1 Delver of Secrets
+            // comentario
+
+            Sideboard
+            3 Shock
+            1 Carta Que No Existe
+            """.trimIndent()
+        )
+        assertEquals(listOf(BOLTS[3], borborygmos, delver, SHOCK[0]), r.items.map { it.card })
+        assertEquals(listOf(4, 2, 1, 3), r.items.map { it.quantity })
+        assertTrue(r.items[1].foil)
+        assertEquals("es", r.items[1].lang)
+        assertEquals(listOf(9), r.failed.map { it.line })
+    }
+
+    /** Nuestra propia lista de texto también se puede importar. */
+    @Test fun ownTextExport() {
+        val r = resolve("1 Borborygmos, Enraged (GTC) 143 *F* ES\n4 Lightning Bolt (M11) 149\n")
+        assertEquals(listOf(borborygmos, BOLTS[3]), r.items.map { it.card })
+        assertTrue(r.items[0].foil && r.items[0].lang == "es")
+        assertFalse(r.items[1].foil)
+    }
+
+    /** Un número que no cuadra con el nombre no gana: se busca por nombre y edición. */
+    @Test fun wrongNumberFallsBackToName() {
+        val r = resolve("Count,Name,Edition,Collector Number\n1,Lightning Bolt,m20,163\n")
+        assertEquals("Lightning Bolt", r.items.single().card.name)
+        assertTrue(r.items.single().needsReview)
     }
 }

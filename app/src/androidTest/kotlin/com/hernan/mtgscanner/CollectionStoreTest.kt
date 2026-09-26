@@ -4,7 +4,9 @@ import android.database.sqlite.SQLiteDatabase
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.hernan.mtgscanner.data.Catalog
+import com.hernan.mtgscanner.data.CollectionExport
 import com.hernan.mtgscanner.data.CollectionFilter
+import com.hernan.mtgscanner.data.CollectionImport
 import com.hernan.mtgscanner.data.CollectionStore
 import com.hernan.mtgscanner.data.Currency
 import org.junit.After
@@ -113,6 +115,77 @@ class CollectionStoreTest {
         assertEquals(listOf("Sol Ring"), names('C'))
     }
 
+    /** Copia de seguridad completa: exportar, sustituir la colección con el fichero y quedar igual. */
+    @Test fun backupAndReplaceRestoresEverything() {
+        val bolt = catalog.printingsOf("Lightning Bolt").first()
+        val swamp = catalog.printingsOf("Swamp").first()
+        repeat(3) { store.add(bolt, false, "EX", needsReview = false, lang = "es") }
+        store.add(swamp, true, "NM", needsReview = true)
+        val deck = store.createDeck("Rojo")
+        store.moveToDeck(store.groups(Currency.EUR, CollectionFilter(query = "bolt")).single(), deck, 2)
+        val before = snapshot()
+
+        val names = store.decks().associate { it.id to it.name }
+        val csv = CollectionExport.csv(
+            CollectionExport.lines(store.groups(Currency.EUR), catalog::setName, { names[it] }, detailed = true), Currency.EUR)
+        store.add(catalog.printingsOf("Counterspell").first(), false, "NM", needsReview = false) // cambios posteriores
+        store.createDeck("Otro")
+
+        val result = CollectionImport.resolve(CollectionImport.parse(csv), lookup)
+        assertTrue(result.failed.isEmpty())
+        store.import(result.items, replace = true)
+
+        assertEquals(before, snapshot())
+        assertEquals(listOf("Rojo"), store.decks().map { it.name })
+    }
+
+    /** Añadir no borra nada; los mazos se reutilizan por nombre y lo que no trae mazo va al que se ve. */
+    @Test fun addKeepsCollectionAndReusesDecks() {
+        store.add(catalog.printingsOf("Swamp").first(), false, "NM", needsReview = false)
+        val red = store.createDeck("Rojo")
+        val target = store.createDeck("Destino")
+        val text = "Cantidad,Nombre,Código,Número,Mazo" + NL + "2,Lightning Bolt,M11,149,rojo" + NL + "1,Counterspell,,," + NL
+        val result = CollectionImport.resolve(CollectionImport.parse(text), lookup)
+
+        assertEquals(3, store.import(result.items, replace = false, defaultDeck = target))
+
+        assertEquals(4, store.summary(Currency.EUR).cards)
+        assertEquals(listOf("Destino", "Rojo"), store.decks().map { it.name })
+        assertEquals("m11", store.groups(Currency.EUR, CollectionFilter(deckId = red)).single().setCode)
+        assertEquals("Counterspell", store.groups(Currency.EUR, CollectionFilter(deckId = target)).single().name)
+    }
+
+    @Test fun catalogFindsNamesAndSetsWrittenByPeople() {
+        assertEquals("Lightning Bolt", catalog.printingsOfAnyName("lightning bolt").first().name)
+        assertEquals("Lightning Bolt", catalog.printingsOfAnyName("Relámpago").first().name)
+        assertEquals("Delver of Secrets // Insectile Aberration", catalog.printingsOfAnyName("Delver of Secrets").first().name)
+        assertTrue(catalog.printingsOfAnyName("Carta que no existe").isEmpty())
+        assertTrue(catalog.isForeignName("Relámpago"))
+        assertFalse(catalog.isForeignName("lightning bolt"))
+        assertFalse(catalog.isForeignName("Insectile Aberration"))
+        assertEquals("m11", catalog.setCodeFor("M11"))
+        assertEquals("m11", catalog.setCodeFor("Magic 2011"))
+        assertEquals(null, catalog.setCodeFor("Edición inventada"))
+    }
+
+    private val lookup by lazy {
+        object : CollectionImport.Lookup {
+            override fun byId(id: String) = catalog.byId(id)
+            override fun bySetAndNumber(setCode: String, numberNorm: String) = catalog.bySetAndNumber(setCode, numberNorm)
+            override fun printingsOf(name: String) = catalog.printingsOfAnyName(name)
+            override fun setCode(value: String) = catalog.setCodeFor(value)
+            override fun isForeignName(name: String) = catalog.isForeignName(name)
+        }
+    }
+
+    /** Todo lo que se guarda de cada fila, con el nombre del mazo en vez de su id. */
+    private fun snapshot(): Set<List<Any?>> {
+        val names = store.decks().associate { it.id to it.name }
+        return store.groups(Currency.EUR).map {
+            listOf(it.cardId, it.foil, it.condition, it.lang, it.needsReview, it.quantity, names[it.deckId], it.colors)
+        }.toSet()
+    }
+
     /** El móvil con la versión anterior (base de datos v3) conserva sus cartas y recupera los colores. */
     @Test fun upgradesFromVersion3AndBackfillsColors() {
         store.close()
@@ -161,5 +234,6 @@ class CollectionStoreTest {
 
     private companion object {
         const val DB = "test_collection.db"
+        const val NL = "\n"
     }
 }

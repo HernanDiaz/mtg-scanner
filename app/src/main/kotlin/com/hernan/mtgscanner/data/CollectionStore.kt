@@ -115,23 +115,67 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         val db = writableDatabase
         db.beginTransaction()
         try {
-            val id = db.insertOrThrow("entries", null, ContentValues().apply {
-                put("card_id", card.id)
-                put("name", card.name)
-                put("set_code", card.setCode)
-                put("collector_number", card.collectorNumber)
-                put("foil", if (foil) 1 else 0)
-                put("condition", condition)
-                put("lang", lang)
-                put("needs_review", if (needsReview) 1 else 0)
-                put("added_at", System.currentTimeMillis())
-                put("art", art)
-                put("deck_id", deckId)
-                put("colors", card.colors)
-            })
+            val id = insertEntry(db, card, foil, condition, needsReview, lang, art, deckId)
             seedPrice(db, card)
             db.setTransactionSuccessful()
             return id
+        } finally {
+            db.endTransaction()
+            changed()
+        }
+    }
+
+    private fun insertEntry(
+        db: SQLiteDatabase, card: CardPrinting, foil: Boolean, condition: String, needsReview: Boolean,
+        lang: String, art: ByteArray?, deckId: Long?,
+    ): Long = db.insertOrThrow("entries", null, ContentValues().apply {
+        put("card_id", card.id)
+        put("name", card.name)
+        put("set_code", card.setCode)
+        put("collector_number", card.collectorNumber)
+        put("foil", if (foil) 1 else 0)
+        put("condition", condition)
+        put("lang", lang)
+        put("needs_review", if (needsReview) 1 else 0)
+        put("added_at", System.currentTimeMillis())
+        put("art", art)
+        put("deck_id", deckId)
+        put("colors", card.colors)
+    })
+
+    /**
+     * Guarda cartas importadas de un fichero, todo o nada. Con [replace] antes se
+     * borra la colección entera (cartas y mazos). Los mazos del fichero se reutilizan
+     * si ya hay uno con ese nombre y si no se crean; las cartas sin mazo van a [defaultDeck].
+     * Devuelve cuántas cartas se han guardado.
+     */
+    fun import(items: List<CollectionImport.Item>, replace: Boolean, defaultDeck: Long? = null): Int {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            if (replace) {
+                db.delete("entries", null, null)
+                db.delete("decks", null, null)
+            }
+            val deckIds = HashMap<String, Long>()
+            db.rawQuery("SELECT id, name FROM decks", null).use { c ->
+                while (c.moveToNext()) deckIds.putIfAbsent(c.getString(1).trim().lowercase(), c.getLong(0))
+            }
+            var count = 0
+            for (item in items) {
+                val deck = item.deck?.trim()?.takeIf { it.isNotEmpty() }?.let { name ->
+                    deckIds.getOrPut(name.lowercase()) {
+                        db.insertOrThrow("decks", null, ContentValues().apply { put("name", name) })
+                    }
+                } ?: defaultDeck.takeUnless { replace }
+                repeat(item.quantity) {
+                    insertEntry(db, item.card, item.foil, item.condition, item.needsReview, item.lang, null, deck)
+                }
+                seedPrice(db, item.card)
+                count += item.quantity
+            }
+            db.setTransactionSuccessful()
+            return count
         } finally {
             db.endTransaction()
             changed()

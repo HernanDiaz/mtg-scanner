@@ -26,18 +26,29 @@ object CollectionExport {
         val lang: String,
         val quantity: Int,
         val unitPrice: Double?,
+        val deck: String? = null,
+        val needsReview: Boolean = false,
     )
 
     /**
-     * Junta las filas de la colección que solo se distinguen por estar o no
-     * revisadas: al exportar da igual.
+     * Líneas a exportar. Con [detailed] (nuestro CSV, que sirve de copia de
+     * seguridad) se separan por mazo y por revisar; si no, se juntan: a Moxfield
+     * o a una lista de texto no les importa.
      */
-    fun lines(groups: List<CollectionStore.Group>, setName: (String) -> String): List<Line> =
-        groups.groupBy { listOf(it.cardId, it.foil, it.condition, it.lang) }.values.map { same ->
+    fun lines(
+        groups: List<CollectionStore.Group>,
+        setName: (String) -> String,
+        deckName: (Long?) -> String? = { null },
+        detailed: Boolean = false,
+    ): List<Line> =
+        groups.groupBy {
+            listOf(it.cardId, it.foil, it.condition, it.lang) + if (detailed) listOf(it.deckId, it.needsReview) else emptyList()
+        }.values.map { same ->
             val g = same.first()
             Line(g.cardId, g.name, g.setCode, setName(g.setCode), g.collectorNumber, g.foil, g.condition,
-                g.lang, same.sumOf { it.quantity }, g.unitPrice)
-        }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, Line::name).thenBy { it.setCode })
+                g.lang, same.sumOf { it.quantity }, g.unitPrice,
+                deck = if (detailed) deckName(g.deckId) else null, needsReview = detailed && g.needsReview)
+        }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, Line::name).thenBy { it.setCode }.thenBy { it.deck.orEmpty() })
 
     fun render(format: Format, lines: List<Line>, currency: Currency): String = when (format) {
         Format.CSV -> csv(lines, currency)
@@ -45,13 +56,17 @@ object CollectionExport {
         Format.TEXT -> text(lines)
     }
 
-    /** Todo, con precios. Separador coma y punto decimal: lo abre bien cualquier hoja de cálculo. */
+    /**
+     * Todo, con precios. Separador coma y punto decimal: lo abre bien cualquier hoja
+     * de cálculo. Lleva todo lo necesario para volver a importarlo (CollectionImport),
+     * así que es también la copia de seguridad.
+     */
     fun csv(lines: List<Line>, currency: Currency): String = buildString {
-        row("Cantidad", "Nombre", "Edición", "Código", "Número", "Idioma", "Estado", "Foil",
+        row("Cantidad", "Nombre", "Edición", "Código", "Número", "Idioma", "Estado", "Foil", "Mazo", "Por revisar",
             "Precio unidad (${currency.name})", "Precio total (${currency.name})", "Scryfall ID")
         for (l in lines) {
             row(l.quantity.toString(), l.name, l.setName, l.setCode.uppercase(), l.collectorNumber,
-                l.lang.uppercase(), l.condition, if (l.foil) "sí" else "no",
+                l.lang.uppercase(), l.condition, if (l.foil) "sí" else "no", l.deck.orEmpty(), if (l.needsReview) "sí" else "",
                 l.unitPrice?.let(::money) ?: "", l.unitPrice?.let { money(it * l.quantity) } ?: "", l.cardId)
         }
     }

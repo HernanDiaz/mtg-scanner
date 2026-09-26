@@ -1,5 +1,7 @@
 package com.hernan.mtgscanner.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
@@ -24,6 +26,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
@@ -95,6 +98,21 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
     /** Diálogo de nombre de mazo: crear (id null) o renombrar. */
     var deckDialog by remember { mutableStateOf<Pair<Long?, String>?>(null) }
     var deletingDeck by remember { mutableStateOf<CollectionStore.Deck?>(null) }
+    var fileMenu by remember { mutableStateOf(false) }
+    var importing by remember { mutableStateOf<ImportPreview?>(null) }
+    var readingFile by remember { mutableStateOf(false) }
+    val backupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        uri?.let(vm::writeBackup)
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch {
+            readingFile = true
+            runCatching { vm.readImport(uri) }
+                .onSuccess { importing = it }
+                .onFailure { vm.showMessage("No se pudo leer el fichero: ${it.message}") }
+            readingFile = false
+        }
+    }
     val context = LocalContext.current
     val currentDeck = ui.decks.firstOrNull { it.id == ui.filter.deckId }
 
@@ -117,10 +135,23 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                         Icon(Icons.Default.Share, "Exportar y compartir lo que se ve")
                     }
                     IconButton(onClick = { searching = true }) { Icon(Icons.Default.Add, "Añadir a mano") }
-                    if (ui.updatingPrices) {
+                    if (ui.updatingPrices || readingFile) {
                         CircularProgressIndicator(Modifier.size(24.dp).padding(2.dp))
                     } else {
-                        IconButton(onClick = vm::updatePrices) { Icon(Icons.Default.Refresh, "Actualizar precios") }
+                        IconButton(onClick = { vm.updatePrices() }) { Icon(Icons.Default.Refresh, "Actualizar precios") }
+                    }
+                    Box {
+                        IconButton(onClick = { fileMenu = true }) { Icon(Icons.Default.MoreVert, "Copia de seguridad e importar") }
+                        DropdownMenu(expanded = fileMenu, onDismissRequest = { fileMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Guardar copia de seguridad") },
+                                onClick = { fileMenu = false; backupLauncher.launch(vm.backupFileName()) },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Importar cartas o copia…") },
+                                onClick = { fileMenu = false; importLauncher.launch(arrayOf("*/*")) },
+                            )
+                        }
                     }
                 }
                 if (ui.pendingTotal > 0) {
@@ -278,6 +309,13 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
     if (searching) {
         ManualAddDialog(vm, ui.currency, onDismiss = { searching = false })
     }
+    importing?.let { preview ->
+        ImportDialog(
+            preview = preview,
+            onImport = { replace -> vm.applyImport(preview, replace); importing = null },
+            onDismiss = { importing = null },
+        )
+    }
     if (exporting) {
         ExportDialog(
             scope = ui.scopeLabel(),
@@ -314,6 +352,74 @@ private fun ColorToggle(c: Char, selected: Boolean, onClick: () -> Unit) {
         Text(c.toString(), color = if (selected) ink else MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
     }
 }
+
+/**
+ * Resultado de leer un fichero y qué hacer con él: añadirlo a la colección o
+ * sustituirla (esto último pide una segunda confirmación, porque borra).
+ */
+@Composable
+private fun ImportDialog(preview: ImportPreview, onImport: (replace: Boolean) -> Unit, onDismiss: () -> Unit) {
+    val r = preview.result
+    var confirmReplace by remember { mutableStateOf(false) }
+    if (confirmReplace) {
+        AlertDialog(
+            onDismissRequest = { confirmReplace = false },
+            title = { Text("¿Sustituir la colección?") },
+            text = {
+                Text("Se borrarán las ${cardsLabel(preview.currentCards)} actuales" +
+                    (if (preview.currentDecks > 0) " y ${decksLabel(preview.currentDecks)}" else "") +
+                    ", y quedarán solo las ${cardsLabel(r.cards)} del fichero. No se puede deshacer.")
+            },
+            confirmButton = { TextButton(onClick = { onImport(true) }) { Text("Sustituir") } },
+            dismissButton = { TextButton(onClick = { confirmReplace = false }) { Text("Cancelar") } },
+        )
+        return
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Importar ${preview.fileName}") },
+        text = {
+            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                if (r.items.isEmpty()) {
+                    Text("No se ha reconocido ninguna carta. Se admiten CSV (de esta app, Moxfield, ManaBox, " +
+                        "Deckbox, TCGplayer...) y listas de texto como \"4 Lightning Bolt (M11) 149\".")
+                } else {
+                    Text("${cardsLabel(r.cards)} reconocidas", fontWeight = FontWeight.Bold)
+                    if (r.decks.isNotEmpty()) Text("En ${decksLabel(r.decks.size)}: ${r.decks.joinToString(", ")}")
+                    if (r.pending > 0) Text("${cardsLabel(r.pending)} con la edición por revisar", color = REVIEW_COLOR)
+                    if (preview.targetDeck != null) {
+                        Text("Al añadir, las que no traen mazo irán a ${preview.targetDeck.name}.",
+                            style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
+                    }
+                }
+                if (r.failed.isNotEmpty()) {
+                    Text("${r.failed.size} ${if (r.failed.size == 1) "línea no reconocida" else "líneas no reconocidas"}:",
+                        fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp))
+                    r.failed.take(MAX_FAILED_SHOWN).forEach {
+                        Text("Línea ${it.line}: ${it.text}", style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    if (r.failed.size > MAX_FAILED_SHOWN) {
+                        Text("… y ${r.failed.size - MAX_FAILED_SHOWN} más", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Row {
+                if (r.items.isNotEmpty()) {
+                    if (preview.currentCards > 0) TextButton(onClick = { confirmReplace = true }) { Text("Sustituir") }
+                    TextButton(onClick = { onImport(false) }) { Text(if (preview.currentCards > 0) "Añadir" else "Importar") }
+                }
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+    )
+}
+
+private const val MAX_FAILED_SHOWN = 20
+
+private fun decksLabel(n: Int) = if (n == 1) "1 mazo" else "$n mazos"
 
 /** Elegir formato de exportación de lo que se está viendo; luego se abre el menú de compartir de Android. */
 @Composable

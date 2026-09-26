@@ -63,6 +63,46 @@ class Catalog(context: Context) {
 
     fun setName(code: String) = sets[code]?.name ?: code.uppercase()
 
+    private val setsByName: Map<String, String> by lazy {
+        // Si dos ediciones se llaman igual, gana la de código más corto (la principal, no la de fichas).
+        sets.entries.sortedByDescending { it.key.length }.associate { NameMatcher.normalize(it.value.name) to it.key }
+    }
+
+    /** Código de edición a partir de un código ("M11", "m11") o un nombre ("Magic 2011"). */
+    fun setCodeFor(value: String): String? {
+        val code = value.trim().lowercase()
+        return if (code in sets) code else setsByName[NameMatcher.normalize(value)]
+    }
+
+    /** "Relámpago": un nombre del catálogo que no es el inglés de ninguna carta (ni de una de sus caras). */
+    fun isForeignName(name: String): Boolean {
+        val key = NameMatcher.normalize(name)
+        val match = names.match(name)?.takeIf { it.distance == 0 } ?: return false
+        return match.names.none { full ->
+            NameMatcher.normalize(full) == key || full.split(" // ").any { NameMatcher.normalize(it) == key }
+        }
+    }
+
+    /**
+     * Impresiones de un nombre escrito por una persona o por otra app: el nombre
+     * exacto, con otras mayúsculas o tildes, en español, o solo la primera cara
+     * ("Delver of Secrets" por "Delver of Secrets // Insectile Aberration").
+     */
+    fun printingsOfAnyName(name: String): List<CardPrinting> {
+        printingsOf(name).takeIf { it.isNotEmpty() }?.let { return it }
+        // Varios nombres pueden compartir clave ("Lightning Bolt" y "Emeritus of Conflict // Lightning Bolt"):
+        // primero el que es exactamente ese nombre.
+        val key = NameMatcher.normalize(name)
+        val candidates = names.match(name)?.takeIf { it.distance == 0 }?.names.orEmpty()
+        (candidates.firstOrNull { NameMatcher.normalize(it) == key } ?: candidates.firstOrNull())?.let { exact ->
+            printingsOf(exact).takeIf { it.isNotEmpty() }?.let { return it }
+        }
+        val front = name.trim() + " // "
+        val full = db.rawQuery("SELECT DISTINCT name FROM cards WHERE name >= ? AND name < ? LIMIT 1",
+            arrayOf(front, front + Char(0xFFFF))).use { c -> if (c.moveToFirst()) c.getString(0) else null }
+        return full?.let(::printingsOf).orEmpty()
+    }
+
     private fun query(where: String, vararg args: String): List<CardPrinting> =
         db.rawQuery("SELECT $COLUMNS FROM cards $where", args).use { c ->
             buildList { while (c.moveToNext()) add(read(c)) }

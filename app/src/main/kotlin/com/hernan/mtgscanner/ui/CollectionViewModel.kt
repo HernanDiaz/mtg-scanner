@@ -2,12 +2,15 @@ package com.hernan.mtgscanner.ui
 
 import android.app.Application
 import android.content.Intent
+import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hernan.mtgscanner.App
 import com.hernan.mtgscanner.data.CardPrinting
 import com.hernan.mtgscanner.data.CollectionExport
+import com.hernan.mtgscanner.data.CollectionImport
 import com.hernan.mtgscanner.data.CollectionFilter
 import com.hernan.mtgscanner.data.CollectionStore
 import com.hernan.mtgscanner.data.Currency
@@ -53,6 +56,20 @@ data class CollectionUi(
 
 /** Nombres de los colores del filtro, en el orden habitual de Magic. */
 val COLOR_NAMES = linkedMapOf('W' to "Blanco", 'U' to "Azul", 'B' to "Negro", 'R' to "Rojo", 'G' to "Verde", 'C' to "Incoloro")
+
+/**
+ * Un fichero leído y listo para importar, a falta de que el usuario elija
+ * añadirlo o sustituir la colección.
+ */
+data class ImportPreview(
+    val fileName: String,
+    val result: CollectionImport.Result,
+    /** Lo que hay ahora, para avisar de lo que se borra al sustituir. */
+    val currentCards: Int,
+    val currentDecks: Int,
+    /** Mazo que se está viendo: al añadir, las cartas del fichero sin mazo van a él. */
+    val targetDeck: CollectionStore.Deck?,
+)
 
 /** Una edición posible en el selector, con su parecido a la foto (0-1) si se conoce. */
 data class PrintingOption(val printing: CardPrinting, val similarity: Double?)
@@ -144,15 +161,16 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
 
     // ------------------------------------------------------------------ cartas
 
-    fun updatePrices() {
+    /** [quiet]: sin mensaje al terminar bien (tras importar, para no tapar el resultado). */
+    fun updatePrices(quiet: Boolean = false) {
         if (_ui.value.updatingPrices) return
-        _ui.update { it.copy(updatingPrices = true, message = null) }
+        _ui.update { it.copy(updatingPrices = true, message = if (quiet) it.message else null) }
         viewModelScope.launch {
             val msg = runCatching { updater.updateAll() }.fold(
-                onSuccess = { "Precios actualizados ($it cartas)" },
+                onSuccess = { if (quiet) null else "Precios actualizados ($it cartas)" },
                 onFailure = { "No se pudieron actualizar los precios: ${it.message}" },
             )
-            _ui.update { it.copy(updatingPrices = false, message = msg) }
+            _ui.update { it.copy(updatingPrices = false, message = msg ?: it.message) }
         }
     }
 
@@ -220,7 +238,8 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     suspend fun exportIntent(format: CollectionExport.Format): Intent = withContext(Dispatchers.IO) {
         val catalog = app.catalog.await()
         val ui = _ui.value
-        val lines = CollectionExport.lines(store.groups(ui.currency, ui.filter), catalog::setName)
+        val lines = CollectionExport.lines(store.groups(ui.currency, ui.filter), catalog::setName, ::deckName,
+            detailed = format == CollectionExport.Format.CSV)
         val content = CollectionExport.render(format, lines, ui.currency)
         val date = SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date())
         val scope = ui.scopeLabel()
@@ -239,6 +258,91 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
         Intent.createChooser(send, "Compartir: $scope")
     }
 
+    private fun deckName(id: Long?) = id?.let { d -> _ui.value.decks.firstOrNull { it.id == d }?.name }
+
+    // ------------------------------------------------------------------ copia de seguridad e importar
+
+    fun backupFileName() = "mtg-scanner-copia-${SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date())}.csv"
+
+    /**
+     * Copia de seguridad: nuestro CSV con toda la colección (sin filtros), con mazos
+     * y cartas por revisar, en el sitio que elija el usuario (Drive, Descargas...).
+     */
+    fun writeBackup(uri: Uri) {
+        viewModelScope.launch {
+            val msg = runCatching {
+                withContext(Dispatchers.IO) {
+                    val catalog = app.catalog.await()
+                    val currency = _ui.value.currency
+                    val lines = CollectionExport.lines(store.groups(currency), catalog::setName, ::deckName, detailed = true)
+                    val content = Char(0xFEFF) + CollectionExport.csv(lines, currency)
+                    app.contentResolver.openOutputStream(uri, "wt")!!.use { it.write(content.toByteArray(Charsets.UTF_8)) }
+                    lines.sumOf { it.quantity }
+                }
+            }.fold(
+                onSuccess = { "Copia de seguridad guardada (${cardsLabel(it)})" },
+                onFailure = { "No se pudo guardar la copia: ${it.message}" },
+            )
+            _ui.update { it.copy(message = msg) }
+        }
+    }
+
+    /** Lee un fichero y busca sus cartas en el catálogo, sin guardar nada todavía. */
+    suspend fun readImport(uri: Uri): ImportPreview = withContext(Dispatchers.IO) {
+        val catalog = app.catalog.await()
+        val bytes = app.contentResolver.openInputStream(uri)!!.use { input ->
+            val data = input.readBytes()
+            require(data.size <= MAX_IMPORT_BYTES) { "el fichero es demasiado grande" }
+            data
+        }
+        val rows = CollectionImport.parse(decode(bytes))
+        val result = CollectionImport.resolve(rows, object : CollectionImport.Lookup {
+            override fun byId(id: String) = catalog.byId(id)
+            override fun bySetAndNumber(setCode: String, numberNorm: String) = catalog.bySetAndNumber(setCode, numberNorm)
+            override fun printingsOf(name: String) = catalog.printingsOfAnyName(name)
+            override fun setCode(value: String) = catalog.setCodeFor(value)
+            override fun isForeignName(name: String) = catalog.isForeignName(name)
+        }, settings.defaultCondition.value)
+        val ui = _ui.value
+        ImportPreview(
+            fileName = displayName(uri) ?: "fichero",
+            result = result,
+            currentCards = store.summary(ui.currency).cards,
+            currentDecks = store.decks().size,
+            targetDeck = ui.decks.firstOrNull { it.id == ui.filter.deckId },
+        )
+    }
+
+    /** Guarda lo leído: añadiéndolo a la colección o sustituyéndola entera. */
+    fun applyImport(preview: ImportPreview, replace: Boolean) {
+        viewModelScope.launch {
+            val msg = runCatching {
+                withContext(Dispatchers.IO) {
+                    store.import(preview.result.items, replace, defaultDeck = preview.targetDeck?.id)
+                }
+            }.fold(
+                onSuccess = { "${if (replace) "Colección sustituida" else "Añadidas"}: ${cardsLabel(it)}" },
+                onFailure = { "No se pudo importar: ${it.message}" },
+            )
+            if (replace) filter.value = CollectionFilter()
+            _ui.update { it.copy(message = msg) }
+            // Los precios del catálogo son los de cuando se hizo la app.
+            if (preview.result.items.isNotEmpty()) updatePrices(quiet = true)
+        }
+    }
+
+    /** UTF-8 si lo es (nuestros ficheros, la mayoría de apps); si no, lo que guarda Excel en Windows. */
+    private fun decode(bytes: ByteArray): String = try {
+        Charsets.UTF_8.newDecoder().decode(java.nio.ByteBuffer.wrap(bytes)).toString()
+    } catch (e: java.nio.charset.CharacterCodingException) {
+        String(bytes, charset("windows-1252"))
+    }
+
+    private fun displayName(uri: Uri): String? =
+        app.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+            if (c.moveToFirst()) c.getString(0) else null
+        }
+
     /** "Mazo Goblins · Rojo" -> "mazo-goblins-rojo" (nombre de fichero). */
     private fun fileSafe(s: String) = java.text.Normalizer.normalize(s.lowercase(), java.text.Normalizer.Form.NFKD)
         .replace(Regex("[^a-z0-9]+"), "-").trim('-').ifEmpty { "coleccion" }.take(60)
@@ -248,7 +352,10 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
 
     fun clearMessage() = _ui.update { it.copy(message = null) }
 
+    fun showMessage(text: String) = _ui.update { it.copy(message = text) }
+
     private companion object {
         const val DAY_MS = 24 * 60 * 60 * 1000L
+        const val MAX_IMPORT_BYTES = 20 * 1024 * 1024
     }
 }

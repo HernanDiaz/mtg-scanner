@@ -355,7 +355,7 @@ class FrameRecognizer(
          * (The List, Secret Lair, promos) y elige la más barata. Es la opción más
          * probable y la que no infla el valor de la colección.
          */
-        private fun defaultPick(printings: List<CardPrinting>): CardPrinting {
+        fun defaultPick(printings: List<CardPrinting>): CardPrinting {
             val regular = printings.filter {
                 !it.promo && it.setCode != "plst" && it.setType !in SPECIAL_SET_TYPES
             }.ifEmpty { printings }
