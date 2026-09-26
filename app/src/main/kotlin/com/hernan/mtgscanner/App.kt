@@ -1,0 +1,49 @@
+package com.hernan.mtgscanner
+
+import android.app.Application
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import com.hernan.mtgscanner.data.Catalog
+import com.hernan.mtgscanner.data.CollectionStore
+import com.hernan.mtgscanner.data.Settings
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import okhttp3.OkHttpClient
+
+/** Punto único de acceso a los datos de la app. */
+class App : Application(), ImageLoaderFactory {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** Se empieza a cargar al arrancar para que la cámara esté lista cuanto antes. */
+    lateinit var catalog: Deferred<Catalog>
+        private set
+    val collection by lazy { CollectionStore(this) }
+    val settings by lazy { Settings(this) }
+
+    override fun onCreate() {
+        super.onCreate()
+        catalog = scope.async { Catalog(this@App) }
+    }
+
+    /**
+     * Imágenes de cartas: Scryfall rechaza (400) el User-Agent por defecto de OkHttp,
+     * así que se identifica la app igual que en las consultas de precios.
+     */
+    override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
+        .okHttpClient {
+            OkHttpClient.Builder()
+                .addInterceptor { chain ->
+                    chain.proceed(chain.request().newBuilder().header("User-Agent", USER_AGENT).build())
+                }
+                .build()
+        }
+        .crossfade(true)
+        .build()
+
+    companion object {
+        const val USER_AGENT = "MTGScanner/0.1"
+    }
+}

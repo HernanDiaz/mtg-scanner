@@ -1,0 +1,16 @@
+/data/
+*.tmp
+*.part
+.gradle/
+build/
+/local.properties
+.idea/
+*.iml
+.kotlin/
+__pycache__/
+/tools/.venv/
+/testset/
+# Generado por tools/build_catalog.py (31 MB): no va al repositorio
+/app/src/main/assets/catalog.sqlite
+# Capturas del móvil para depurar
+/capturas/

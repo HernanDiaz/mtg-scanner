@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Carta enmarcada por las esquinas de un visor, con una línea de escaneo.
+     Lienzo de 108dp; el contenido queda dentro de la zona segura (21-87). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Carta (proporción 63:88) -->
+    <path
+        android:fillColor="#F2C14E"
+        android:pathData="M43,33 H65 A3,3 0 0 1 68,36 V70 A3,3 0 0 1 65,73 H43 A3,3 0 0 1 40,70 V36 A3,3 0 0 1 43,33 Z" />
+    <!-- Barra del título -->
+    <path
+        android:fillColor="#5B4513"
+        android:pathData="M43,35.5 H65 V38.5 H43 Z" />
+    <!-- Ilustración -->
+    <path
+        android:fillColor="#2F5D8A"
+        android:pathData="M43,40.5 H65 V55 H43 Z" />
+    <path
+        android:fillColor="#4E86BA"
+        android:pathData="M43,55 L50,46 L55,51 L59,47 L65,53 V55 Z" />
+    <!-- Caja de texto -->
+    <path
+        android:fillColor="#5B4513"
+        android:fillAlpha="0.55"
+        android:pathData="M44,58.5 H64 V60 H44 Z M44,62 H64 V63.5 H44 Z M44,65.5 H58 V67 H44 Z" />
+
+    <!-- Esquinas del visor -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#4FD1C5"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M33,35 V27 H41 M67,27 H75 V35 M75,71 V79 H67 M41,79 H33 V71" />
+
+    <!-- Línea de escaneo -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#4FD1C5"
+        android:strokeAlpha="0.9"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M31,51 H77" />
+</vector>
