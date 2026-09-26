@@ -91,6 +91,7 @@ fun ScannerScreen(vm: ScannerViewModel = viewModel()) {
     val analyzer by vm.analyzer.collectAsStateWithLifecycle()
     val currency by vm.settings.currency.collectAsStateWithLifecycle()
     var choosingDeck by remember { mutableStateOf(false) }
+    var detail by remember { mutableStateOf<com.hernan.mtgscanner.data.CardPrinting?>(null) }
 
     // El OCR solo mira dentro del marco guía; necesita saber cómo se ve la cámara.
     var viewSize by remember { mutableStateOf<IntSize?>(null) }
@@ -123,7 +124,7 @@ fun ScannerScreen(vm: ScannerViewModel = viewModel()) {
 
         // Abajo: última carta añadida, deshacer y opciones.
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(12.dp)) {
-            ui.lastAdded?.let { added -> LastAddedCard(added, currency, onUndo = vm::undo) }
+            ui.lastAdded?.let { added -> LastAddedCard(added, currency, onUndo = vm::undo, onOpen = { detail = added.printing }) }
             Spacer(Modifier.size(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(selected = ui.foil, onClick = vm::toggleFoil, label = { Text(stringResource(R.string.foil)) })
@@ -139,6 +140,13 @@ fun ScannerScreen(vm: ScannerViewModel = viewModel()) {
         }
     }
 
+    detail?.let { p ->
+        CardDetailDialog(
+            printing = p, group = null, deckName = null, currency = currency,
+            loadSheet = { vm.cardSheet(p) }, loadDetails = { vm.cardDetails(p.id) },
+            onDismiss = { detail = null },
+        )
+    }
     if (choosingDeck) {
         ScanDeckDialog(
             decks = ui.decks, current = ui.scanDeck?.id,
@@ -179,9 +187,12 @@ private fun ScanDeckDialog(
 }
 
 @Composable
-private fun LastAddedCard(added: AddedCard, currency: com.hernan.mtgscanner.data.Currency, onUndo: () -> Unit) {
+private fun LastAddedCard(added: AddedCard, currency: com.hernan.mtgscanner.data.Currency, onUndo: () -> Unit, onOpen: () -> Unit) {
     val p = added.printing
-    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)) {
+    Surface(
+        onClick = onOpen,
+        shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+    ) {
         Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             CardThumb(p.smallImageUrl, 52.dp)
             Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {

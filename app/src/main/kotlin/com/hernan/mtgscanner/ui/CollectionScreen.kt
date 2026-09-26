@@ -99,6 +99,8 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
     var searching by remember { mutableStateOf(false) }
     var exporting by remember { mutableStateOf(false) }
     var moving by remember { mutableStateOf<CollectionStore.Group?>(null) }
+    /** Fila abierta en la ficha de carta (se sigue por su clave: cambia al tocar estado o foil). */
+    var viewing by remember { mutableStateOf<CollectionStore.Group?>(null) }
     /** Diálogo de nombre de mazo: crear (id null) o renombrar. */
     var deckDialog by remember { mutableStateOf<Pair<Long?, String>?>(null) }
     var deletingDeck by remember { mutableStateOf<CollectionStore.Deck?>(null) }
@@ -277,7 +279,8 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                 GroupRow(
                     g, ui.currency,
                     deckName = if (ui.filter.deckId == null) ui.decks.firstOrNull { it.id == g.deckId }?.name else null,
-                    onClick = { reviewing = false; editing = g },
+                    onClick = { viewing = g },
+                    onEdit = { reviewing = false; editing = g },
                     onMove = { moving = g },
                     onRemove = { vm.removeOne(g) },
                 )
@@ -286,6 +289,30 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
         }
     }
 
+    viewing?.let { held ->
+        // La fila actualizada si ya se ha vuelto a leer la colección; si no, la que se tenía.
+        val g = ui.groups.firstOrNull { it.sheetKey() == held.sheetKey() } ?: held
+        var printing by remember(g.cardId) { mutableStateOf<CardPrinting?>(null) }
+        LaunchedEffect(g.cardId) { printing = vm.printingOf(g.cardId) }
+        printing?.let { p ->
+            CardDetailDialog(
+                printing = p, group = g,
+                deckName = ui.decks.firstOrNull { it.id == g.deckId }?.name,
+                currency = ui.currency,
+                loadSheet = { vm.cardSheet(g.cardId, g.name) },
+                loadDetails = { vm.cardDetails(g.cardId) },
+                onCondition = { c -> vm.setCondition(g, c); viewing = g.copy(condition = c) },
+                onFoil = { f -> vm.setFoil(g, f); viewing = g.copy(foil = f) },
+                onChangeEdition = { viewing = null; reviewing = false; editing = g },
+                onMove = { viewing = null; moving = g },
+                onRemoveOne = {
+                    vm.removeOne(g)
+                    viewing = if (g.quantity > 1) g.copy(quantity = g.quantity - 1) else null
+                },
+                onDismiss = { viewing = null },
+            )
+        }
+    }
     editing?.let { group ->
         var lang by remember(group) { mutableStateOf(group.lang) }
         PrintingPicker(
@@ -478,7 +505,7 @@ private fun ExportDialog(scope: String, cards: Int, onPick: (CollectionExport.Fo
 @Composable
 private fun GroupRow(
     g: CollectionStore.Group, currency: Currency, deckName: String?,
-    onClick: () -> Unit, onMove: () -> Unit, onRemove: () -> Unit,
+    onClick: () -> Unit, onEdit: () -> Unit, onMove: () -> Unit, onRemove: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
     Row(
@@ -510,7 +537,7 @@ private fun GroupRow(
             IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, stringResource(R.string.more_options)) }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(text = { Text(stringResource(R.string.move_to_deck)) }, onClick = { menu = false; onMove() })
-                DropdownMenuItem(text = { Text(stringResource(R.string.change_edition)) }, onClick = { menu = false; onClick() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.change_edition)) }, onClick = { menu = false; onEdit() })
                 DropdownMenuItem(text = { Text(stringResource(R.string.remove_one)) }, onClick = { menu = false; onRemove() })
             }
         }
@@ -701,6 +728,9 @@ private fun PrintingRow(opt: PrintingOption, isCurrent: Boolean, currency: Curre
         Text(formatPrice(p.prices.of(currency, foil), currency))
     }
 }
+
+/** Identifica una fila de la colección (las mismas columnas que la agrupan). */
+private fun CollectionStore.Group.sheetKey() = "$cardId|$foil|$condition|$lang|$needsReview|$deckId"
 
 /** El texto de búsqueda casa con nombre de la edición, código, número o año (sin tildes ni mayúsculas). */
 private fun matchesPrinting(p: CardPrinting, query: String): Boolean {

@@ -222,6 +222,44 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         changed()
     }
 
+    /** Cambia el estado (NM, EX...) de todas las entradas de un grupo. */
+    fun setCondition(group: Group, condition: String) {
+        writableDatabase.update("entries", ContentValues().apply { put("condition", condition) }, GROUP_WHERE, group.whereArgs())
+        changed()
+    }
+
+    /** Marca o desmarca como foil todas las entradas de un grupo. */
+    fun setFoil(group: Group, foil: Boolean) {
+        writableDatabase.update("entries", ContentValues().apply { put("foil", if (foil) 1 else 0) }, GROUP_WHERE, group.whereArgs())
+        changed()
+    }
+
+    /** Copias de una carta en la colección, contando todas sus ediciones. */
+    fun copiesOf(name: String): Int =
+        readableDatabase.rawQuery("SELECT COUNT(*) FROM entries WHERE name = ?", arrayOf(name)).use { c ->
+            c.moveToFirst(); c.getInt(0)
+        }
+
+    /** Todos los precios guardados de una impresión (null si aún no hay). */
+    fun storedPrices(cardId: String): StoredPrices? =
+        readableDatabase.rawQuery(
+            "SELECT eur, eur_foil, eur_low, eur_low_foil, eur_avg30, eur_avg30_foil, usd, usd_foil, updated_at " +
+                "FROM prices WHERE card_id = ?", arrayOf(cardId)
+        ).use { c ->
+            if (!c.moveToFirst()) return null
+            fun d(i: Int) = if (c.isNull(i)) null else c.getDouble(i)
+            StoredPrices(d(0), d(1), d(2), d(3), d(4), d(5), d(6), d(7), c.getLong(8))
+        }
+
+    data class StoredPrices(
+        val eur: Double?, val eurFoil: Double?,
+        val eurLow: Double?, val eurLowFoil: Double?,
+        val eurAvg30: Double?, val eurAvg30Foil: Double?,
+        val usd: Double?, val usdFoil: Double?,
+        /** 0 = precio del catálogo (sin actualizar todavía). */
+        val updatedAt: Long,
+    )
+
     /** Cambia el idioma de todas las entradas de un grupo. */
     fun setLanguage(group: Group, lang: String) {
         writableDatabase.update("entries", ContentValues().apply { put("lang", lang) }, GROUP_WHERE, group.whereArgs())

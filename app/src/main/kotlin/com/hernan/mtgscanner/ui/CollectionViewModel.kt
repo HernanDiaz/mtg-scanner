@@ -10,6 +10,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hernan.mtgscanner.App
 import com.hernan.mtgscanner.R
+import com.hernan.mtgscanner.data.CardDetails
 import com.hernan.mtgscanner.data.CardPrinting
 import com.hernan.mtgscanner.data.CollectionExport
 import com.hernan.mtgscanner.data.CollectionImport
@@ -241,6 +242,26 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     fun setLanguage(group: CollectionStore.Group, lang: String) {
         viewModelScope.launch(Dispatchers.IO) { store.setLanguage(group, lang) }
     }
+
+    fun setCondition(group: CollectionStore.Group, condition: String) {
+        viewModelScope.launch(Dispatchers.IO) { store.setCondition(group, condition) }
+    }
+
+    fun setFoil(group: CollectionStore.Group, foil: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) { store.setFoil(group, foil) }
+    }
+
+    // ------------------------------------------------------------------ ficha de carta
+
+    suspend fun printingOf(id: String): CardPrinting? = withContext(Dispatchers.IO) { app.catalog.await().byId(id) }
+
+    suspend fun cardSheet(id: String, name: String): CardSheet =
+        withContext(Dispatchers.IO) { CardSheet(store.storedPrices(id), store.copiesOf(name)) }
+
+    /** Texto, legalidad y enlaces de Scryfall; null sin conexión. */
+    suspend fun cardDetails(id: String): CardDetails? =
+        withContext(Dispatchers.IO) { runCatching { CardDetails.fetch(id) }.getOrNull() }
+
 
     /**
      * Ediciones posibles de una carta. Si se guardó la ilustración fotografiada,

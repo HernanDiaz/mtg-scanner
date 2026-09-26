@@ -153,4 +153,28 @@
     <string name="collection_replaced">Collection replaced: %1$s</string>
     <string name="cards_added">Added: %1$s</string>
     <string name="import_failed">Could not import: %1$s</string>
+
+    <!-- Ficha de carta -->
+    <string name="in_your_collection">In your collection</string>
+    <string name="copies_of_edition">%1$d of this edition</string>
+    <string name="copies_of_card">%1$d of the card in total</string>
+    <string name="prices">Prices</string>
+    <string name="normal">Normal</string>
+    <string name="prices_from_catalog">Catalog prices: press update prices for today\'s.</string>
+    <string name="prices_updated_at">Updated %1$s</string>
+    <string name="cardmarket_guide_hint">Lowest and 30-day average appear after choosing one of them as the price and updating.</string>
+    <string name="card_text">Card text</string>
+    <string name="details_offline">Needs a connection (Scryfall).</string>
+    <string name="legality">Legality</string>
+    <string name="legal">Legal</string>
+    <string name="not_legal">Not legal</string>
+    <string name="banned">Banned</string>
+    <string name="restricted">Restricted</string>
+    <string name="flip_card">Flip</string>
+    <string name="loyalty">Loyalty %1$s</string>
+    <string name="artist">Illustrated by %1$s</string>
+    <string name="rarity_common">Common</string>
+    <string name="rarity_uncommon">Uncommon</string>
+    <string name="rarity_rare">Rare</string>
+    <string name="rarity_mythic">Mythic</string>
 </resources>

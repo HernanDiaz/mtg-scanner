@@ -150,4 +150,28 @@
     <string name="collection_replaced">Colección sustituida: %1$s</string>
     <string name="cards_added">Añadidas: %1$s</string>
     <string name="import_failed">No se pudo importar: %1$s</string>
+
+    <!-- Ficha de carta -->
+    <string name="in_your_collection">En tu colección</string>
+    <string name="copies_of_edition">%1$d de esta edición</string>
+    <string name="copies_of_card">%1$d de la carta en total</string>
+    <string name="prices">Precios</string>
+    <string name="normal">Normal</string>
+    <string name="prices_from_catalog">Precios del catálogo: pulsa actualizar precios para tener los de hoy.</string>
+    <string name="prices_updated_at">Actualizados el %1$s</string>
+    <string name="cardmarket_guide_hint">El más bajo y la media de 30 días aparecen al elegir uno de ellos como precio y actualizar.</string>
+    <string name="card_text">Texto de la carta</string>
+    <string name="details_offline">Necesita conexión (Scryfall).</string>
+    <string name="legality">Legalidad</string>
+    <string name="legal">Legal</string>
+    <string name="not_legal">No legal</string>
+    <string name="banned">Prohibida</string>
+    <string name="restricted">Restringida</string>
+    <string name="flip_card">Girar</string>
+    <string name="loyalty">Lealtad %1$s</string>
+    <string name="artist">Ilustración de %1$s</string>
+    <string name="rarity_common">Común</string>
+    <string name="rarity_uncommon">Infrecuente</string>
+    <string name="rarity_rare">Rara</string>
+    <string name="rarity_mythic">Mítica</string>
 </resources>

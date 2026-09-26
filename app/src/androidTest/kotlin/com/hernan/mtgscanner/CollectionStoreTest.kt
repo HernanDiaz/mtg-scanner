@@ -245,6 +245,48 @@ class CollectionStoreTest {
         assertEquals(setOf(bolt.cardmarketId), store.cardmarketIds())
     }
 
+    /** Ficha de carta: cambiar estado y foil, copias de la carta y precios guardados. */
+    @Test fun cardSheetEdits() {
+        val bolts = catalog.printingsOf("Lightning Bolt").filter { it.cardmarketId != null }
+        repeat(2) { store.add(bolts[0], false, "NM", needsReview = false) }
+        store.add(bolts[1], false, "NM", needsReview = false)
+        assertEquals(3, store.copiesOf("Lightning Bolt"))
+
+        val g = store.groups(Currency.EUR).single { it.cardId == bolts[0].id }
+        store.setCondition(g, "EX")
+        val ex = store.groups(Currency.EUR).single { it.cardId == bolts[0].id }
+        assertEquals("EX", ex.condition)
+        assertEquals(2, ex.quantity)
+        store.setFoil(ex, true)
+        assertTrue(store.groups(Currency.EUR).single { it.cardId == bolts[0].id }.foil)
+
+        store.updatePrices(mapOf(bolts[0].id to Prices(1.0, 2.0, 3.0, 4.0)))
+        store.updateCardmarketPrices(mapOf(bolts[0].cardmarketId!! to CardmarketPrices.Guide(trend = 1.1, low = 0.5, avg30Foil = 2.5)))
+        val p = store.storedPrices(bolts[0].id)!!
+        assertEquals(1.1, p.eur!!, 1e-9)
+        assertEquals(0.5, p.eurLow!!, 1e-9)
+        assertEquals(2.5, p.eurAvg30Foil!!, 1e-9)
+        assertEquals(3.0, p.usd!!, 1e-9)
+        assertTrue(p.updatedAt > 0)
+    }
+
+    @Test fun cardDetailsFromScryfallJson() {
+        val json = org.json.JSONObject("""{"name":"Delver of Secrets // Insectile Aberration",
+            "legalities":{"modern":"legal","vintage":"restricted","standard":"not_legal"},
+            "purchase_uris":{"cardmarket":"https://cardmarket.example/delver"},
+            "scryfall_uri":"https://scryfall.example/delver","artist":"Nils Hamm",
+            "card_faces":[
+              {"name":"Delver of Secrets","mana_cost":"{U}","type_line":"Creature — Human Wizard","oracle_text":"At the beginning...","power":"1","toughness":"1"},
+              {"name":"Insectile Aberration","mana_cost":"","type_line":"Creature — Human Insect","oracle_text":"Flying","power":"3","toughness":"2"}]}""")
+        val d = com.hernan.mtgscanner.data.CardDetails.parse(json)
+        assertEquals(listOf("Delver of Secrets", "Insectile Aberration"), d.faces.map { it.name })
+        assertEquals("{U}", d.faces[0].manaCost)
+        assertEquals(null, d.faces[1].manaCost) // "" = sin coste
+        assertEquals("Nils Hamm", d.faces[1].artist)
+        assertEquals("restricted", d.legalities["vintage"])
+        assertEquals("https://cardmarket.example/delver", d.cardmarketUrl)
+    }
+
     /** El móvil con la versión anterior (base de datos v3) conserva sus cartas y recupera los colores. */
     @Test fun upgradesFromVersion3AndBackfillsColors() {
         store.close()

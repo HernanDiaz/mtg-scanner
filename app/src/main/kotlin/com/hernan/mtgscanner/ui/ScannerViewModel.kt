@@ -9,6 +9,7 @@ import android.os.Vibrator
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hernan.mtgscanner.App
+import com.hernan.mtgscanner.data.CardDetails
 import com.hernan.mtgscanner.data.CardPrinting
 import com.hernan.mtgscanner.data.CollectionStore
 import com.hernan.mtgscanner.scan.FrameRecognizer
@@ -84,6 +85,13 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 }
         }
     }
+
+    /** Ficha de carta de la última escaneada. */
+    suspend fun cardSheet(p: CardPrinting): CardSheet =
+        withContext(Dispatchers.IO) { CardSheet(store.storedPrices(p.id), store.copiesOf(p.name)) }
+
+    suspend fun cardDetails(id: String): CardDetails? =
+        withContext(Dispatchers.IO) { runCatching { CardDetails.fetch(id) }.getOrNull() }
 
     /** Llamado desde [analysisExecutor] con cada fotograma procesado. */
     private fun onFrame(result: FrameResult?, rawTopLine: String?) {
