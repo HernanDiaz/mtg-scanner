@@ -4,6 +4,7 @@ import android.database.sqlite.SQLiteDatabase
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.hernan.mtgscanner.data.Catalog
+import com.hernan.mtgscanner.data.CollectionFilter
 import com.hernan.mtgscanner.data.CollectionStore
 import com.hernan.mtgscanner.data.Currency
 import org.junit.After
@@ -77,10 +78,63 @@ class CollectionStoreTest {
         store.add(bolt, false, "NM", needsReview = false)
         store.add(swamp, false, "NM", needsReview = true)
 
-        assertEquals(listOf("Lightning Bolt"), store.groups(Currency.EUR, query = "bolt").map { it.name })
-        assertEquals(listOf("Swamp"), store.groups(Currency.EUR, onlyPending = true).map { it.name })
+        assertEquals(listOf("Lightning Bolt"), store.groups(Currency.EUR, CollectionFilter(query = "bolt")).map { it.name })
+        assertEquals(listOf("Swamp"), store.groups(Currency.EUR, CollectionFilter(onlyPending = true)).map { it.name })
         assertEquals(listOf("Lightning Bolt", "Swamp"),
             store.groups(Currency.EUR, sort = CollectionStore.Sort.NAME).map { it.name })
+    }
+
+    @Test fun decksMoveSomeCopiesFilterAndDelete() {
+        val bolt = catalog.printingsOf("Lightning Bolt").first()
+        repeat(4) { store.add(bolt, false, "NM", needsReview = false) }
+        val goblins = store.createDeck("Goblins")
+        store.moveToDeck(store.groups(Currency.EUR).single(), goblins, count = 2)
+
+        assertEquals(2, store.groups(Currency.EUR, CollectionFilter(deckId = goblins)).single().quantity)
+        assertEquals(2, store.groups(Currency.EUR, CollectionFilter(deckId = CollectionStore.NO_DECK)).single().quantity)
+        assertEquals(4, store.summary(Currency.EUR).cards)
+        assertEquals(2, store.summary(Currency.EUR, CollectionFilter(deckId = goblins)).cards)
+        assertEquals(listOf(CollectionStore.Deck(goblins, "Goblins", 2)), store.decks())
+
+        store.deleteDeck(goblins) // las cartas vuelven a la colección sin mazo
+        assertEquals(4, store.groups(Currency.EUR, CollectionFilter(deckId = CollectionStore.NO_DECK)).sumOf { it.quantity })
+        assertTrue(store.decks().isEmpty())
+    }
+
+    @Test fun colorFilter() {
+        store.add(catalog.printingsOf("Lightning Bolt").first(), false, "NM", needsReview = false)   // R
+        store.add(catalog.printingsOf("Counterspell").first(), false, "NM", needsReview = false)     // U
+        store.add(catalog.printingsOf("Fire // Ice").first(), false, "NM", needsReview = false)      // UR
+        store.add(catalog.printingsOf("Sol Ring").first(), false, "NM", needsReview = false)         // incolora
+
+        fun names(vararg c: Char) = store.groups(Currency.EUR, CollectionFilter(colors = c.toSet()), CollectionStore.Sort.NAME).map { it.name }
+        assertEquals(listOf("Fire // Ice", "Lightning Bolt"), names('R'))
+        assertEquals(listOf("Counterspell", "Fire // Ice", "Lightning Bolt"), names('R', 'U'))
+        assertEquals(listOf("Sol Ring"), names('C'))
+    }
+
+    /** El móvil con la versión anterior (base de datos v3) conserva sus cartas y recupera los colores. */
+    @Test fun upgradesFromVersion3AndBackfillsColors() {
+        store.close()
+        context.deleteDatabase(DB)
+        val bolt = catalog.printingsOf("Lightning Bolt").first()
+        val path = context.getDatabasePath(DB).apply { parentFile?.mkdirs() }
+        SQLiteDatabase.openOrCreateDatabase(path, null).use { db ->
+            db.execSQL("""
+                CREATE TABLE entries (id INTEGER PRIMARY KEY AUTOINCREMENT, card_id TEXT NOT NULL, name TEXT NOT NULL,
+                  set_code TEXT NOT NULL, collector_number TEXT NOT NULL, foil INTEGER NOT NULL, condition TEXT NOT NULL,
+                  lang TEXT NOT NULL DEFAULT 'en', needs_review INTEGER NOT NULL, added_at INTEGER NOT NULL, art BLOB)
+            """)
+            db.execSQL("CREATE TABLE prices (card_id TEXT PRIMARY KEY, eur REAL, eur_foil REAL, usd REAL, usd_foil REAL, updated_at INTEGER NOT NULL)")
+            db.execSQL("INSERT INTO entries (card_id, name, set_code, collector_number, foil, condition, needs_review, added_at) " +
+                "VALUES ('${bolt.id}', 'Lightning Bolt', '${bolt.setCode}', '${bolt.collectorNumber}', 0, 'NM', 0, 0)")
+            db.version = 3
+        }
+        store = CollectionStore(context, DB)
+        assertTrue(store.groups(Currency.EUR, CollectionFilter(colors = setOf('R'))).isEmpty()) // aún sin colores
+        store.backfillColors { id -> catalog.byId(id)?.colors }
+        assertEquals("Lightning Bolt", store.groups(Currency.EUR, CollectionFilter(colors = setOf('R'))).single().name)
+        assertTrue(store.decks().isEmpty())
     }
 
     /** Los móviles con la versión anterior (base de datos v2) conservan sus cartas. */

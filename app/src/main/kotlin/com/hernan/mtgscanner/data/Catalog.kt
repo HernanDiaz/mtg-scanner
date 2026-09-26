@@ -84,6 +84,7 @@ class Catalog(context: Context) {
         lang = c.getString(9),
         prices = Prices(c.doubleOrNull(10), c.doubleOrNull(11), c.doubleOrNull(12), c.doubleOrNull(13)),
         artId = if (c.isNull(14)) null else c.getInt(14),
+        colors = c.getString(15),
     )
 
     private fun Cursor.doubleOrNull(i: Int) = if (isNull(i)) null else getDouble(i)
@@ -91,7 +92,7 @@ class Catalog(context: Context) {
     companion object {
         private const val ASSET = "catalog.sqlite"
         private const val COLUMNS = "id, name, set_code, collector_number, number_norm, rarity, " +
-            "released_at, finishes, promo, lang, eur, eur_foil, usd, usd_foil, art_id"
+            "released_at, finishes, promo, lang, eur, eur_foil, usd, usd_foil, art_id, colors"
 
         private fun ensureCopied(context: Context): File {
             val file = File(context.filesDir, ASSET)

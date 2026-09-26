@@ -15,6 +15,9 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -85,6 +88,7 @@ fun ScannerScreen(vm: ScannerViewModel = viewModel()) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     val analyzer by vm.analyzer.collectAsStateWithLifecycle()
     val currency by vm.settings.currency.collectAsStateWithLifecycle()
+    var choosingDeck by remember { mutableStateOf(false) }
 
     // El OCR solo mira dentro del marco guía; necesita saber cómo se ve la cámara.
     var viewSize by remember { mutableStateOf<IntSize?>(null) }
@@ -101,7 +105,7 @@ fun ScannerScreen(vm: ScannerViewModel = viewModel()) {
             Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.55f)).padding(12.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("${ui.summary.cards} cartas", style = MaterialTheme.typography.titleMedium)
+                Text(cardsLabel(ui.summary.cards), style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.weight(1f))
                 Text(formatPrice(ui.summary.total, currency), style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold)
@@ -122,9 +126,51 @@ fun ScannerScreen(vm: ScannerViewModel = viewModel()) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(selected = ui.foil, onClick = vm::toggleFoil, label = { Text("Foil") })
                 FilterChip(selected = ui.torch, onClick = vm::toggleTorch, label = { Text("Linterna") })
+                FilterChip(
+                    selected = ui.scanDeck != null, onClick = { choosingDeck = true },
+                    label = { Text(ui.scanDeck?.let { "Mazo: ${it.name}" } ?: "Sin mazo", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                )
             }
         }
     }
+
+    if (choosingDeck) {
+        ScanDeckDialog(
+            decks = ui.decks, current = ui.scanDeck?.id,
+            onPick = { vm.setScanDeck(it); choosingDeck = false },
+            onCreate = { vm.createScanDeck(it); choosingDeck = false },
+            onDismiss = { choosingDeck = false },
+        )
+    }
+}
+
+/** Elegir el mazo al que irán las cartas que se escaneen. */
+@Composable
+private fun ScanDeckDialog(
+    decks: List<com.hernan.mtgscanner.data.CollectionStore.Deck>, current: Long?,
+    onPick: (Long?) -> Unit, onCreate: (String) -> Unit, onDismiss: () -> Unit,
+) {
+    var newName by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("¿A qué mazo van las cartas?") },
+        text = {
+            Column {
+                Text(if (current == null) "✓ Sin mazo" else "Sin mazo",
+                    Modifier.fillMaxWidth().clickable { onPick(null) }.padding(vertical = 12.dp))
+                decks.forEach { d ->
+                    Text("${if (d.id == current) "✓ " else ""}${d.name} (${d.cards})",
+                        Modifier.fillMaxWidth().clickable { onPick(d.id) }.padding(vertical = 12.dp))
+                }
+                OutlinedTextField(
+                    value = newName, onValueChange = { newName = it }, singleLine = true,
+                    label = { Text("O un mazo nuevo") }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = { onCreate(newName) }, enabled = newName.isNotBlank()) { Text("Crear") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+    )
 }
 
 @Composable

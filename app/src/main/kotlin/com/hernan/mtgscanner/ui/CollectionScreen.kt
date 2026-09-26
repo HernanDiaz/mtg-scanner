@@ -1,6 +1,14 @@
 package com.hernan.mtgscanner.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +31,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -46,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,6 +64,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hernan.mtgscanner.data.CardPrinting
+import com.hernan.mtgscanner.data.CollectionExport
 import com.hernan.mtgscanner.data.CollectionStore
 import com.hernan.mtgscanner.data.Currency
 import kotlinx.coroutines.delay
@@ -79,6 +90,13 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
     var editing by remember { mutableStateOf<CollectionStore.Group?>(null) }
     var reviewing by remember { mutableStateOf(false) }
     var searching by remember { mutableStateOf(false) }
+    var exporting by remember { mutableStateOf(false) }
+    var moving by remember { mutableStateOf<CollectionStore.Group?>(null) }
+    /** Diálogo de nombre de mazo: crear (id null) o renombrar. */
+    var deckDialog by remember { mutableStateOf<Pair<Long?, String>?>(null) }
+    var deletingDeck by remember { mutableStateOf<CollectionStore.Deck?>(null) }
+    val context = LocalContext.current
+    val currentDeck = ui.decks.firstOrNull { it.id == ui.filter.deckId }
 
     fun openNext(next: CollectionStore.Group?) {
         editing = if (reviewing) next else null
@@ -87,12 +105,16 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
 
     Column(Modifier.fillMaxSize()) {
         Surface(tonalElevation = 2.dp) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(formatPrice(ui.summary.total, ui.currency),
                             style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                        Text("${ui.summary.cards} cartas", style = MaterialTheme.typography.bodyMedium)
+                        Text("${ui.scopeLabel()} · ${cardsLabel(ui.summary.cards)}", style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    IconButton(onClick = { exporting = true }, enabled = ui.summary.cards > 0) {
+                        Icon(Icons.Default.Share, "Exportar y compartir lo que se ve")
                     }
                     IconButton(onClick = { searching = true }) { Icon(Icons.Default.Add, "Añadir a mano") }
                     if (ui.updatingPrices) {
@@ -101,7 +123,7 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                         IconButton(onClick = vm::updatePrices) { Icon(Icons.Default.Refresh, "Actualizar precios") }
                     }
                 }
-                if (ui.summary.pendingReview > 0) {
+                if (ui.pendingTotal > 0) {
                     Button(
                         onClick = {
                             scope.launch {
@@ -109,19 +131,53 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                                 openNext(vm.firstPending())
                             }
                         },
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    ) { Text("Revisar ediciones (${ui.summary.pendingReview} pendientes)") }
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                    ) { Text("Revisar ediciones (${ui.pendingTotal} pendientes)") }
                 }
+
+                // Mazos
+                Row(
+                    Modifier.horizontalScroll(rememberScrollState()).padding(top = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    FilterChip(selected = ui.filter.deckId == null, onClick = { vm.showDeck(null) }, label = { Text("Todas") })
+                    ui.decks.forEach { d ->
+                        FilterChip(selected = ui.filter.deckId == d.id, onClick = { vm.showDeck(d.id) },
+                            label = { Text("${d.name} (${d.cards})") })
+                    }
+                    if (ui.decks.isNotEmpty()) {
+                        FilterChip(selected = ui.filter.deckId == CollectionStore.NO_DECK,
+                            onClick = { vm.showDeck(CollectionStore.NO_DECK) }, label = { Text("Sin mazo") })
+                    }
+                    FilterChip(selected = false, onClick = { deckDialog = null to "" },
+                        leadingIcon = { Icon(Icons.Default.Add, null, Modifier.size(18.dp)) }, label = { Text("Mazo") })
+                }
+                currentDeck?.let { d ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = { deckDialog = d.id to d.name }) { Text("Renombrar mazo") }
+                        TextButton(onClick = { deletingDeck = d }) { Text("Borrar mazo") }
+                    }
+                }
+
+                // Colores
+                Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    COLOR_NAMES.keys.forEach { c ->
+                        ColorToggle(c, selected = c in ui.filter.colors, onClick = { vm.toggleColor(c) })
+                    }
+                }
+
                 OutlinedTextField(
-                    value = ui.filters.query, onValueChange = vm::setQuery, singleLine = true,
+                    value = ui.filter.query, onValueChange = vm::setQuery, singleLine = true,
                     placeholder = { Text("Buscar en la colección") },
                     leadingIcon = { Icon(Icons.Default.Search, null) },
                     trailingIcon = {
-                        if (ui.filters.query.isNotEmpty()) {
+                        if (ui.filter.query.isNotEmpty()) {
                             IconButton(onClick = { vm.setQuery("") }) { Icon(Icons.Default.Close, "Borrar") }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
                 )
                 Row(
                     Modifier.horizontalScroll(rememberScrollState()).padding(top = 4.dp),
@@ -129,11 +185,11 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     FilterChip(
-                        selected = ui.filters.onlyPending, onClick = { vm.setOnlyPending(!ui.filters.onlyPending) },
+                        selected = ui.filter.onlyPending, onClick = { vm.setOnlyPending(!ui.filter.onlyPending) },
                         label = { Text("Por revisar") },
                     )
                     SORTS.forEach { (sort, label) ->
-                        FilterChip(selected = ui.filters.sort == sort, onClick = { vm.setSort(sort) }, label = { Text(label) })
+                        FilterChip(selected = ui.sort == sort, onClick = { vm.setSort(sort) }, label = { Text(label) })
                     }
                     Currency.entries.forEach { c ->
                         FilterChip(selected = ui.currency == c, onClick = { vm.setCurrency(c) }, label = { Text(c.symbol) })
@@ -147,13 +203,28 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
         }
 
         if (ui.groups.isEmpty()) {
+            val onlyDeck = ui.filter.query.isEmpty() && !ui.filter.onlyPending && ui.filter.colors.isEmpty()
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(if (ui.summary.cards == 0) "Aún no hay cartas. Ve a Escanear." else "Ninguna carta coincide.")
+                Text(
+                    when {
+                        currentDeck != null && onlyDeck ->
+                            "Mazo vacío. Mueve cartas aquí desde el menú de cada carta, o escanea con este mazo como destino."
+                        ui.filter.deckId == null && onlyDeck -> "Aún no hay cartas. Ve a Escanear."
+                        else -> "Ninguna carta coincide."
+                    },
+                    modifier = Modifier.padding(24.dp),
+                )
             }
         }
         LazyColumn(Modifier.fillMaxSize()) {
-            items(ui.groups, key = { "${it.cardId}-${it.foil}-${it.condition}-${it.lang}-${it.needsReview}" }) { g ->
-                GroupRow(g, ui.currency, onClick = { reviewing = false; editing = g }, onRemove = { vm.removeOne(g) })
+            items(ui.groups, key = { "${it.cardId}-${it.foil}-${it.condition}-${it.lang}-${it.needsReview}-${it.deckId}" }) { g ->
+                GroupRow(
+                    g, ui.currency,
+                    deckName = if (ui.filter.deckId == null) ui.decks.firstOrNull { it.id == g.deckId }?.name else null,
+                    onClick = { reviewing = false; editing = g },
+                    onMove = { moving = g },
+                    onRemove = { vm.removeOne(g) },
+                )
                 HorizontalDivider()
             }
         }
@@ -163,7 +234,7 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
         var lang by remember(group) { mutableStateOf(group.lang) }
         PrintingPicker(
             title = group.name,
-            subtitle = if (reviewing) "Revisando: quedan ${ui.summary.pendingReview}" else null,
+            subtitle = if (reviewing) "Revisando: quedan ${ui.pendingTotal}" else null,
             load = { vm.optionsFor(group.name, group.art) },
             currentId = group.cardId,
             currency = ui.currency,
@@ -177,15 +248,107 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
             onDismiss = { editing = null; reviewing = false },
         )
     }
+    moving?.let { group ->
+        MoveToDeckDialog(
+            group = group, decks = ui.decks,
+            onMove = { deckId, count -> vm.moveToDeck(group, deckId, count); moving = null },
+            onCreateAndMove = { name, count ->
+                scope.launch { vm.moveToDeck(group, vm.createDeckNow(name), count) }
+                moving = null
+            },
+            onDismiss = { moving = null },
+        )
+    }
+    deckDialog?.let { (id, initial) ->
+        DeckNameDialog(
+            title = if (id == null) "Nuevo mazo" else "Renombrar mazo", initial = initial,
+            onConfirm = { name -> if (id == null) vm.createDeck(name) else vm.renameDeck(id, name); deckDialog = null },
+            onDismiss = { deckDialog = null },
+        )
+    }
+    deletingDeck?.let { d ->
+        AlertDialog(
+            onDismissRequest = { deletingDeck = null },
+            title = { Text("¿Borrar el mazo ${d.name}?") },
+            text = { Text("Sus cartas (${cardsLabel(d.cards)}) no se borran: vuelven a la colección, sin mazo.") },
+            confirmButton = { TextButton(onClick = { vm.deleteDeck(d.id); deletingDeck = null }) { Text("Borrar mazo") } },
+            dismissButton = { TextButton(onClick = { deletingDeck = null }) { Text("Cancelar") } },
+        )
+    }
     if (searching) {
         ManualAddDialog(vm, ui.currency, onDismiss = { searching = false })
     }
+    if (exporting) {
+        ExportDialog(
+            scope = ui.scopeLabel(),
+            cards = ui.summary.cards,
+            onPick = { format ->
+                exporting = false
+                scope.launch { context.startActivity(vm.exportIntent(format)) }
+            },
+            onDismiss = { exporting = false },
+        )
+    }
+}
+
+/** Botón redondo de color (W U B R G y C = incoloro), como los símbolos de maná. */
+@Composable
+private fun ColorToggle(c: Char, selected: Boolean, onClick: () -> Unit) {
+    val (fill, ink) = when (c) {
+        'W' -> Color(0xFFF8F1D8) to Color.Black
+        'U' -> Color(0xFF2E7FD1) to Color.White
+        'B' -> Color(0xFF3A3238) to Color.White
+        'R' -> Color(0xFFD9443A) to Color.White
+        'G' -> Color(0xFF2F8F4E) to Color.White
+        else -> Color(0xFFB9B4AE) to Color.Black
+    }
+    Box(
+        Modifier.size(36.dp)
+            .clip(CircleShape)
+            .background(if (selected) fill else fill.copy(alpha = 0.25f))
+            .border(2.dp, if (selected) MaterialTheme.colorScheme.primary else Color.Transparent, CircleShape)
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = "${COLOR_NAMES[c]}${if (selected) ", seleccionado" else ""}" },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(c.toString(), color = if (selected) ink else MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+    }
+}
+
+/** Elegir formato de exportación de lo que se está viendo; luego se abre el menú de compartir de Android. */
+@Composable
+private fun ExportDialog(scope: String, cards: Int, onPick: (CollectionExport.Format) -> Unit, onDismiss: () -> Unit) {
+    val descriptions = mapOf(
+        CollectionExport.Format.CSV to "Todo, con precios. Para Excel, Google Sheets u otras apps (incluye el ID de Scryfall).",
+        CollectionExport.Format.MOXFIELD to "Para importar las cartas en Moxfield.",
+        CollectionExport.Format.TEXT to "\"2 Lightning Bolt (M11) 149\": para pegar en un mensaje o un foro.",
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Exportar: $scope (${cardsLabel(cards)})") },
+        text = {
+            Column {
+                CollectionExport.Format.entries.forEach { f ->
+                    Column(Modifier.fillMaxWidth().clickable { onPick(f) }.padding(vertical = 10.dp)) {
+                        Text(f.label, fontWeight = FontWeight.Bold)
+                        Text(descriptions.getValue(f), style = MaterialTheme.typography.bodySmall)
+                    }
+                    HorizontalDivider()
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+    )
 }
 
 @Composable
-private fun GroupRow(g: CollectionStore.Group, currency: Currency, onClick: () -> Unit, onRemove: () -> Unit) {
+private fun GroupRow(
+    g: CollectionStore.Group, currency: Currency, deckName: String?,
+    onClick: () -> Unit, onMove: () -> Unit, onRemove: () -> Unit,
+) {
+    var menu by remember { mutableStateOf(false) }
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 8.dp),
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = 12.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         CardThumb(g.smallImageUrl, 44.dp)
@@ -200,13 +363,90 @@ private fun GroupRow(g: CollectionStore.Group, currency: Currency, onClick: () -
                 "${g.setCode.uppercase()} #${g.collectorNumber} · ${g.condition} · ${g.lang.uppercase()}${if (g.foil) " · Foil" else ""}",
                 style = MaterialTheme.typography.bodySmall,
             )
+            deckName?.let {
+                Text("Mazo: $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
         Column(horizontalAlignment = Alignment.End) {
             Text("x${g.quantity}", style = MaterialTheme.typography.bodySmall)
             Text(formatPrice(g.unitPrice?.times(g.quantity), currency), fontWeight = FontWeight.Bold)
         }
-        IconButton(onClick = onRemove) { Icon(Icons.Default.Delete, "Quitar una") }
+        Box {
+            IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, "Más opciones") }
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(text = { Text("Mover a un mazo…") }, onClick = { menu = false; onMove() })
+                DropdownMenuItem(text = { Text("Cambiar edición o idioma") }, onClick = { menu = false; onClick() })
+                DropdownMenuItem(text = { Text("Quitar una copia") }, onClick = { menu = false; onRemove() })
+            }
+        }
     }
+}
+
+/** Mover copias de una fila a un mazo (o sacarlas de su mazo). */
+@Composable
+private fun MoveToDeckDialog(
+    group: CollectionStore.Group,
+    decks: List<CollectionStore.Deck>,
+    onMove: (deckId: Long?, count: Int) -> Unit,
+    onCreateAndMove: (name: String, count: Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var count by remember { mutableStateOf(group.quantity) }
+    var newName by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Mover ${group.name}") },
+        text = {
+            Column {
+                if (group.quantity > 1) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Copias:", Modifier.weight(1f))
+                        TextButton(onClick = { if (count > 1) count-- }) { Text("−") }
+                        Text("$count de ${group.quantity}", fontWeight = FontWeight.Bold)
+                        TextButton(onClick = { if (count < group.quantity) count++ }) { Text("+") }
+                    }
+                }
+                LazyColumn(Modifier.heightIn(max = 300.dp)) {
+                    if (group.deckId != null) {
+                        item {
+                            Text("Sacar del mazo (sin mazo)", Modifier.fillMaxWidth().clickable { onMove(null, count) }
+                                .padding(vertical = 12.dp))
+                            HorizontalDivider()
+                        }
+                    }
+                    items(decks.filter { it.id != group.deckId }, key = { it.id }) { d ->
+                        Text("${d.name} (${d.cards})", Modifier.fillMaxWidth().clickable { onMove(d.id, count) }
+                            .padding(vertical = 12.dp))
+                        HorizontalDivider()
+                    }
+                }
+                OutlinedTextField(
+                    value = newName, onValueChange = { newName = it }, singleLine = true,
+                    label = { Text("O a un mazo nuevo") }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onCreateAndMove(newName, count) }, enabled = newName.isNotBlank()) { Text("Crear y mover") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+    )
+}
+
+@Composable
+private fun DeckNameDialog(title: String, initial: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+    var name by remember { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(value = name, onValueChange = { name = it }, singleLine = true,
+                label = { Text("Nombre del mazo") }, modifier = Modifier.fillMaxWidth())
+        },
+        confirmButton = { TextButton(onClick = { onConfirm(name) }, enabled = name.isNotBlank()) { Text("Guardar") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+    )
 }
 
 /**

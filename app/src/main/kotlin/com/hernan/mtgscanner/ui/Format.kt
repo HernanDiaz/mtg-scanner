@@ -10,3 +10,6 @@ fun formatPrice(value: Double?, currency: Currency): String = when {
     currency == Currency.EUR -> String.format(SPAIN, "%,.2f €", value)
     else -> String.format(Locale.US, "$%,.2f", value)
 }
+
+/** "1 carta", "3 cartas". */
+fun cardsLabel(n: Int) = if (n == 1) "1 carta" else "$n cartas"

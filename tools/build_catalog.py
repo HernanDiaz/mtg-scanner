@@ -33,7 +33,7 @@ USER_AGENT = "MTGScanner/0.1 (proyecto personal)"
 BULK_INDEX = "https://api.scryfall.com/bulk-data"
 
 # Versión del esquema: la app la compara para saber si debe recopiar el asset.
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 # Layouts que no son cartas "de colección" normales.
 SKIP_LAYOUTS = {"art_series", "token", "double_faced_token", "emblem", "vanguard", "scheme", "planar"}
@@ -84,6 +84,14 @@ def norm_number(s):
     s = s.lower()
     stripped = s.lstrip("0")
     return stripped if stripped else s
+
+
+def card_colors(c):
+    """Colores de la carta ("WUBRG" en orden); en las de dos caras, los de ambas."""
+    found = set(c.get("colors") or [])
+    for face in c.get("card_faces", []):
+        found.update(face.get("colors") or [])
+    return "".join(x for x in "WUBRG" if x in found)
 
 
 def price(prices, key):
@@ -182,6 +190,7 @@ def build(jsonl_path, updated_at, extra_names):
             finishes INTEGER NOT NULL,   -- bits: 1 normal, 2 foil, 4 etched
             promo INTEGER NOT NULL,
             lang TEXT NOT NULL,          -- "en" salvo impresiones que no existen en inglés
+            colors TEXT NOT NULL,        -- "WUBRG" en ese orden; "" = incolora
             usd REAL, usd_foil REAL, eur REAL, eur_foil REAL,
             art_id INTEGER               -- arts.id, solo si la carta tiene varias ilustraciones
         );
@@ -220,6 +229,7 @@ def build(jsonl_path, updated_at, extra_names):
             finishes, 1 if c.get("promo") else 0, c.get("lang", "en"),
             price(p, "usd"), price(p, "usd_foil"), price(p, "eur"), price(p, "eur_foil"),
             art_ids.get(c.get("illustration_id") or (c.get("card_faces") or [{}])[0].get("illustration_id")),
+            card_colors(c),
         ))
         sets.setdefault(c["set"], (c["set"], c["set_name"], c.get("released_at")))
         # "_____ Goblin" (Unfinity) se normalizaría a "goblin" y casaría con cualquier
@@ -231,7 +241,7 @@ def build(jsonl_path, updated_at, extra_names):
 
     db.executemany(
         "INSERT INTO cards (id,name,set_code,collector_number,number_norm,rarity,released_at,"
-        "finishes,promo,lang,usd,usd_foil,eur,eur_foil,art_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "finishes,promo,lang,usd,usd_foil,eur,eur_foil,art_id,colors) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         rows,
     )
     db.executemany("INSERT INTO arts VALUES (?,?)", arts.values())

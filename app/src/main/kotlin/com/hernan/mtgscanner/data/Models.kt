@@ -20,6 +20,8 @@ data class CardPrinting(
     val prices: Prices,
     /** Ilustración (Catalog.art); null si todas las impresiones de la carta comparten dibujo. */
     val artId: Int? = null,
+    /** Colores "WUBRG" (en ese orden); vacío = incolora. */
+    val colors: String = "",
 ) {
     val releaseYear: Int? get() = releasedAt?.take(4)?.toIntOrNull()
 

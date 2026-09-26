@@ -14,3 +14,5 @@ __pycache__/
 /app/src/main/assets/catalog.sqlite
 # Capturas del móvil para depurar
 /capturas/
+# Configuración de red solo para depurar en este ordenador (certificado del antivirus)
+/app/src/debug/

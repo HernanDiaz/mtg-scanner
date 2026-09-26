@@ -40,6 +40,9 @@ data class ScannerUi(
     /** Lo último que ha leído el OCR, para saber qué está viendo. */
     val reading: String? = null,
     val summary: CollectionStore.Summary = CollectionStore.Summary(0, 0.0, 0),
+    /** Mazo al que van las cartas escaneadas (null = ninguno). */
+    val scanDeck: CollectionStore.Deck? = null,
+    val decks: List<CollectionStore.Deck> = emptyList(),
 )
 
 class ScannerViewModel(application: Application) : AndroidViewModel(application) {
@@ -68,10 +71,13 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             _ui.update { it.copy(loading = false) }
         }
         viewModelScope.launch {
-            combine(store.version, settings.currency) { _, currency -> currency }.collect { currency ->
-                val summary = withContext(Dispatchers.IO) { store.summary(currency) }
-                _ui.update { it.copy(summary = summary) }
-            }
+            combine(store.version, settings.currency, settings.scanDeck) { _, currency, deck -> currency to deck }
+                .collect { (currency, deckId) ->
+                    val (summary, decks) = withContext(Dispatchers.IO) { store.summary(currency) to store.decks() }
+                    val deck = decks.firstOrNull { it.id == deckId }
+                    if (deckId != null && deck == null) settings.setScanDeck(null) // el mazo se borró
+                    _ui.update { it.copy(summary = summary, decks = decks, scanDeck = deck) }
+                }
         }
     }
 
@@ -88,7 +94,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         feedback(needsReview)
         viewModelScope.launch(Dispatchers.IO) {
             val id = store.add(printing, foil, settings.defaultCondition.value, needsReview, accepted.lang,
-                accepted.photoArt?.toPacked())
+                accepted.photoArt?.toPacked(), deckId = _ui.value.scanDeck?.id)
             _ui.update { it.copy(lastAdded = AddedCard(id, printing, foil, needsReview, accepted.lang)) }
         }
     }
@@ -101,6 +107,14 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun toggleFoil() = _ui.update { it.copy(foil = !it.foil) }
+
+    /** Mazo de destino de lo que se escanea (null = ninguno). */
+    fun setScanDeck(id: Long?) = settings.setScanDeck(id)
+
+    fun createScanDeck(name: String) {
+        if (name.isBlank()) return
+        viewModelScope.launch(Dispatchers.IO) { settings.setScanDeck(store.createDeck(name)) }
+    }
 
     fun toggleTorch() = _ui.update { it.copy(torch = !it.torch) }
 

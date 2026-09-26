@@ -16,6 +16,15 @@ class Settings(context: Context) {
     private val _defaultCondition = MutableStateFlow(prefs.getString("condition", "NM")!!)
     val defaultCondition: StateFlow<String> = _defaultCondition
 
+    /** Mazo al que van las cartas escaneadas; null = ninguno. */
+    private val _scanDeck = MutableStateFlow(prefs.getLong("scan_deck", 0L).takeIf { it > 0 })
+    val scanDeck: StateFlow<Long?> = _scanDeck
+
+    fun setScanDeck(id: Long?) {
+        prefs.edit().putLong("scan_deck", id ?: 0L).apply()
+        _scanDeck.value = id
+    }
+
     fun setCurrency(c: Currency) {
         prefs.edit().putString("currency", c.name).apply()
         _currency.value = c

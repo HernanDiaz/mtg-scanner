@@ -495,3 +495,46 @@ class ArtRegionTest {
     @Test fun noTypeLineNoRegion() =
         assertNull(FrameRecognizer.artRegion(listOf(OcrLine("Lightning Bolt", 120, 100, 520, 130)), 0))
 }
+
+class CollectionExportTest {
+    private fun group(name: String, set: String, num: String, qty: Int, review: Boolean = false,
+                      foil: Boolean = false, lang: String = "en", price: Double? = 1.5) =
+        com.hernan.mtgscanner.data.CollectionStore.Group(
+            cardId = "$set-$num", name = name, setCode = set, collectorNumber = num, foil = foil,
+            condition = "NM", lang = lang, quantity = qty, needsReview = review, unitPrice = price, lastEntryId = 1,
+        )
+
+    private val export = com.hernan.mtgscanner.data.CollectionExport
+    private val groups = listOf(
+        group("Swamp", "m20", "276", 2, review = true, price = 0.1),
+        group("Swamp", "m20", "276", 1, price = 0.1),                       // misma impresión, ya revisada
+        group("Borborygmos, Enraged", "gtc", "143", 1, foil = true, lang = "es", price = null),
+        group("Lightning Bolt", "m11", "149", 4, price = 1.25),
+    )
+    private val lines = export.lines(groups) { it.uppercase() + " set" }
+
+    @Test fun reviewedAndPendingCopiesAreMerged() {
+        assertEquals(3, lines.size)
+        assertEquals(3, lines.single { it.name == "Swamp" }.quantity)
+    }
+
+    @Test fun csvQuotesCommasAndComputesTotals() {
+        val csv = export.csv(lines, com.hernan.mtgscanner.data.Currency.EUR).split("\r\n")
+        assertEquals("Cantidad,Nombre,Edición,Código,Número,Idioma,Estado,Foil,Precio unidad (EUR),Precio total (EUR),Scryfall ID", csv[0])
+        assertEquals("1,\"Borborygmos, Enraged\",GTC set,GTC,143,ES,NM,sí,,,gtc-143", csv[1])
+        assertEquals("4,Lightning Bolt,M11 set,M11,149,EN,NM,no,1.25,5.00,m11-149", csv[2])
+    }
+
+    @Test fun moxfieldFormat() {
+        val rows = export.moxfield(lines).split("\r\n")
+        assertEquals("Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Tags,Last Modified,Collector Number", rows[0])
+        assertEquals("1,0,\"Borborygmos, Enraged\",gtc,Near Mint,Spanish,foil,,,143", rows[1])
+    }
+
+    @Test fun textList() {
+        assertEquals(
+            "1 Borborygmos, Enraged (GTC) 143 *F* ES\n4 Lightning Bolt (M11) 149\n3 Swamp (M20) 276\n",
+            export.text(lines),
+        )
+    }
+}
