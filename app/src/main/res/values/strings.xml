@@ -228,4 +228,11 @@
     <string name="cond_lp">Light Played</string>
     <string name="cond_pl">Played</string>
     <string name="cond_po">Poor</string>
+
+    <!-- Legalidad -->
+    <string name="format_label">Format: %1$s</string>
+    <string name="all_formats">All</string>
+    <string name="deck_legal_in">Legal in: %1$s</string>
+    <string name="deck_legal_none">Not legal in any of the main formats</string>
+    <string name="deck_not_legal_in">Not legal in (cards that prevent it): %1$s</string>
 </resources>

@@ -245,6 +245,9 @@ class CollectionStoreTest {
         assertEquals(setOf(bolt.cardmarketId), store.cardmarketIds())
         assertTrue(store.wishlist(Currency.EUR).isEmpty()) // v6: la lista de deseos se crea
         assertTrue(store.valueHistory(Currency.EUR, PriceKind.TREND).isEmpty()) // v7: la evolución también
+        assertTrue(store.groups(Currency.EUR, CollectionFilter(format = "modern")).isEmpty()) // v8: sin legalidad aún
+        store.updateLegality(catalog::legalityOf)
+        assertEquals("Lightning Bolt", store.groups(Currency.EUR, CollectionFilter(format = "modern")).single().name)
     }
 
     /** Ficha de carta: cambiar estado y foil, copias de la carta y precios guardados. */
@@ -333,6 +336,26 @@ class CollectionStoreTest {
 
         store.conditionFactors = null
         assertEquals(30.0, store.summary(Currency.EUR).total, 1e-9)
+    }
+
+    /** Filtro por formato y legalidad de un mazo, con los datos reales del catálogo. */
+    @Test fun formatFilterAndDeckLegality() {
+        val bolt = catalog.printingsOf("Lightning Bolt").first()
+        val sol = catalog.printingsOf("Sol Ring").first()
+        val deck = store.createDeck("Pruebas")
+        repeat(4) { store.add(bolt, false, "NM", needsReview = false, deckId = deck) }
+        store.add(sol, false, "NM", needsReview = false, deckId = deck)
+
+        fun names(format: String) = store.groups(Currency.EUR, CollectionFilter(format = format)).map { it.name }.toSet()
+        assertEquals(setOf("Lightning Bolt"), names("modern"))
+        assertEquals(setOf("Lightning Bolt", "Sol Ring"), names("commander"))
+        assertEquals(setOf("Lightning Bolt", "Sol Ring"), names("vintage"))   // Sol Ring restringida: se puede jugar
+
+        val problems = store.formatProblems(CollectionFilter(deckId = deck))
+        assertEquals(1, problems["modern"])     // Sol Ring
+        assertEquals(1, problems["legacy"])     // Sol Ring, prohibida
+        assertEquals(0, problems["vintage"])
+        assertEquals(5, problems["standard"])   // ninguna de las dos: 4 Bolt + 1 Sol Ring
     }
 
     @Test fun cardDetailsFromScryfallJson() {

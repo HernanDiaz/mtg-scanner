@@ -29,6 +29,20 @@ object DeckCheck {
             return if (known.isEmpty()) null else known.sum()
         }
 
+        /**
+         * Formatos en los que el mazo se puede jugar: todas sus cartas legales (las
+         * restringidas, con una sola copia).
+         */
+        fun legalFormats(): List<String> = if (lines.isEmpty()) emptyList() else Legality.FORMATS.filter { f ->
+            lines.all { l ->
+                when (Legality.status(l.printing.legality, f)) {
+                    Legality.Status.LEGAL -> true
+                    Legality.Status.RESTRICTED -> l.wanted <= 1
+                    else -> false
+                }
+            }
+        }
+
         /** "4 Lightning Bolt", una por línea: se pega en la lista de deseados de Cardmarket. */
         fun missingAsText() = missing.joinToString("\n") { "${it.missing} ${it.name}" }
     }

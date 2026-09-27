@@ -203,6 +203,12 @@ private fun DeckCheckResult(r: DeckCheck.Result, currency: Currency, priceOf: (C
         } else {
             Text(stringResource(R.string.deck_complete), color = MaterialTheme.colorScheme.primary)
         }
+        val legal = r.legalFormats()
+        Text(
+            if (legal.isEmpty()) stringResource(R.string.deck_legal_none)
+            else stringResource(R.string.deck_legal_in, legal.joinToString(", ") { com.hernan.mtgscanner.data.Legality.displayName(it) }),
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary,
+        )
         if (r.failed.isNotEmpty()) {
             Text(pluralStringResource(R.plurals.lines_not_recognised, r.failed.size, r.failed.size) + " " +
                 r.failed.take(5).joinToString(", ") { it.text }, style = MaterialTheme.typography.bodySmall,

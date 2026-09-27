@@ -16,6 +16,7 @@ import com.hernan.mtgscanner.data.CollectionExport
 import com.hernan.mtgscanner.data.CollectionImport
 import com.hernan.mtgscanner.data.CollectionFilter
 import com.hernan.mtgscanner.data.CollectionStore
+import com.hernan.mtgscanner.data.Legality
 import com.hernan.mtgscanner.data.Currency
 import com.hernan.mtgscanner.data.CardmarketPrices
 import com.hernan.mtgscanner.data.PriceKind
@@ -48,6 +49,8 @@ data class CollectionUi(
     val updatingPrices: Boolean = false,
     /** Ya se ha leído la colección (antes, la lista vacía no significa que no haya cartas). */
     val loaded: Boolean = false,
+    /** Con un mazo abierto: formato -> cartas que impiden jugarlo en él (0 = legal). */
+    val deckFormats: Map<String, Int> = emptyMap(),
     val message: String? = null,
 ) {
     /** "Toda la colección", "Mazo Goblins · Rojo"... para títulos y exportaciones. */
@@ -60,7 +63,8 @@ data class CollectionUi(
         val colors = filter.colors.takeIf { it.isNotEmpty() }?.let { set ->
             COLOR_NAMES.filterKeys { it in set }.values.joinToString(res.getString(R.string.colors_or)) { res.getString(it) }
         }
-        return listOfNotNull(deck, colors, filter.query.takeIf { it.isNotBlank() }?.let { "“$it”" })
+        return listOfNotNull(deck, colors, filter.format?.let(Legality::displayName),
+            filter.query.takeIf { it.isNotBlank() }?.let { "“$it”" })
             .joinToString(" · ").ifEmpty { res.getString(R.string.whole_collection) }
     }
 }
@@ -122,13 +126,17 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
                             summary = store.summary(currency, f, kind),
                             pendingTotal = store.summary(currency).pendingReview,
                             decks = store.decks(),
+                            deckFormats = if ((f.deckId ?: CollectionStore.NO_DECK) != CollectionStore.NO_DECK) {
+                                store.formatProblems(f)
+                            } else emptyMap(),
                         )
                     }
                     // El valor de hoy para la gráfica de evolución (con cada cambio: cartas o precios).
                     withContext(Dispatchers.IO) { store.recordValue(CollectionStore.day()) }
                     _ui.update {
                         it.copy(groups = result.groups, summary = result.summary, pendingTotal = result.pendingTotal,
-                            decks = result.decks, currency = currency, filter = f, sort = s, priceKind = kind, loaded = true)
+                            decks = result.decks, currency = currency, filter = f, sort = s, priceKind = kind, loaded = true,
+                            deckFormats = result.deckFormats)
                     }
                 }
         }
@@ -137,6 +145,7 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
             val catalog = app.catalog.await()
             store.backfillColors { id -> catalog.byId(id)?.colors }
             store.backfillCardmarketIds { id -> catalog.byId(id)?.cardmarketId }
+            store.updateLegality(catalog::legalityOf)
         }
         // Precios del día: si los más antiguos tienen más de 24 h, se actualizan solos.
         viewModelScope.launch {
@@ -154,6 +163,7 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
         val summary: CollectionStore.Summary,
         val pendingTotal: Int,
         val decks: List<CollectionStore.Deck>,
+        val deckFormats: Map<String, Int>,
     )
 
     // ------------------------------------------------------------------ filtros
@@ -163,6 +173,8 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     fun setSort(s: CollectionStore.Sort) { sort.value = s }
     /** null = toda la colección. */
     fun showDeck(deckId: Long?) = filter.update { it.copy(deckId = deckId) }
+    /** null = todos los formatos. */
+    fun setFormat(format: String?) = filter.update { it.copy(format = format) }
     fun toggleColor(c: Char) = filter.update { f -> f.copy(colors = if (c in f.colors) f.colors - c else f.colors + c) }
 
     // ------------------------------------------------------------------ mazos

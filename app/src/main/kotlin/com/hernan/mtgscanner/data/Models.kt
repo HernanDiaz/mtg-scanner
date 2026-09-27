@@ -29,6 +29,8 @@ data class CardPrinting(
     val style: String = "",
     /** Producto en Cardmarket (su guía de precios), si lo tiene. */
     val cardmarketId: Int? = null,
+    /** Legalidad por formato (ver [Legality]); es de la carta, igual en todas sus impresiones. */
+    val legality: Int = 0,
 ) {
     val releaseYear: Int? get() = releasedAt?.take(4)?.toIntOrNull()
 

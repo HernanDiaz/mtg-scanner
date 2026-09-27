@@ -33,7 +33,7 @@ USER_AGENT = "MTGScanner/0.1 (proyecto personal)"
 BULK_INDEX = "https://api.scryfall.com/bulk-data"
 
 # Versión del esquema: la app la compara para saber si debe recopiar el asset.
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 # Layouts que no son cartas "de colección" normales.
 SKIP_LAYOUTS = {"art_series", "token", "double_faced_token", "emblem", "vanguard", "scheme", "planar"}
@@ -95,6 +95,17 @@ def symbol_style(c):
     effects = set(c.get("frame_effects") or [])
     special = c.get("full_art") or c.get("border_color") == "borderless" or effects & SPECIAL_EFFECTS
     return (c.get("frame") or "") + ("x" if special else "")
+
+
+# Formatos cuya legalidad se guarda, en este orden (2 bits cada uno). Igual en la app (Legality.kt).
+FORMATS = ["standard", "pioneer", "modern", "legacy", "vintage", "commander", "pauper"]
+LEGAL_CODES = {"legal": 1, "restricted": 2, "banned": 3}
+
+
+def legality_bits(c):
+    """Legalidad de la carta en FORMATS: 0 no legal, 1 legal, 2 restringida, 3 prohibida."""
+    legal = c.get("legalities") or {}
+    return sum(LEGAL_CODES.get(legal.get(f), 0) << (2 * i) for i, f in enumerate(FORMATS))
 
 
 def card_colors(c):
@@ -239,6 +250,10 @@ def build(jsonl_path, updated_at, extra_names):
             icon TEXT,                   -- icono de Scryfall; ediciones con el mismo no se distinguen
             kind TEXT NOT NULL           -- "own"; "none": sin símbolo; "other": imprime el de otra edición
         );
+        CREATE TABLE legality (
+            name TEXT PRIMARY KEY,       -- cards.name
+            bits INTEGER NOT NULL        -- 2 bits por formato (legality_bits)
+        ) WITHOUT ROWID;
         CREATE TABLE names (
             norm TEXT NOT NULL,          -- nombre normalizado de una cara
             name TEXT NOT NULL,          -- cards.name al que corresponde
@@ -250,6 +265,7 @@ def build(jsonl_path, updated_at, extra_names):
     sets = {}
     rows = []
     names = set()
+    legality = {}
     kept = skipped = 0
     for line in jsonl(jsonl_path):
         c = json.loads(line)
@@ -273,6 +289,9 @@ def build(jsonl_path, updated_at, extra_names):
             card_colors(c), symbol_style(c), c.get("cardmarket_id"),
         ))
         sets.setdefault(c["set"], (c["set"], c["set_name"], c.get("released_at")))
+        # La legalidad es de la carta, no de la impresión: basta una.
+        if c.get("lang", "en") == "en" or c["name"] not in legality:
+            legality[c["name"]] = legality_bits(c)
         # "_____ Goblin" (Unfinity) se normalizaría a "goblin" y casaría con cualquier
         # carta de goblin: los nombres con huecos solo se encuentran a mano o por número.
         if "_" not in c["name"]:
@@ -298,6 +317,7 @@ def build(jsonl_path, updated_at, extra_names):
     english_norms = {norm for norm, _ in names}
     foreign = {(norm, n) for norm, n in extra_names if n in known and norm and norm not in english_norms}
     db.executemany("INSERT OR IGNORE INTO names VALUES (?,?)", names | foreign)
+    db.executemany("INSERT INTO legality VALUES (?,?)", legality.items())
     db.executescript(
         """
         CREATE INDEX cards_set_number ON cards (set_code, number_norm);

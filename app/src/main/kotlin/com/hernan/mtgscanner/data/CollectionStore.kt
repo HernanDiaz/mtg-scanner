@@ -15,6 +15,8 @@ data class CollectionFilter(
     val deckId: Long? = null,
     /** Colores "WUBRG" y "C" (incolora): se muestran las cartas de cualquiera de ellos. */
     val colors: Set<Char> = emptySet(),
+    /** Solo cartas que se pueden jugar en este formato ([Legality.FORMATS]); null = todas. */
+    val format: String? = null,
 )
 
 /**
@@ -23,7 +25,7 @@ data class CollectionFilter(
  * Cada carta física puede estar en un mazo (`decks`) o en ninguno.
  */
 class CollectionStore(context: Context, dbName: String = "collection.db") :
-    SQLiteOpenHelper(context, dbName, null, 7) {
+    SQLiteOpenHelper(context, dbName, null, 8) {
 
     /**
      * Porcentaje del precio según el estado ("EX" -> 85); null = el precio tal cual.
@@ -83,7 +85,8 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
                 added_at INTEGER NOT NULL,
                 art BLOB,
                 deck_id INTEGER,
-                colors TEXT
+                colors TEXT,
+                legal INTEGER
             )
             """
         )
@@ -125,6 +128,8 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         if (oldVersion < 6) createWishlistTable(db)
         // v7: evolución del valor y de los precios.
         if (oldVersion < 7) createHistoryTables(db)
+        // v8: legalidad por formato (la rellena updateLegality).
+        if (oldVersion < 8) db.execSQL("ALTER TABLE entries ADD COLUMN legal INTEGER")
     }
 
     /**
@@ -212,6 +217,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         put("art", art)
         put("deck_id", deckId)
         put("colors", card.colors)
+        put("legal", card.legality)
     })
 
     /**
@@ -269,6 +275,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
                 put("set_code", card.setCode)
                 put("collector_number", card.collectorNumber)
                 put("colors", card.colors)
+                put("legal", card.legality)
                 put("needs_review", 0)
             }, GROUP_WHERE, group.whereArgs())
             seedPrice(db, card)
@@ -362,6 +369,49 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         } finally {
             db.endTransaction()
             changed()
+        }
+    }
+
+    /**
+     * Pone al día la legalidad de las cartas guardadas: las prohibiciones cambian y
+     * el catálogo nuevo llega con cada versión de la app. [legalityOf] la busca en el catálogo.
+     */
+    fun updateLegality(legalityOf: (name: String) -> Int?) {
+        val names = readableDatabase.rawQuery("SELECT DISTINCT name, legal FROM entries", null).use { c ->
+            buildList { while (c.moveToNext()) add(c.getString(0) to if (c.isNull(1)) null else c.getInt(1)) }
+        }
+        val changes = names.mapNotNull { (name, old) -> legalityOf(name)?.takeIf { it != old }?.let { name to it } }
+        if (changes.isEmpty()) return
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            for ((name, bits) in changes) {
+                db.update("entries", ContentValues().apply { put("legal", bits) }, "name = ?", arrayOf(name))
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+            changed()
+        }
+    }
+
+    /**
+     * Para cada formato, cuántas cartas de las que se ven (un mazo, normalmente) no se
+     * pueden jugar en él: prohibidas, no legales, o restringidas con más de una copia.
+     */
+    fun formatProblems(filter: CollectionFilter): Map<String, Int> {
+        val (where, args) = filterSql(filter.copy(format = null))
+        val rows = readableDatabase.rawQuery(
+            "SELECT e.name, COALESCE(e.legal, 0), COUNT(*) FROM entries e WHERE $where GROUP BY e.name", args
+        ).use { c -> buildList { while (c.moveToNext()) add(Triple(c.getString(0), c.getInt(1), c.getInt(2))) } }
+        return Legality.FORMATS.associateWith { f ->
+            rows.sumOf { (_, bits, n) ->
+                when (Legality.status(bits, f)) {
+                    Legality.Status.LEGAL -> 0
+                    Legality.Status.RESTRICTED -> n - 1
+                    else -> n
+                }
+            }
         }
     }
 
@@ -737,6 +787,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         }
         if (f.onlyPending) parts += "e.needs_review = 1"
         f.deckId?.let { parts += "COALESCE(e.deck_id, 0) = CAST(? AS INTEGER)"; args += it.toString() }
+        f.format?.let { parts += Legality.sqlPlayable("e.legal", it) }
         if (f.colors.isNotEmpty()) {
             val any = f.colors.filter { it in "WUBRGC" }.map { c ->
                 if (c == 'C') "COALESCE(e.colors, '') = ''" else "e.colors LIKE '%$c%'"

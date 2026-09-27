@@ -225,4 +225,11 @@
     <string name="cond_lp">Light Played (poco jugada)</string>
     <string name="cond_pl">Played (jugada)</string>
     <string name="cond_po">Poor (mala)</string>
+
+    <!-- Legalidad -->
+    <string name="format_label">Formato: %1$s</string>
+    <string name="all_formats">Todos</string>
+    <string name="deck_legal_in">Legal en: %1$s</string>
+    <string name="deck_legal_none">No es legal en ninguno de los formatos principales</string>
+    <string name="deck_not_legal_in">No legal en (cartas que lo impiden): %1$s</string>
 </resources>

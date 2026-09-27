@@ -78,6 +78,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hernan.mtgscanner.data.CardPrinting
 import com.hernan.mtgscanner.data.CollectionExport
 import com.hernan.mtgscanner.data.CollectionStore
+import com.hernan.mtgscanner.data.Legality
 import com.hernan.mtgscanner.data.Currency
 import com.hernan.mtgscanner.data.PriceKind
 import kotlinx.coroutines.delay
@@ -210,6 +211,7 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                         leadingIcon = { Icon(Icons.Default.Add, null, Modifier.size(18.dp)) }, label = { Text(stringResource(R.string.deck_add)) })
                 }
                 currentDeck?.let { d ->
+                    DeckLegality(ui.deckFormats)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = { deckDialog = d.id to d.name }) { Text(stringResource(R.string.rename_deck)) }
                         TextButton(onClick = { deletingDeck = d }) { Text(stringResource(R.string.delete_deck)) }
@@ -244,6 +246,21 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                         selected = ui.filter.onlyPending, onClick = { vm.setOnlyPending(!ui.filter.onlyPending) },
                         label = { Text(stringResource(R.string.pending_review)) },
                     )
+                    Box {
+                        var open by remember { mutableStateOf(false) }
+                        FilterChip(selected = ui.filter.format != null, onClick = { open = true },
+                            label = {
+                                Text(stringResource(R.string.format_label,
+                                    ui.filter.format?.let(Legality::displayName) ?: stringResource(R.string.all_formats)))
+                            })
+                        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                            DropdownMenuItem(text = { Text(stringResource(R.string.all_formats)) },
+                                onClick = { open = false; vm.setFormat(null) })
+                            Legality.FORMATS.forEach { f ->
+                                DropdownMenuItem(text = { Text(Legality.displayName(f)) }, onClick = { open = false; vm.setFormat(f) })
+                            }
+                        }
+                    }
                     SORTS.forEach { (sort, label) ->
                         FilterChip(selected = ui.sort == sort, onClick = { vm.setSort(sort) }, label = { Text(stringResource(label)) })
                     }
@@ -280,7 +297,7 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
         }
 
         if (ui.loaded && ui.groups.isEmpty()) {
-            val onlyDeck = ui.filter.query.isEmpty() && !ui.filter.onlyPending && ui.filter.colors.isEmpty()
+            val onlyDeck = ui.filter.query.isEmpty() && !ui.filter.onlyPending && ui.filter.colors.isEmpty() && ui.filter.format == null
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     when {
@@ -407,6 +424,27 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                 scope.launch { context.startActivity(vm.exportIntent(format)) }
             },
             onDismiss = { exporting = false },
+        )
+    }
+}
+
+/** "Legal en: Modern, Legacy… · No legal en Standard (3 cartas)" para el mazo abierto. */
+@Composable
+private fun DeckLegality(problems: Map<String, Int>) {
+    if (problems.isEmpty()) return
+    val legal = problems.filterValues { it == 0 }.keys.map(Legality::displayName)
+    val not = problems.filterValues { it > 0 }
+    Text(
+        if (legal.isEmpty()) stringResource(R.string.deck_legal_none)
+        else stringResource(R.string.deck_legal_in, legal.joinToString(", ")),
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 4.dp),
+    )
+    if (not.isNotEmpty() && legal.isNotEmpty()) {
+        Text(
+            stringResource(R.string.deck_not_legal_in,
+                not.entries.joinToString(", ") { (f, n) -> "${Legality.displayName(f)} (${n})" }),
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

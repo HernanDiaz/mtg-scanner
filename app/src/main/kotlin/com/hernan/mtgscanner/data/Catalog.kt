@@ -23,6 +23,8 @@ class Catalog(context: Context) {
     private val sets: Map<String, SetInfo>
     private val printingsCache = ConcurrentHashMap<String, List<CardPrinting>>()
     private val arts = HashMap<Int, ArtSignature>()
+    /** Nombre de carta -> legalidad por formato ([Legality]). */
+    private val legality = HashMap<String, Int>(40_000)
     /** Símbolos de edición de referencia; null con un catálogo antiguo que no los trae. */
     val symbols: SetSymbols?
 
@@ -47,6 +49,11 @@ class Catalog(context: Context) {
 
         db.rawQuery("SELECT id, thumb FROM arts", null).use { c ->
             while (c.moveToNext()) arts[c.getInt(0)] = ArtSignature.fromPacked(c.getBlob(1))
+        }
+        runCatching {
+            db.rawQuery("SELECT name, bits FROM legality", null).use { c ->
+                while (c.moveToNext()) legality[c.getString(0)] = c.getInt(1)
+            }
         }
 
         symbols = runCatching {
@@ -87,6 +94,9 @@ class Catalog(context: Context) {
         query("WHERE set_code = ? AND number_norm = ?", setCode, numberNorm).firstOrNull()
 
     fun setName(code: String) = sets[code]?.name ?: code.uppercase()
+
+    /** Legalidad de una carta por su nombre ([Legality]); null si no se conoce. */
+    fun legalityOf(name: String): Int? = legality[name]
 
     private val setsByName: Map<String, String> by lazy {
         // Si dos ediciones se llaman igual, gana la de código más corto (la principal, no la de fichas).
@@ -161,6 +171,7 @@ class Catalog(context: Context) {
         colors = c.getString(15),
         style = c.getString(16),
         cardmarketId = if (c.isNull(17)) null else c.getInt(17),
+        legality = legality[c.getString(1)] ?: 0,
     )
 
     private fun Cursor.doubleOrNull(i: Int) = if (isNull(i)) null else getDouble(i)

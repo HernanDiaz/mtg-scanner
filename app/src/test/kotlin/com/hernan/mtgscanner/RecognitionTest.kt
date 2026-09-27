@@ -687,6 +687,23 @@ class CollectionImportTest {
         assertEquals(1.0 * 1 + 1.0 * 3, r.missingCost { it.prices.eur }!!, 1e-9)
     }
 
+    /** Legalidad de un mazo: todas sus cartas legales; las restringidas, con una sola copia. */
+    @Test fun deckLegality() {
+        val L = com.hernan.mtgscanner.data.Legality
+        fun bits(vararg s: Pair<String, Int>) = s.sumOf { (f, v) -> v shl (2 * L.FORMATS.indexOf(f)) }
+        val bolt = card("Lightning Bolt", "m11", "149", "2010-07-16").copy(legality = bits("modern" to 1, "legacy" to 1, "vintage" to 1))
+        val lotus = card("Black Lotus", "lea", "232", "1993-08-05").copy(legality = bits("legacy" to 3, "vintage" to 2))
+        fun check(vararg items: Pair<CardPrinting, Int>) = com.hernan.mtgscanner.data.DeckCheck.check(
+            com.hernan.mtgscanner.data.CollectionImport.Result(items.map { (c, n) ->
+                com.hernan.mtgscanner.data.CollectionImport.Item(c, n, false, "NM", "en", false, null)
+            }, emptyList()), emptyMap())
+        assertEquals(listOf("modern", "legacy", "vintage"), check(bolt to 4).legalFormats())
+        assertEquals(listOf("vintage"), check(bolt to 4, lotus to 1).legalFormats())
+        assertEquals(emptyList<String>(), check(bolt to 4, lotus to 2).legalFormats()) // restringida con 2 copias
+        assertEquals(com.hernan.mtgscanner.data.Legality.Status.BANNED, L.status(lotus.legality, "legacy"))
+        assertFalse(L.playable(lotus.legality, "legacy"))
+    }
+
     /** Nuestra propia lista de texto también se puede importar. */
     @Test fun ownTextExport() {
         val r = resolve("1 Borborygmos, Enraged (GTC) 143 *F* ES\n4 Lightning Bolt (M11) 149\n")
