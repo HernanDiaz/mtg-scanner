@@ -23,7 +23,18 @@ data class CollectionFilter(
  * Cada carta física puede estar en un mazo (`decks`) o en ninguno.
  */
 class CollectionStore(context: Context, dbName: String = "collection.db") :
-    SQLiteOpenHelper(context, dbName, null, 6) {
+    SQLiteOpenHelper(context, dbName, null, 7) {
+
+    /**
+     * Porcentaje del precio según el estado ("EX" -> 85); null = el precio tal cual.
+     * Lo fija la app según los ajustes; afecta al valor de la colección, no a los
+     * precios por carta guardados.
+     */
+    @Volatile
+    var conditionFactors: Map<String, Int>? = null
+        set(value) {
+            if (field != value) { field = value; changed() }
+        }
 
     /** Se incrementa en cada cambio para que la UI vuelva a consultar. */
     private val _version = MutableStateFlow(0)
@@ -90,6 +101,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         )
         createDecksTable(db)
         createWishlistTable(db)
+        createHistoryTables(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -111,6 +123,8 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         }
         // v6: lista de deseos.
         if (oldVersion < 6) createWishlistTable(db)
+        // v7: evolución del valor y de los precios.
+        if (oldVersion < 7) createHistoryTables(db)
     }
 
     /**
@@ -128,6 +142,33 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
                 quantity INTEGER NOT NULL,
                 added_at INTEGER NOT NULL
             )
+            """
+        )
+    }
+
+    /**
+     * Un registro por día: el valor de toda la colección con cada precio, y los
+     * precios de cada carta (para ver qué ha subido o bajado).
+     */
+    private fun createHistoryTables(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE value_history (
+                day TEXT PRIMARY KEY,        -- yyyy-MM-dd
+                cards INTEGER NOT NULL,
+                eur_trend REAL, eur_low REAL, eur_avg30 REAL, usd REAL
+            )
+            """
+        )
+        db.execSQL(
+            """
+            CREATE TABLE price_history (
+                card_id TEXT NOT NULL,
+                day TEXT NOT NULL,
+                eur REAL, eur_foil REAL, eur_low REAL, eur_low_foil REAL,
+                eur_avg30 REAL, eur_avg30_foil REAL, usd REAL, usd_foil REAL,
+                PRIMARY KEY (card_id, day)
+            ) WITHOUT ROWID
             """
         )
     }
@@ -411,6 +452,98 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
             buildList { while (c.moveToNext()) add(c.getString(0)) }
         }
 
+    // ------------------------------------------------------------------ evolución
+
+    /** Guarda (o actualiza) el valor de hoy de toda la colección, con cada precio. */
+    fun recordValue(day: String) {
+        val trend = summary(Currency.EUR)
+        val values = ContentValues().apply {
+            put("day", day)
+            put("cards", trend.cards)
+            put("eur_trend", trend.total)
+            put("eur_low", summary(Currency.EUR, kind = PriceKind.LOW).total)
+            put("eur_avg30", summary(Currency.EUR, kind = PriceKind.AVG30).total)
+            put("usd", summary(Currency.USD).total)
+        }
+        writableDatabase.insertWithOnConflict("value_history", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    /** Copia los precios actuales de cada carta como los de [day]. */
+    fun recordPrices(day: String) {
+        writableDatabase.execSQL(
+            "INSERT OR REPLACE INTO price_history SELECT card_id, ?, eur, eur_foil, eur_low, eur_low_foil, " +
+                "eur_avg30, eur_avg30_foil, usd, usd_foil FROM prices WHERE updated_at > 0",
+            arrayOf(day),
+        )
+    }
+
+    data class ValuePoint(val day: String, val cards: Int, val value: Double)
+
+    /** Valor de la colección día a día desde [since] (yyyy-MM-dd; null = desde el principio). */
+    fun valueHistory(currency: Currency, kind: PriceKind, since: String? = null): List<ValuePoint> {
+        val col = historyColumn(currency, kind, "")
+        return readableDatabase.rawQuery(
+            "SELECT day, cards, $col FROM value_history WHERE day >= ? AND $col IS NOT NULL ORDER BY day",
+            arrayOf(since ?: ""),
+        ).use { c -> buildList { while (c.moveToNext()) add(ValuePoint(c.getString(0), c.getInt(1), c.getDouble(2))) } }
+    }
+
+    /** Cambio de precio de una carta de la colección entre dos días (por copia y por todas las que se tienen). */
+    data class Mover(
+        val cardId: String, val name: String, val setCode: String, val foil: Boolean, val quantity: Int,
+        val before: Double, val now: Double,
+    ) {
+        val change get() = now - before
+        val smallImageUrl get() = "https://cards.scryfall.io/small/front/${cardId[0]}/${cardId[1]}/$cardId.jpg"
+    }
+
+    /**
+     * Cartas cuyo precio más ha cambiado desde [since]: se compara el precio actual
+     * con el guardado el primer día desde entonces que tenga datos.
+     */
+    fun movers(currency: Currency, kind: PriceKind, since: String): List<Mover> {
+        val now = historyColumn(currency, kind, "p.", foilAware = true)
+        val before = historyColumn(currency, kind, "h.", foilAware = true)
+        return readableDatabase.rawQuery(
+            """
+            SELECT e.card_id, e.name, e.set_code, e.foil, COUNT(*), $before, $now
+            FROM entries e
+            JOIN prices p ON p.card_id = e.card_id
+            JOIN price_history h ON h.card_id = e.card_id AND h.day = (
+                SELECT MIN(day) FROM price_history WHERE card_id = e.card_id AND day >= ?)
+            GROUP BY e.card_id, e.foil
+            """,
+            arrayOf(since),
+        ).use { c ->
+            buildList {
+                while (c.moveToNext()) {
+                    if (c.isNull(5) || c.isNull(6)) continue
+                    add(Mover(c.getString(0), c.getString(1), c.getString(2), c.getInt(3) != 0, c.getInt(4),
+                        c.getDouble(5), c.getDouble(6)))
+                }
+            }
+        }.filter { it.change != 0.0 }
+    }
+
+    /** Columna del precio elegido en value_history ([prefix] vacío) o en prices/price_history. */
+    private fun historyColumn(currency: Currency, kind: PriceKind, prefix: String, foilAware: Boolean = false): String {
+        if (!foilAware) {
+            return when {
+                currency == Currency.USD -> "usd"
+                kind == PriceKind.LOW -> "eur_low"
+                kind == PriceKind.AVG30 -> "eur_avg30"
+                else -> "eur_trend"
+            }
+        }
+        val base = when {
+            currency == Currency.USD -> "usd"
+            kind == PriceKind.LOW -> "eur_low"
+            kind == PriceKind.AVG30 -> "eur_avg30"
+            else -> "eur"
+        }
+        return "CASE WHEN e.foil = 1 THEN COALESCE($prefix${base}_foil, $prefix$base) ELSE COALESCE($prefix$base, $prefix${base}_foil) END"
+    }
+
     // ------------------------------------------------------------------ lista de deseos
 
     data class Wish(
@@ -528,7 +661,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
     fun summary(currency: Currency, filter: CollectionFilter = CollectionFilter(), kind: PriceKind = PriceKind.TREND): Summary {
         val (where, args) = filterSql(filter)
         return readableDatabase.rawQuery(
-            "SELECT COUNT(*), COALESCE(SUM(${priceExpr(currency, kind)}), 0), COALESCE(SUM(e.needs_review), 0) " +
+            "SELECT COUNT(*), COALESCE(SUM(${valueExpr(currency, kind)}), 0), COALESCE(SUM(e.needs_review), 0) " +
                 "FROM entries e LEFT JOIN prices p ON p.card_id = e.card_id WHERE $where", args
         ).use { c ->
             c.moveToFirst()
@@ -545,7 +678,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         currency: Currency, filter: CollectionFilter = CollectionFilter(), sort: Sort = Sort.RECENT,
         kind: PriceKind = PriceKind.TREND,
     ): List<Group> {
-        val price = priceExpr(currency, kind)
+        val price = valueExpr(currency, kind)
         val order = when (sort) {
             Sort.RECENT -> "e.needs_review DESC, MAX(e.id) DESC"
             Sort.VALUE -> "COUNT(*) * COALESCE($price, 0) DESC"
@@ -584,6 +717,14 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
                 ))
             }
         }
+    }
+
+    /** Valor de una copia (`entries e`): su precio y, si se pide, ajustado por su estado. */
+    private fun valueExpr(currency: Currency, kind: PriceKind): String {
+        val price = priceExpr(currency, kind)
+        val factors = conditionFactors ?: return price
+        val cases = factors.entries.joinToString(" ") { (c, pct) -> "WHEN '${c.filter(Char::isLetter)}' THEN ${pct / 100.0}" }
+        return "($price) * (CASE e.condition $cases ELSE 1 END)"
     }
 
     /** Condición SQL (sobre `entries e`) y sus argumentos para un filtro. */
@@ -628,6 +769,10 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
     }
 
     companion object {
+        /** El día de hoy como se guarda en la evolución ("2026-09-27"). */
+        fun day(millis: Long = System.currentTimeMillis()): String =
+            java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT).format(java.util.Date(millis))
+
         /** Valor de [CollectionFilter.deckId] para "cartas que no están en ningún mazo". */
         const val NO_DECK = 0L
 

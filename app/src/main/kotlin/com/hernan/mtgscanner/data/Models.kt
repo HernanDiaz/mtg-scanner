@@ -68,3 +68,11 @@ enum class PriceKind(@StringRes val label: Int, @StringRes val description: Int)
 
 /** Estados estándar de Cardmarket. */
 val CONDITIONS = listOf("M", "NM", "EX", "GD", "LP", "PL", "PO")
+
+/**
+ * Porcentaje del precio que se cuenta según el estado, si se activa "valor según
+ * el estado". Los precios de Cardmarket y Scryfall no distinguen estados (son los
+ * de cartas en buen estado): esto es una estimación, en la línea de lo que se
+ * suele pagar por cartas usadas. El usuario puede cambiarlos.
+ */
+val DEFAULT_CONDITION_FACTORS = linkedMapOf("M" to 100, "NM" to 100, "EX" to 85, "GD" to 70, "LP" to 60, "PL" to 45, "PO" to 30)

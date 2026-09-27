@@ -28,6 +28,8 @@ class PriceUpdater(private val store: CollectionStore, private val cardmarket: C
         if (withCardmarketGuide && cardmarket != null) {
             store.updateCardmarketPrices(cardmarket.pricesFor(store.cardmarketIds()))
         }
+        // Los precios de hoy, para ver después qué cartas han subido o bajado.
+        store.recordPrices(CollectionStore.day())
         updated
     }
 

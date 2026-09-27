@@ -35,6 +35,38 @@ class Settings(context: Context) {
         _priceKind.value = k
     }
 
+    /** Valorar cada carta según su estado ([conditionFactors]). */
+    private val _conditionPricing = MutableStateFlow(prefs.getBoolean("condition_pricing", false))
+    val conditionPricing: StateFlow<Boolean> = _conditionPricing
+
+    /** Estado -> porcentaje del precio (ver [DEFAULT_CONDITION_FACTORS]). */
+    private val _conditionFactors = MutableStateFlow(readFactors())
+    val conditionFactors: StateFlow<Map<String, Int>> = _conditionFactors
+
+    fun setConditionPricing(on: Boolean) {
+        prefs.edit().putBoolean("condition_pricing", on).apply()
+        _conditionPricing.value = on
+    }
+
+    fun setConditionFactor(condition: String, percent: Int) {
+        saveFactors(_conditionFactors.value + (condition to percent.coerceIn(0, 100)))
+    }
+
+    fun resetConditionFactors() = saveFactors(DEFAULT_CONDITION_FACTORS)
+
+    private fun saveFactors(f: Map<String, Int>) {
+        prefs.edit().putString("condition_factors", f.entries.joinToString(",") { "${it.key}=${it.value}" }).apply()
+        _conditionFactors.value = f
+    }
+
+    /** "EX=85,GD=70,..." Lo que falte, el valor por defecto. */
+    private fun readFactors(): Map<String, Int> {
+        val saved = prefs.getString("condition_factors", null)?.split(",")?.mapNotNull { part ->
+            part.split("=").takeIf { it.size == 2 }?.let { (k, v) -> v.toIntOrNull()?.let { k to it } }
+        }?.toMap().orEmpty()
+        return DEFAULT_CONDITION_FACTORS.mapValues { (k, v) -> saved[k] ?: v }
+    }
+
     fun setCurrency(c: Currency) {
         prefs.edit().putString("currency", c.name).apply()
         _currency.value = c

@@ -197,4 +197,32 @@
     <string name="added_to_wishlist">%1$s añadida a la lista de deseos</string>
     <string name="wish_fulfilled">%1$s estaba en tu lista de deseos</string>
     <string name="was_on_wishlist">★ Estaba en tu lista de deseos</string>
+
+    <!-- Evolución del valor -->
+    <string name="value_history">Evolución del valor</string>
+    <string name="range_week">7 días</string>
+    <string name="range_month">30 días</string>
+    <string name="range_year">1 año</string>
+    <string name="range_all">Todo</string>
+    <string name="history_empty">Aún no hay historia: la app guarda el valor de la colección cada día que la abres o actualizas precios. Vuelve dentro de unos días.</string>
+    <string name="history_note">El valor incluye las cartas que añades o quitas. Para ver solo los cambios de precio, mira las cartas de abajo.</string>
+    <string name="biggest_rises">Lo que más ha subido</string>
+    <string name="biggest_drops">Lo que más ha bajado</string>
+    <string name="no_price_changes">Todavía no hay cambios de precio guardados en este periodo (se guardan al actualizar precios).</string>
+
+    <!-- Valor según el estado -->
+    <string name="condition_pricing_menu">Valor según el estado…</string>
+    <string name="condition_pricing">Valor según el estado</string>
+    <string name="condition_pricing_explain">Cardmarket y Scryfall dan un solo precio por carta, sin distinguir estados: es el de cartas en buen estado (NM). Con esta opción, cada carta vale su precio multiplicado por el porcentaje de su estado. Por ejemplo, una carta de 10 € en EX (85 %) cuenta 8,50 €.</string>
+    <string name="condition_pricing_switch">Ajustar el valor según el estado</string>
+    <string name="condition_pricing_note">Los porcentajes son una estimación, en la línea de lo que se suele pagar por cartas usadas; ajústalos a tu mercado. Se aplican al total de la colección, a cada fila y a las exportaciones. Los precios de cada carta (y sus cambios) son siempre los de mercado.</string>
+    <string name="reset">Restablecer</string>
+    <string name="your_copy_value">Tu copia en %1$s (%2$d %%): %3$s</string>
+    <string name="cond_m">Mint (perfecta)</string>
+    <string name="cond_nm">Near Mint (casi perfecta)</string>
+    <string name="cond_ex">Excellent (excelente)</string>
+    <string name="cond_gd">Good (buena)</string>
+    <string name="cond_lp">Light Played (poco jugada)</string>
+    <string name="cond_pl">Played (jugada)</string>
+    <string name="cond_po">Poor (mala)</string>
 </resources>

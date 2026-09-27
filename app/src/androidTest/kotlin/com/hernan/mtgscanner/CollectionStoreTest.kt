@@ -244,6 +244,7 @@ class CollectionStoreTest {
         store.backfillCardmarketIds { id -> catalog.byId(id)?.cardmarketId }
         assertEquals(setOf(bolt.cardmarketId), store.cardmarketIds())
         assertTrue(store.wishlist(Currency.EUR).isEmpty()) // v6: la lista de deseos se crea
+        assertTrue(store.valueHistory(Currency.EUR, PriceKind.TREND).isEmpty()) // v7: la evolución también
     }
 
     /** Ficha de carta: cambiar estado y foil, copias de la carta y precios guardados. */
@@ -289,6 +290,49 @@ class CollectionStoreTest {
         store.add(bolt, false, "NM", needsReview = false)
         store.add(catalog.printingsOf("Lightning Bolt")[1], false, "NM", needsReview = false)
         assertEquals(mapOf("Lightning Bolt" to 2), store.ownedByName())
+    }
+
+    /** Evolución: el valor de cada día y qué cartas han cambiado de precio desde una fecha. */
+    @Test fun valueHistoryAndMovers() {
+        val bolt = catalog.printingsOf("Lightning Bolt").first()
+        val sol = catalog.printingsOf("Sol Ring").first()
+        repeat(2) { store.add(bolt, false, "NM", needsReview = false) }
+        store.add(sol, true, "NM", needsReview = false)
+        store.updatePrices(mapOf(bolt.id to Prices(1.0, 3.0, 1.1, null), sol.id to Prices(2.0, 5.0, null, null)))
+        store.recordValue("2026-09-01")
+        store.recordPrices("2026-09-01")
+
+        store.updatePrices(mapOf(bolt.id to Prices(1.5, 3.0, 1.1, null), sol.id to Prices(2.0, 4.0, null, null)))
+        store.recordValue("2026-09-02")
+        store.recordValue("2026-09-02") // el mismo día se sobrescribe
+
+        val h = store.valueHistory(Currency.EUR, PriceKind.TREND)
+        assertEquals(listOf("2026-09-01", "2026-09-02"), h.map { it.day })
+        assertEquals(2 * 1.0 + 5.0, h[0].value, 1e-9)   // Sol Ring foil: su precio foil
+        assertEquals(2 * 1.5 + 4.0, h[1].value, 1e-9)
+        assertEquals(listOf("2026-09-02"), store.valueHistory(Currency.EUR, PriceKind.TREND, since = "2026-09-02").map { it.day })
+
+        val movers = store.movers(Currency.EUR, PriceKind.TREND, since = "2026-09-01").associateBy { it.name }
+        assertEquals(0.5, movers.getValue("Lightning Bolt").change, 1e-9)
+        assertEquals(2, movers.getValue("Lightning Bolt").quantity)
+        assertEquals(-1.0, movers.getValue("Sol Ring").change, 1e-9) // foil: 5 -> 4
+    }
+
+    /** Valor según el estado: cada copia vale su precio por el porcentaje de su estado. */
+    @Test fun conditionFactors() {
+        val bolt = catalog.printingsOf("Lightning Bolt").first()
+        store.add(bolt, false, "NM", needsReview = false)
+        store.add(bolt, false, "EX", needsReview = false)
+        store.add(bolt, false, "PO", needsReview = false)
+        store.updatePrices(mapOf(bolt.id to Prices(10.0, null, null, null)))
+        assertEquals(30.0, store.summary(Currency.EUR).total, 1e-9)
+
+        store.conditionFactors = mapOf("NM" to 100, "EX" to 85)   // PO sin porcentaje: 100 %
+        assertEquals(10.0 + 8.5 + 10.0, store.summary(Currency.EUR).total, 1e-9)
+        assertEquals(8.5, store.groups(Currency.EUR).single { it.condition == "EX" }.unitPrice!!, 1e-9)
+
+        store.conditionFactors = null
+        assertEquals(30.0, store.summary(Currency.EUR).total, 1e-9)
     }
 
     @Test fun cardDetailsFromScryfallJson() {

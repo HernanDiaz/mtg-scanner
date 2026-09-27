@@ -200,4 +200,32 @@
     <string name="added_to_wishlist">%1$s added to the wishlist</string>
     <string name="wish_fulfilled">%1$s was on your wishlist</string>
     <string name="was_on_wishlist">★ It was on your wishlist</string>
+
+    <!-- Evolución del valor -->
+    <string name="value_history">Value over time</string>
+    <string name="range_week">7 days</string>
+    <string name="range_month">30 days</string>
+    <string name="range_year">1 year</string>
+    <string name="range_all">All</string>
+    <string name="history_empty">No history yet: the app saves the collection value every day you open it or update prices. Come back in a few days.</string>
+    <string name="history_note">The value includes the cards you add or remove. To see only price changes, look at the cards below.</string>
+    <string name="biggest_rises">Biggest rises</string>
+    <string name="biggest_drops">Biggest drops</string>
+    <string name="no_price_changes">No price changes saved in this period yet (they are saved when prices are updated).</string>
+
+    <!-- Valor según el estado -->
+    <string name="condition_pricing_menu">Value by condition…</string>
+    <string name="condition_pricing">Value by condition</string>
+    <string name="condition_pricing_explain">Cardmarket and Scryfall give a single price per card, without telling conditions apart: it is the price of cards in good condition (NM). With this option, each card is worth its price multiplied by the percentage of its condition. For example, a €10 card in EX (85%) counts as €8.50.</string>
+    <string name="condition_pricing_switch">Adjust value by condition</string>
+    <string name="condition_pricing_note">The percentages are an estimate, in line with what is usually paid for used cards; adjust them to your market. They apply to the collection total, each row and exports. Card prices (and their changes) are always market prices.</string>
+    <string name="reset">Reset</string>
+    <string name="your_copy_value">Your copy in %1$s (%2$d %%): %3$s</string>
+    <string name="cond_m">Mint</string>
+    <string name="cond_nm">Near Mint</string>
+    <string name="cond_ex">Excellent</string>
+    <string name="cond_gd">Good</string>
+    <string name="cond_lp">Light Played</string>
+    <string name="cond_pl">Played</string>
+    <string name="cond_po">Poor</string>
 </resources>

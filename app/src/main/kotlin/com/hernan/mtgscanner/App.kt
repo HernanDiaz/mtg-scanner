@@ -11,6 +11,8 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 
 /** Punto único de acceso a los datos de la app. */
@@ -26,6 +28,11 @@ class App : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         catalog = scope.async { Catalog(this@App) }
+        // Valor según el estado: la colección lo aplica al calcular totales y filas.
+        scope.launch {
+            combine(settings.conditionPricing, settings.conditionFactors) { on, f -> f.takeIf { on } }
+                .collect { collection.conditionFactors = it }
+        }
     }
 
     /**

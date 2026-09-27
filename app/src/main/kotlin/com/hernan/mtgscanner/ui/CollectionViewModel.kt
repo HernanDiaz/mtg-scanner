@@ -85,6 +85,17 @@ data class ImportPreview(
     val targetDeck: CollectionStore.Deck?,
 )
 
+/** Periodo de la gráfica de evolución. */
+enum class HistoryRange(val days: Int?, @androidx.annotation.StringRes val label: Int) {
+    WEEK(7, R.string.range_week), MONTH(30, R.string.range_month), YEAR(365, R.string.range_year), ALL(null, R.string.range_all),
+}
+
+class ValueHistory(
+    val points: List<CollectionStore.ValuePoint>,
+    val up: List<CollectionStore.Mover>,
+    val down: List<CollectionStore.Mover>,
+)
+
 /** Una edición posible en el selector, con su parecido a la foto (0-1) si se conoce. */
 data class PrintingOption(val printing: CardPrinting, val similarity: Double?)
 
@@ -113,6 +124,8 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
                             decks = store.decks(),
                         )
                     }
+                    // El valor de hoy para la gráfica de evolución (con cada cambio: cartas o precios).
+                    withContext(Dispatchers.IO) { store.recordValue(CollectionStore.day()) }
                     _ui.update {
                         it.copy(groups = result.groups, summary = result.summary, pendingTotal = result.pendingTotal,
                             decks = result.decks, currency = currency, filter = f, sort = s, priceKind = kind, loaded = true)
@@ -199,6 +212,13 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
 
     fun setCurrency(c: Currency) = settings.setCurrency(c)
 
+    // Valor según el estado
+    val conditionPricing get() = settings.conditionPricing
+    val conditionFactors get() = settings.conditionFactors
+    fun setConditionPricing(on: Boolean) = settings.setConditionPricing(on)
+    fun setConditionFactor(condition: String, percent: Int) = settings.setConditionFactor(condition, percent)
+    fun resetConditionFactors() = settings.resetConditionFactors()
+
     /** Al elegir el precio más bajo o la media por primera vez hace falta descargar la guía. */
     fun setPriceKind(k: PriceKind) {
         if (k == settings.priceKind.value) return
@@ -250,6 +270,22 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
 
     fun setFoil(group: CollectionStore.Group, foil: Boolean) {
         viewModelScope.launch(Dispatchers.IO) { store.setFoil(group, foil) }
+    }
+
+    // ------------------------------------------------------------------ evolución del valor
+
+    /** Valor de la colección y cartas que más han cambiado de precio en el periodo. */
+    suspend fun history(range: HistoryRange): ValueHistory = withContext(Dispatchers.IO) {
+        val ui = _ui.value
+        val since = range.days?.let { CollectionStore.day(System.currentTimeMillis() - it * DAY_MS) }
+        val points = store.valueHistory(ui.currency, ui.priceKind, since)
+        // Los cambios de precio desde el primer día del periodo con datos.
+        val movers = store.movers(ui.currency, ui.priceKind, since ?: points.firstOrNull()?.day ?: CollectionStore.day())
+        ValueHistory(
+            points = points,
+            up = movers.filter { it.change > 0 }.sortedByDescending { it.change * it.quantity }.take(MOVERS),
+            down = movers.filter { it.change < 0 }.sortedBy { it.change * it.quantity }.take(MOVERS),
+        )
     }
 
     // ------------------------------------------------------------------ ficha de carta
@@ -407,5 +443,6 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     private companion object {
         const val DAY_MS = 24 * 60 * 60 * 1000L
         const val MAX_IMPORT_BYTES = 20 * 1024 * 1024
+        const val MOVERS = 10
     }
 }

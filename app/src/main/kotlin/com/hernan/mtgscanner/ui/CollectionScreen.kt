@@ -33,6 +33,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -111,6 +112,10 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
     var deletingDeck by remember { mutableStateOf<CollectionStore.Deck?>(null) }
     val context = LocalContext.current
     var fileMenu by remember { mutableStateOf(false) }
+    var showHistory by remember { mutableStateOf(false) }
+    var showConditionPricing by remember { mutableStateOf(false) }
+    val conditionPricing by vm.conditionPricing.collectAsStateWithLifecycle()
+    val conditionFactors by vm.conditionFactors.collectAsStateWithLifecycle()
     var importing by remember { mutableStateOf<ImportPreview?>(null) }
     var readingFile by remember { mutableStateOf(false) }
     val backupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
@@ -137,9 +142,13 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
         Surface(tonalElevation = 2.dp) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(formatPrice(ui.summary.total, ui.currency),
-                            style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    // Tocar el valor abre su evolución.
+                    Column(Modifier.weight(1f).clickable { showHistory = true }) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(formatPrice(ui.summary.total, ui.currency),
+                                style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, stringResource(R.string.value_history))
+                        }
                         Text("$scopeLabel · ${cardsLabel(ui.summary.cards)}", style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
@@ -162,6 +171,10 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_cards)) },
                                 onClick = { fileMenu = false; importLauncher.launch(arrayOf("*/*")) },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.condition_pricing_menu)) },
+                                onClick = { fileMenu = false; showConditionPricing = true },
                             )
                         }
                     }
@@ -315,6 +328,7 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                     viewing = if (g.quantity > 1) g.copy(quantity = g.quantity - 1) else null
                 },
                 onAddWish = { vm.addWish(p) },
+                conditionFactor = conditionFactors[g.condition]?.takeIf { conditionPricing },
                 onDismiss = { viewing = null },
             )
         }
@@ -366,6 +380,16 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
     }
     if (searching) {
         ManualAddDialog(vm, ui.currency, onDismiss = { searching = false })
+    }
+    if (showConditionPricing) {
+        ConditionPricingDialog(
+            enabled = conditionPricing, factors = conditionFactors,
+            onEnabled = vm::setConditionPricing, onFactor = vm::setConditionFactor, onReset = vm::resetConditionFactors,
+            onDismiss = { showConditionPricing = false },
+        )
+    }
+    if (showHistory) {
+        ValueHistoryDialog(ui.currency, load = { vm.history(it) }, onDismiss = { showHistory = false })
     }
     importing?.let { preview ->
         ImportDialog(

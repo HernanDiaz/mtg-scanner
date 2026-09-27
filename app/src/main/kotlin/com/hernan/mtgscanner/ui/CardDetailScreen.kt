@@ -88,6 +88,8 @@ fun CardDetailDialog(
     onRemoveOne: () -> Unit = {},
     /** Añadir una copia más a la lista de deseos; null = sin botón. */
     onAddWish: (() -> Unit)? = null,
+    /** Porcentaje del precio por el estado de la copia; null si no se valora según el estado. */
+    conditionFactor: Int? = null,
     onDismiss: () -> Unit,
 ) {
     var sheet by remember(printing.id, group) { mutableStateOf<CardSheet?>(null) }
@@ -151,6 +153,13 @@ fun CardDetailDialog(
                     CircularProgressIndicator(Modifier.size(24.dp))
                 } else {
                     PriceTable(p, printing, currency)
+                    if (group != null && conditionFactor != null) {
+                        Text(
+                            stringResource(R.string.your_copy_value, group.condition, conditionFactor,
+                                formatPrice(group.unitPrice, currency)),
+                            fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp),
+                        )
+                    }
                     Text(
                         if (p == null || p.updatedAt == 0L) stringResource(R.string.prices_from_catalog)
                         else stringResource(R.string.prices_updated_at,
