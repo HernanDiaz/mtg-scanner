@@ -174,4 +174,27 @@
     <string name="rarity_uncommon">Infrecuente</string>
     <string name="rarity_rare">Rara</string>
     <string name="rarity_mythic">Mítica</string>
+
+    <!-- Lista de deseos -->
+    <string name="tab_wishlist">Deseos</string>
+    <string name="wishlist_summary">%1$s en tu lista de deseos</string>
+    <string name="wishlist_empty">Tu lista de deseos está vacía. Comprueba un mazo para ver qué te falta, o añade cartas desde su ficha.</string>
+    <string name="check_deck">¿Qué me falta para un mazo?</string>
+    <string name="check_deck_help">Pega la lista del mazo (Moxfield, Arena, MTGO, un foro…) o abre un fichero. Las cartas se cuentan por nombre, en cualquier edición.</string>
+    <string name="open_file">Abrir fichero…</string>
+    <string name="check">Comprobar</string>
+    <string name="deck_have">Tienes %1$d de %2$d cartas</string>
+    <string name="deck_missing">Te faltan %1$s · %2$s</string>
+    <string name="deck_complete">Tienes el mazo completo.</string>
+    <string name="have_n_of_m">Tienes %1$d de %2$d</string>
+    <string name="add_missing_to_wishlist">Añadir lo que falta a deseos</string>
+    <string name="added_missing">Añadido a deseos</string>
+    <string name="copy_missing">Copiar lo que falta</string>
+    <string name="copied">Copiado (pégalo en Cardmarket)</string>
+    <string name="another_list">Otra lista</string>
+    <string name="add_to_wishlist">Añadir a deseos</string>
+    <string name="added_to_wishlist_short">En tu lista de deseos</string>
+    <string name="added_to_wishlist">%1$s añadida a la lista de deseos</string>
+    <string name="wish_fulfilled">%1$s estaba en tu lista de deseos</string>
+    <string name="was_on_wishlist">★ Estaba en tu lista de deseos</string>
 </resources>

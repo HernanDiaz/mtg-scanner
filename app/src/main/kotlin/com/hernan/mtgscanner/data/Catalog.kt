@@ -93,6 +93,15 @@ class Catalog(context: Context) {
         sets.entries.sortedByDescending { it.key.length }.associate { NameMatcher.normalize(it.value.name) to it.key }
     }
 
+    /** Para importar listas: busca las cartas como las escribe una persona u otra app. */
+    val importLookup = object : CollectionImport.Lookup {
+        override fun byId(id: String) = this@Catalog.byId(id)
+        override fun bySetAndNumber(setCode: String, numberNorm: String) = this@Catalog.bySetAndNumber(setCode, numberNorm)
+        override fun printingsOf(name: String) = printingsOfAnyName(name)
+        override fun setCode(value: String) = setCodeFor(value)
+        override fun isForeignName(name: String) = this@Catalog.isForeignName(name)
+    }
+
     /** Código de edición a partir de un código ("M11", "m11") o un nombre ("Magic 2011"). */
     fun setCodeFor(value: String): String? {
         val code = value.trim().lowercase()

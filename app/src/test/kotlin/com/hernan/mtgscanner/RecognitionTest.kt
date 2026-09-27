@@ -671,6 +671,22 @@ class CollectionImportTest {
         assertEquals(listOf(9), r.failed.map { it.line })
     }
 
+    /** "¿Qué me falta?": por nombre, en cualquier edición, sumando las líneas repetidas. */
+    @Test fun deckCheck() {
+        val r = com.hernan.mtgscanner.data.DeckCheck.check(
+            resolve("4 Lightning Bolt\n2 Shock\n1 Delver of Secrets\nSideboard\n2 Shock\n1 Carta Inventada\n"),
+            ownedByName = mapOf("Lightning Bolt" to 5, "Shock" to 1),
+        )
+        assertEquals(listOf("Delver of Secrets // Insectile Aberration", "Shock", "Lightning Bolt"), r.lines.map { it.name })
+        assertEquals(listOf(1, 3, 0), r.lines.map { it.missing })
+        assertEquals(9, r.wantedCards)
+        assertEquals(5, r.ownedCards)          // 4 Bolt (sobra uno) + 1 Shock
+        assertEquals(4, r.missingCards)
+        assertEquals(1, r.failed.size)
+        assertEquals("1 Delver of Secrets // Insectile Aberration\n3 Shock", r.missingAsText())
+        assertEquals(1.0 * 1 + 1.0 * 3, r.missingCost { it.prices.eur }!!, 1e-9)
+    }
+
     /** Nuestra propia lista de texto también se puede importar. */
     @Test fun ownTextExport() {
         val r = resolve("1 Borborygmos, Enraged (GTC) 143 *F* ES\n4 Lightning Bolt (M11) 149\n")

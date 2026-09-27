@@ -14,6 +14,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -82,6 +86,8 @@ fun CardDetailDialog(
     onChangeEdition: () -> Unit = {},
     onMove: () -> Unit = {},
     onRemoveOne: () -> Unit = {},
+    /** Añadir una copia más a la lista de deseos; null = sin botón. */
+    onAddWish: (() -> Unit)? = null,
     onDismiss: () -> Unit,
 ) {
     var sheet by remember(printing.id, group) { mutableStateOf<CardSheet?>(null) }
@@ -95,9 +101,13 @@ fun CardDetailDialog(
     val context = LocalContext.current
     fun open(url: String) = runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
 
+    // Dentro del diálogo no llegan los márgenes de las barras del sistema: se miden fuera. El
+    // diálogo empieza bajo la barra de estado pero mide toda la pantalla: sobra también ese alto.
+    val bottomBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() +
+        WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+            Column(Modifier.fillMaxSize().padding(bottom = bottomBar).verticalScroll(rememberScrollState()).padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(printing.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f))
@@ -157,6 +167,12 @@ fun CardDetailDialog(
                     OutlinedButton(onClick = {
                         open(details?.scryfallUrl ?: "https://scryfall.com/card/${printing.setCode}/${Uri.encode(printing.collectorNumber)}")
                     }) { Text("Scryfall") }
+                }
+                onAddWish?.let { add ->
+                    var done by remember(printing.id) { mutableStateOf(false) }
+                    OutlinedButton(onClick = { add(); done = true }, enabled = !done, modifier = Modifier.padding(top = 4.dp)) {
+                        Text(stringResource(if (done) R.string.added_to_wishlist_short else R.string.add_to_wishlist))
+                    }
                 }
 
                 // Texto y legalidad (de Scryfall, con conexión)

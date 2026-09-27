@@ -59,6 +59,13 @@ object CollectionImport {
 
     // ------------------------------------------------------------------ leer
 
+    /** Texto de un fichero: UTF-8 si lo es (casi todas las apps); si no, lo que guarda Excel en Windows. */
+    fun decode(bytes: ByteArray): String = try {
+        Charsets.UTF_8.newDecoder().decode(java.nio.ByteBuffer.wrap(bytes)).toString()
+    } catch (e: java.nio.charset.CharacterCodingException) {
+        String(bytes, charset("windows-1252"))
+    }
+
     fun parse(text: String): List<Row> {
         val clean = text.removePrefix("﻿")
         val firstLine = clean.lineSequence().firstOrNull { it.isNotBlank() } ?: return emptyList()

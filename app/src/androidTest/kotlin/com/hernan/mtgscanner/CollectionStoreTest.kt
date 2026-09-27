@@ -243,6 +243,7 @@ class CollectionStoreTest {
         assertTrue(store.cardmarketIds().isEmpty())
         store.backfillCardmarketIds { id -> catalog.byId(id)?.cardmarketId }
         assertEquals(setOf(bolt.cardmarketId), store.cardmarketIds())
+        assertTrue(store.wishlist(Currency.EUR).isEmpty()) // v6: la lista de deseos se crea
     }
 
     /** Ficha de carta: cambiar estado y foil, copias de la carta y precios guardados. */
@@ -268,6 +269,26 @@ class CollectionStoreTest {
         assertEquals(2.5, p.eurAvg30Foil!!, 1e-9)
         assertEquals(3.0, p.usd!!, 1e-9)
         assertTrue(p.updatedAt > 0)
+    }
+
+    @Test fun wishlist() {
+        val bolt = catalog.printingsOf("Lightning Bolt").first()
+        store.addWish(bolt, 3)
+        store.addWish(bolt, 2)   // comprobar otra vez el mismo mazo no suma
+        assertEquals(3, store.wishlist(Currency.EUR).single().quantity)
+        assertTrue(bolt.id in store.distinctCardIds()) // sus precios se actualizan
+
+        assertTrue(store.fulfillWish("Lightning Bolt"))
+        assertEquals(2, store.wishlist(Currency.EUR).single().quantity)
+        store.unfulfillWish(bolt)
+        assertEquals(3, store.wishlist(Currency.EUR).single().quantity)
+        store.setWishQuantity("Lightning Bolt", 0)
+        assertTrue(store.wishlist(Currency.EUR).isEmpty())
+        assertFalse(store.fulfillWish("Lightning Bolt"))
+
+        store.add(bolt, false, "NM", needsReview = false)
+        store.add(catalog.printingsOf("Lightning Bolt")[1], false, "NM", needsReview = false)
+        assertEquals(mapOf("Lightning Bolt" to 2), store.ownedByName())
     }
 
     @Test fun cardDetailsFromScryfallJson() {

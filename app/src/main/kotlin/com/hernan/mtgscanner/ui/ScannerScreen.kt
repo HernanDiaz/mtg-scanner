@@ -199,6 +199,10 @@ private fun LastAddedCard(added: AddedCard, currency: com.hernan.mtgscanner.data
                 Text(p.name, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text("${p.setName} · #${p.collectorNumber} · ${added.lang.uppercase()}${if (added.foil) " · Foil" else ""}",
                     style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (added.wished) {
+                    Text(stringResource(R.string.was_on_wishlist), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary)
+                }
                 if (added.needsReview) {
                     Text(stringResource(R.string.doubtful_edition), style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFFFB74D))

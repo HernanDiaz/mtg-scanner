@@ -23,7 +23,7 @@ data class CollectionFilter(
  * Cada carta física puede estar en un mazo (`decks`) o en ninguno.
  */
 class CollectionStore(context: Context, dbName: String = "collection.db") :
-    SQLiteOpenHelper(context, dbName, null, 5) {
+    SQLiteOpenHelper(context, dbName, null, 6) {
 
     /** Se incrementa en cada cambio para que la UI vuelva a consultar. */
     private val _version = MutableStateFlow(0)
@@ -89,6 +89,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
             """
         )
         createDecksTable(db)
+        createWishlistTable(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -108,6 +109,27 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
                 db.execSQL("ALTER TABLE prices ADD COLUMN $col")
             }
         }
+        // v6: lista de deseos.
+        if (oldVersion < 6) createWishlistTable(db)
+    }
+
+    /**
+     * Cartas que se quieren: por nombre (cualquier edición vale). [card_id] es la
+     * impresión con que se muestra y se calcula el precio (la más común).
+     */
+    private fun createWishlistTable(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE wishlist (
+                name TEXT PRIMARY KEY,
+                card_id TEXT NOT NULL,
+                set_code TEXT NOT NULL,
+                collector_number TEXT NOT NULL,
+                quantity INTEGER NOT NULL,
+                added_at INTEGER NOT NULL
+            )
+            """
+        )
     }
 
     private fun createDecksTable(db: SQLiteDatabase) {
@@ -356,7 +378,8 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
     /** Productos de Cardmarket de las cartas de la colección. */
     fun cardmarketIds(): Set<Int> =
         readableDatabase.rawQuery(
-            "SELECT DISTINCT cm_id FROM prices WHERE cm_id IS NOT NULL AND card_id IN (SELECT card_id FROM entries)", null
+            "SELECT DISTINCT cm_id FROM prices WHERE cm_id IS NOT NULL AND " +
+                "card_id IN (SELECT card_id FROM entries UNION SELECT card_id FROM wishlist)", null
         ).use { c -> buildSet { while (c.moveToNext()) add(c.getInt(0)) } }
 
     /** Guarda los precios de la guía de Cardmarket (por producto). */
@@ -382,9 +405,97 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         }
     }
 
+    /** Impresiones cuyos precios hay que actualizar: las de la colección y las de la lista de deseos. */
     fun distinctCardIds(): List<String> =
-        readableDatabase.rawQuery("SELECT DISTINCT card_id FROM entries", null).use { c ->
+        readableDatabase.rawQuery("SELECT card_id FROM entries UNION SELECT card_id FROM wishlist", null).use { c ->
             buildList { while (c.moveToNext()) add(c.getString(0)) }
+        }
+
+    // ------------------------------------------------------------------ lista de deseos
+
+    data class Wish(
+        val name: String,
+        val cardId: String,
+        val setCode: String,
+        val collectorNumber: String,
+        val quantity: Int,
+        val unitPrice: Double?,
+    ) {
+        val smallImageUrl get() = "https://cards.scryfall.io/small/front/${cardId[0]}/${cardId[1]}/$cardId.jpg"
+    }
+
+    fun wishlist(currency: Currency, kind: PriceKind = PriceKind.TREND): List<Wish> {
+        // Mismo precio que una copia normal (no foil) en la colección.
+        val price = priceExpr(currency, kind).replace("e.foil", "0")
+        return readableDatabase.rawQuery(
+            "SELECT w.name, w.card_id, w.set_code, w.collector_number, w.quantity, $price " +
+                "FROM wishlist w LEFT JOIN prices p ON p.card_id = w.card_id ORDER BY w.name COLLATE NOCASE", null
+        ).use { c ->
+            buildList {
+                while (c.moveToNext()) add(Wish(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getInt(4),
+                    if (c.isNull(5)) null else c.getDouble(5)))
+            }
+        }
+    }
+
+    /**
+     * Quiere tener al menos [quantity] copias más de la carta: si ya estaba en la lista
+     * se queda la cantidad mayor (comprobar el mismo mazo dos veces no la duplica).
+     */
+    fun addWish(card: CardPrinting, quantity: Int) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val current = db.rawQuery("SELECT quantity FROM wishlist WHERE name = ?", arrayOf(card.name)).use { c ->
+                if (c.moveToFirst()) c.getInt(0) else 0
+            }
+            db.insertWithOnConflict("wishlist", null, ContentValues().apply {
+                put("name", card.name)
+                put("card_id", card.id)
+                put("set_code", card.setCode)
+                put("collector_number", card.collectorNumber)
+                put("quantity", maxOf(current, quantity))
+                put("added_at", System.currentTimeMillis())
+            }, SQLiteDatabase.CONFLICT_REPLACE)
+            seedPrice(db, card)
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+            changed()
+        }
+    }
+
+    fun setWishQuantity(name: String, quantity: Int) {
+        if (quantity <= 0) {
+            writableDatabase.delete("wishlist", "name = ?", arrayOf(name))
+        } else {
+            writableDatabase.update("wishlist", ContentValues().apply { put("quantity", quantity) }, "name = ?", arrayOf(name))
+        }
+        changed()
+    }
+
+    /** Se ha conseguido una copia: resta una de la lista. Devuelve si la carta estaba en ella. */
+    fun fulfillWish(name: String): Boolean {
+        val db = writableDatabase
+        val left = db.rawQuery("SELECT quantity FROM wishlist WHERE name = ?", arrayOf(name)).use { c ->
+            if (c.moveToFirst()) c.getInt(0) else return false
+        }
+        setWishQuantity(name, left - 1)
+        return true
+    }
+
+    /** Deshacer [fulfillWish]: vuelve a sumar una copia (o a añadir la carta). */
+    fun unfulfillWish(card: CardPrinting) {
+        val current = readableDatabase.rawQuery("SELECT quantity FROM wishlist WHERE name = ?", arrayOf(card.name)).use { c ->
+            if (c.moveToFirst()) c.getInt(0) else 0
+        }
+        addWish(card, current + 1)
+    }
+
+    /** Copias de cada carta (por nombre) en la colección. */
+    fun ownedByName(): Map<String, Int> =
+        readableDatabase.rawQuery("SELECT name, COUNT(*) FROM entries GROUP BY name", null).use { c ->
+            buildMap { while (c.moveToNext()) put(c.getString(0), c.getInt(1)) }
         }
 
     fun updatePrices(prices: Map<String, Prices>) {

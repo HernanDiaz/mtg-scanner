@@ -31,6 +31,8 @@ data class AddedCard(
     val foil: Boolean,
     val needsReview: Boolean,
     val lang: String,
+    /** Estaba en la lista de deseos (y se ha restado de ella). */
+    val wished: Boolean = false,
 )
 
 data class ScannerUi(
@@ -107,7 +109,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch(Dispatchers.IO) {
             val id = store.add(printing, foil, settings.defaultCondition.value, needsReview, accepted.lang,
                 accepted.photoArt?.toPacked(), deckId = _ui.value.scanDeck?.id)
-            _ui.update { it.copy(lastAdded = AddedCard(id, printing, foil, needsReview, accepted.lang)) }
+            val wished = store.fulfillWish(printing.name)
+            _ui.update { it.copy(lastAdded = AddedCard(id, printing, foil, needsReview, accepted.lang, wished)) }
         }
     }
 
@@ -115,7 +118,10 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         val last = _ui.value.lastAdded ?: return
         _ui.update { it.copy(lastAdded = null) }
         analysisExecutor.execute { session.unlock() }
-        viewModelScope.launch(Dispatchers.IO) { store.delete(last.entryId) }
+        viewModelScope.launch(Dispatchers.IO) {
+            store.delete(last.entryId)
+            if (last.wished) store.unfulfillWish(last.printing)
+        }
     }
 
     fun toggleFoil() = _ui.update { it.copy(foil = !it.foil) }

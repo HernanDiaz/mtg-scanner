@@ -177,4 +177,27 @@
     <string name="rarity_uncommon">Uncommon</string>
     <string name="rarity_rare">Rare</string>
     <string name="rarity_mythic">Mythic</string>
+
+    <!-- Lista de deseos -->
+    <string name="tab_wishlist">Wishlist</string>
+    <string name="wishlist_summary">%1$s on your wishlist</string>
+    <string name="wishlist_empty">Your wishlist is empty. Check a deck to see what you are missing, or add cards from their page.</string>
+    <string name="check_deck">What am I missing for a deck?</string>
+    <string name="check_deck_help">Paste the decklist (Moxfield, Arena, MTGO, a forum…) or open a file. Cards are counted by name, in any edition.</string>
+    <string name="open_file">Open file…</string>
+    <string name="check">Check</string>
+    <string name="deck_have">You have %1$d of %2$d cards</string>
+    <string name="deck_missing">Missing %1$s · %2$s</string>
+    <string name="deck_complete">You have the whole deck.</string>
+    <string name="have_n_of_m">You have %1$d of %2$d</string>
+    <string name="add_missing_to_wishlist">Add missing to wishlist</string>
+    <string name="added_missing">Added to wishlist</string>
+    <string name="copy_missing">Copy missing list</string>
+    <string name="copied">Copied (paste it into Cardmarket)</string>
+    <string name="another_list">Another list</string>
+    <string name="add_to_wishlist">Add to wishlist</string>
+    <string name="added_to_wishlist_short">On your wishlist</string>
+    <string name="added_to_wishlist">%1$s added to the wishlist</string>
+    <string name="wish_fulfilled">%1$s was on your wishlist</string>
+    <string name="was_on_wishlist">★ It was on your wishlist</string>
 </resources>

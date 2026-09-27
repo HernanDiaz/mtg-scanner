@@ -19,6 +19,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -309,6 +314,7 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                     vm.removeOne(g)
                     viewing = if (g.quantity > 1) g.copy(quantity = g.quantity - 1) else null
                 },
+                onAddWish = { vm.addWish(p) },
                 onDismiss = { viewing = null },
             )
         }
@@ -633,9 +639,13 @@ private fun PrintingPicker(
     var query by remember(title, currentId) { mutableStateOf("") }
     LaunchedEffect(title, currentId) { options = load() }
 
+    // Dentro del diálogo no llegan los márgenes de las barras del sistema: se miden fuera. El
+    // diálogo empieza bajo la barra de estado pero mide toda la pantalla: sobra también ese alto.
+    val bottomBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() +
+        WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            Column(Modifier.fillMaxSize().padding(16.dp)) {
+            Column(Modifier.fillMaxSize().padding(bottom = bottomBar).imePadding().padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,

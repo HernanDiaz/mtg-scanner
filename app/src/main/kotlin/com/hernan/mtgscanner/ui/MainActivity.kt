@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -44,13 +45,19 @@ class MainActivity : ComponentActivity() {
                                 icon = { Icon(Icons.AutoMirrored.Filled.List, null) },
                                 label = { Text(stringResource(R.string.tab_collection)) },
                             )
+                            NavigationBarItem(
+                                selected = tab == 2, onClick = { tab = 2 },
+                                icon = { Icon(Icons.Default.Favorite, null) },
+                                label = { Text(stringResource(R.string.tab_wishlist)) },
+                            )
                         }
                     },
                 ) { padding ->
                     Box(Modifier.padding(padding)) {
                         when (tab) {
                             0 -> ScannerScreen()
-                            else -> CollectionScreen()
+                            1 -> CollectionScreen()
+                            else -> WishlistScreen()
                         }
                     }
                 }

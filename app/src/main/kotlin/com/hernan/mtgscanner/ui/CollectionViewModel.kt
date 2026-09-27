@@ -236,6 +236,7 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch(Dispatchers.IO) {
             store.add(printing, foil && printing.hasFoil || !printing.hasNonfoil,
                 settings.defaultCondition.value, needsReview = false, lang = lang, deckId = deck)
+            if (store.fulfillWish(printing.name)) showMessage(app.getString(R.string.wish_fulfilled, printing.name))
         }
     }
 
@@ -257,6 +258,13 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
 
     suspend fun cardSheet(id: String, name: String): CardSheet =
         withContext(Dispatchers.IO) { CardSheet(store.storedPrices(id), store.copiesOf(name)) }
+
+    fun addWish(p: CardPrinting) {
+        viewModelScope.launch(Dispatchers.IO) {
+            store.addWish(p, (store.wishlist(Currency.EUR).firstOrNull { it.name == p.name }?.quantity ?: 0) + 1)
+            showMessage(app.getString(R.string.added_to_wishlist, p.name))
+        }
+    }
 
     /** Texto, legalidad y enlaces de Scryfall; null sin conexión. */
     suspend fun cardDetails(id: String): CardDetails? =
@@ -350,14 +358,8 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
             require(data.size <= MAX_IMPORT_BYTES) { app.getString(R.string.file_too_big) }
             data
         }
-        val rows = CollectionImport.parse(decode(bytes))
-        val result = CollectionImport.resolve(rows, object : CollectionImport.Lookup {
-            override fun byId(id: String) = catalog.byId(id)
-            override fun bySetAndNumber(setCode: String, numberNorm: String) = catalog.bySetAndNumber(setCode, numberNorm)
-            override fun printingsOf(name: String) = catalog.printingsOfAnyName(name)
-            override fun setCode(value: String) = catalog.setCodeFor(value)
-            override fun isForeignName(name: String) = catalog.isForeignName(name)
-        }, settings.defaultCondition.value)
+        val rows = CollectionImport.parse(CollectionImport.decode(bytes))
+        val result = CollectionImport.resolve(rows, catalog.importLookup, settings.defaultCondition.value)
         val ui = _ui.value
         ImportPreview(
             fileName = displayName(uri) ?: app.getString(R.string.file_default_name),
@@ -384,13 +386,6 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
             // Los precios del catálogo son los de cuando se hizo la app.
             if (preview.result.items.isNotEmpty()) updatePrices(quiet = true)
         }
-    }
-
-    /** UTF-8 si lo es (nuestros ficheros, la mayoría de apps); si no, lo que guarda Excel en Windows. */
-    private fun decode(bytes: ByteArray): String = try {
-        Charsets.UTF_8.newDecoder().decode(java.nio.ByteBuffer.wrap(bytes)).toString()
-    } catch (e: java.nio.charset.CharacterCodingException) {
-        String(bytes, charset("windows-1252"))
     }
 
     private fun displayName(uri: Uri): String? =
