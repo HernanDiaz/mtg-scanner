@@ -236,4 +236,18 @@
     <string name="lang_de">Alemán</string>
     <string name="lang_it">Italiano</string>
     <string name="lang_pt">Portugués</string>
+    <string name="auto_backup">Copia automática</string>
+    <string name="auto_backup_menu">Copia automática…</string>
+    <string name="auto_backup_explain">Cada día, si tu colección cambió, la app guarda una copia en un archivo que eliges una vez: en Google Drive, Dropbox o el móvil. Google Drive guarda además las versiones anteriores del archivo.</string>
+    <string name="auto_backup_choose">Elegir dónde guardarla</string>
+    <string name="auto_backup_file">Archivo: %1$s</string>
+    <string name="auto_backup_last">Última copia: %1$s (%2$s)</string>
+    <string name="auto_backup_never">Todavía no se ha guardado ninguna copia.</string>
+    <string name="auto_backup_checked">Comprobada %1$s: sin cambios desde entonces.</string>
+    <string name="auto_backup_error">La última copia falló: %1$s. Si borraste o moviste el archivo, vuelve a elegirlo.</string>
+    <string name="auto_backup_now">Copiar ahora</string>
+    <string name="auto_backup_change">Elegir otro archivo</string>
+    <string name="auto_backup_disable">Desactivar</string>
+    <string name="auto_backup_restore">Para restaurarla: ⋮ → Importar cartas o copia → elige el archivo → Sustituir.</string>
+    <string name="auto_backup_android">Además, Android guarda los datos de la app (colección, mazos, deseos, historial) en tu cuenta de Google y los recupera al reinstalarla o cambiar de móvil, si la copia de Android está activada.</string>
 </resources>

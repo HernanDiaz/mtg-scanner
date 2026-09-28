@@ -239,4 +239,18 @@
     <string name="lang_de">German</string>
     <string name="lang_it">Italian</string>
     <string name="lang_pt">Portuguese</string>
+    <string name="auto_backup">Automatic backup</string>
+    <string name="auto_backup_menu">Automatic backup…</string>
+    <string name="auto_backup_explain">Every day, if your collection changed, the app saves a copy to a file you choose once: in Google Drive, Dropbox or on the phone. Google Drive also keeps the previous versions of the file.</string>
+    <string name="auto_backup_choose">Choose where to save it</string>
+    <string name="auto_backup_file">File: %1$s</string>
+    <string name="auto_backup_last">Last backup: %1$s (%2$s)</string>
+    <string name="auto_backup_never">No backup saved yet.</string>
+    <string name="auto_backup_checked">Checked %1$s: no changes since then.</string>
+    <string name="auto_backup_error">The last backup failed: %1$s. If you deleted or moved the file, choose it again.</string>
+    <string name="auto_backup_now">Back up now</string>
+    <string name="auto_backup_change">Choose another file</string>
+    <string name="auto_backup_disable">Turn off</string>
+    <string name="auto_backup_restore">To restore it: ⋮ → Import cards or backup → choose the file → Replace.</string>
+    <string name="auto_backup_android">Android also saves the app data (collection, decks, wishlist, history) to your Google account and restores it when you reinstall the app or change phones, if Android backup is on.</string>
 </resources>

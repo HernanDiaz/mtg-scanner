@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copia de Android (Android 11 y anteriores): la colección, las preferencias y la
+  lista de deseos. No el catálogo (41 MB, se vuelve a copiar del APK: la copia de
+  Android admite 25 MB) ni la copia automática (su permiso sobre el fichero no sirve
+  en otro móvil).
+-->
+<full-backup-content>
+    <exclude domain="file" path="catalog.sqlite" />
+    <exclude domain="file" path="catalog.sqlite.tmp" />
+    <exclude domain="sharedpref" path="catalog.xml" />
+    <exclude domain="sharedpref" path="auto_backup.xml" />
+</full-backup-content>

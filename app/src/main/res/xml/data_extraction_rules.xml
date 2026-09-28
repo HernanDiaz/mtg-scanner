@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copia de Android (Android 12 en adelante): lo mismo que backup_rules.xml. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="catalog.sqlite" />
+        <exclude domain="file" path="catalog.sqlite.tmp" />
+        <exclude domain="sharedpref" path="catalog.xml" />
+        <exclude domain="sharedpref" path="auto_backup.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="catalog.sqlite" />
+        <exclude domain="file" path="catalog.sqlite.tmp" />
+        <exclude domain="sharedpref" path="catalog.xml" />
+        <exclude domain="sharedpref" path="auto_backup.xml" />
+    </device-transfer>
+</data-extraction-rules>

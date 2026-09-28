@@ -10,8 +10,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hernan.mtgscanner.App
 import com.hernan.mtgscanner.R
+import com.hernan.mtgscanner.data.AutoBackup
 import com.hernan.mtgscanner.data.CardDetails
 import com.hernan.mtgscanner.data.CardPrinting
+import com.hernan.mtgscanner.data.CollectionBackup
 import com.hernan.mtgscanner.data.CollectionExport
 import com.hernan.mtgscanner.data.CollectionImport
 import com.hernan.mtgscanner.data.CollectionFilter
@@ -368,28 +370,40 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
 
     // ------------------------------------------------------------------ copia de seguridad e importar
 
+    // Copia automática (ver AutoBackup).
+    val autoBackup: StateFlow<AutoBackup.State> = app.autoBackup.state
+
+    fun enableAutoBackup(uri: Uri) = runCatching { app.autoBackup.enable(uri) }
+        .onFailure { e -> _ui.update { it.copy(message = app.getString(R.string.backup_failed, e.message)) } }
+
+    fun disableAutoBackup() = app.autoBackup.disable()
+
+    fun autoBackupNow() {
+        viewModelScope.launch {
+            val msg = when (val r = app.autoBackup.run(force = true)) {
+                is AutoBackup.Outcome.Saved -> app.getString(R.string.backup_saved, app.cardsLabel(r.cards))
+                is AutoBackup.Outcome.Failed -> app.getString(R.string.backup_failed, r.message)
+                else -> null
+            }
+            msg?.let { m -> _ui.update { it.copy(message = m) } }
+        }
+    }
+
     fun backupFileName() =
         "${app.getString(R.string.backup_file_prefix)}-${SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date())}.csv"
 
     /** Exportar con cabeceras en inglés salvo con la app en español (el importador entiende ambas). */
     private fun isEnglish() = app.resources.configuration.locales[0].language != "es"
 
-    /**
-     * Copia de seguridad: nuestro CSV con toda la colección (sin filtros), con mazos
-     * y cartas por revisar, en el sitio que elija el usuario (Drive, Descargas...).
-     */
+    /** Copia de seguridad ([CollectionBackup]) en el sitio que elija el usuario (Drive, Descargas...). */
     fun writeBackup(uri: Uri) {
         viewModelScope.launch {
             val msg = runCatching {
+                val content = CollectionBackup.build(app)
                 withContext(Dispatchers.IO) {
-                    val catalog = app.catalog.await()
-                    val currency = _ui.value.currency
-                    val lines = CollectionExport.lines(store.groups(currency, kind = _ui.value.priceKind), catalog::setName,
-                        ::deckName, detailed = true)
-                    val content = Char(0xFEFF) + CollectionExport.csv(lines, currency, english = isEnglish())
-                    app.contentResolver.openOutputStream(uri, "wt")!!.use { it.write(content.toByteArray(Charsets.UTF_8)) }
-                    lines.sumOf { it.quantity }
+                    app.contentResolver.openOutputStream(uri, "wt")!!.use { it.write(content.csv.toByteArray(Charsets.UTF_8)) }
                 }
+                content.cards
             }.fold(
                 onSuccess = { app.getString(R.string.backup_saved, app.cardsLabel(it)) },
                 onFailure = { app.getString(R.string.backup_failed, it.message) },

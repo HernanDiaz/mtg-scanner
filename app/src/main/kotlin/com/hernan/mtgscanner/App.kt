@@ -3,6 +3,7 @@ package com.hernan.mtgscanner
 import android.app.Application
 import coil.ImageLoader
 import coil.ImageLoaderFactory
+import com.hernan.mtgscanner.data.AutoBackup
 import com.hernan.mtgscanner.data.Catalog
 import com.hernan.mtgscanner.data.CollectionStore
 import com.hernan.mtgscanner.data.Settings
@@ -24,10 +25,12 @@ class App : Application(), ImageLoaderFactory {
         private set
     val collection by lazy { CollectionStore(this) }
     val settings by lazy { Settings(this) }
+    val autoBackup by lazy { AutoBackup(this) }
 
     override fun onCreate() {
         super.onCreate()
         catalog = scope.async { Catalog(this@App) }
+        autoBackup.ensureScheduled()
         // Valor según el estado: la colección lo aplica al calcular totales y filas.
         scope.launch {
             combine(settings.conditionPricing, settings.conditionFactors) { on, f -> f.takeIf { on } }

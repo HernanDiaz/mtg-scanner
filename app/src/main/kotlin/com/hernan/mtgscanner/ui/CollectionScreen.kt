@@ -77,6 +77,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hernan.mtgscanner.data.CardPrinting
 import com.hernan.mtgscanner.data.CollectionExport
+import com.hernan.mtgscanner.data.AutoBackup
 import com.hernan.mtgscanner.data.CollectionStore
 import com.hernan.mtgscanner.data.Legality
 import com.hernan.mtgscanner.data.Currency
@@ -118,6 +119,11 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
     var fileMenu by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
     var showConditionPricing by remember { mutableStateOf(false) }
+    var showAutoBackup by remember { mutableStateOf(false) }
+    val autoBackup by vm.autoBackup.collectAsStateWithLifecycle()
+    val autoBackupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        uri?.let(vm::enableAutoBackup)
+    }
     val conditionPricing by vm.conditionPricing.collectAsStateWithLifecycle()
     val conditionFactors by vm.conditionFactors.collectAsStateWithLifecycle()
     var importing by remember { mutableStateOf<ImportPreview?>(null) }
@@ -171,6 +177,10 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.save_backup)) },
                                 onClick = { fileMenu = false; backupLauncher.launch(vm.backupFileName()) },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.auto_backup_menu)) },
+                                onClick = { fileMenu = false; showAutoBackup = true },
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_cards)) },
@@ -406,6 +416,15 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
             enabled = conditionPricing, factors = conditionFactors,
             onEnabled = vm::setConditionPricing, onFactor = vm::setConditionFactor, onReset = vm::resetConditionFactors,
             onDismiss = { showConditionPricing = false },
+        )
+    }
+    if (showAutoBackup) {
+        AutoBackupDialog(
+            state = autoBackup,
+            onChooseFile = { autoBackupLauncher.launch(AutoBackup.FILE_NAME) },
+            onBackupNow = vm::autoBackupNow,
+            onDisable = vm::disableAutoBackup,
+            onDismiss = { showAutoBackup = false },
         )
     }
     if (showHistory) {
