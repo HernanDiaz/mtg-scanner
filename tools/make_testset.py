@@ -41,17 +41,24 @@ GROUPS = [
 ]
 
 
-def pick_foreign(n, rng):
+def pick_foreign(n, rng, langs=None):
     """Cartas en otros idiomas con escaneo propio (lista que genera build_catalog.py).
-    La etiqueta es el nombre inglés y la edición/número, que coinciden con la versión inglesa."""
+    La etiqueta es el nombre inglés y la edición/número, que coinciden con la versión inglesa.
+    Con [langs], n cartas de cada uno de esos idiomas."""
     with open(os.path.join(ROOT, "data", "foreign_printings.csv"), encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
+    if langs:
+        return [x for lang in langs for x in pick_foreign_rows([r for r in rows if r["lang"] == lang], n, rng)]
+    return pick_foreign_rows(rows, n, rng)
+
+
+def pick_foreign_rows(rows, n, rng):
     old = [r for r in rows if r["released_at"] < "2015"]
     new = [r for r in rows if r["released_at"] >= "2015" and " // " not in r["name"]]
     if n < 0:  # todas
         pick = rows
     else:
-        pick = rng.sample(old, min(n // 2, len(old))) + rng.sample(new, n - min(n // 2, len(old)))
+        pick = rng.sample(old, min(n // 2, len(old))) + rng.sample(new, min(len(new), n - min(n // 2, len(old))))
     return [(f"{r['lang']}_{'antigua' if r['released_at'] < '2015' else 'moderna'}", r["id"], r["name"],
              r["set_code"], r["collector_number"], r["lang"]) for r in pick]
 
@@ -185,13 +192,15 @@ def main():
     ap.add_argument("--groups", nargs="*", help="solo estos grupos (por defecto todos menos basicas)")
     ap.add_argument("--out", default="synthetic", help="subcarpeta de testset/")
     ap.add_argument("--foreign", type=int, default=0, help="en vez de los grupos, N cartas en otros idiomas (-1: todas)")
+    ap.add_argument("--langs", default="", help="con --foreign: N cartas de cada uno de estos idiomas (p. ej. fr,de,it,pt)")
     args = ap.parse_args()
     rng = random.Random(args.seed)
 
     out_dir = os.path.join(ROOT, "testset", args.out)
     os.makedirs(out_dir, exist_ok=True)
     only = args.groups or [g for g, _ in GROUPS if g != "basicas"]
-    cards = pick_foreign(args.foreign, rng) if args.foreign else pick_cards(args.per_group, rng, only)
+    langs = [x for x in args.langs.split(",") if x]
+    cards = pick_foreign(args.foreign, rng, langs) if args.foreign else pick_cards(args.per_group, rng, only)
     with open(os.path.join(out_dir, "labels.csv"), "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["file", "card_id", "name", "set_code", "collector_number", "group", "difficulty", "lang"])

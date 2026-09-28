@@ -235,4 +235,8 @@
     <string name="deck_legal_in">Legal in: %1$s</string>
     <string name="deck_legal_none">Not legal in any of the main formats</string>
     <string name="deck_not_legal_in">Not legal in (cards that prevent it): %1$s</string>
+    <string name="lang_fr">French</string>
+    <string name="lang_de">German</string>
+    <string name="lang_it">Italian</string>
+    <string name="lang_pt">Portuguese</string>
 </resources>

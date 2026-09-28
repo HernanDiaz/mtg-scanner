@@ -129,7 +129,7 @@ fun CardDetailDialog(
                     val parts = listOfNotNull(
                         stringResource(R.string.copies_of_edition, group.quantity),
                         sheet?.let { stringResource(R.string.copies_of_card, it.copiesOfCard) },
-                        stringResource(if (group.lang == "es") R.string.lang_es else R.string.lang_en),
+                        languageName(group.lang),
                         deckName?.let { stringResource(R.string.deck_named, it) },
                     )
                     Text(parts.joinToString(" · "), style = MaterialTheme.typography.bodyMedium)

@@ -42,7 +42,7 @@ data class FrameResult(
     /** true si la impresión está identificada sin ambigüedad. */
     val exact: Boolean,
     val collector: CollectorInfo,
-    /** Idioma de la carta física: "en" o "es". */
+    /** Idioma de la carta física: "en", "es", "fr", "de", "it" o "pt". */
     val lang: String = "en",
     /** La edición se decidió comparando la ilustración. */
     val byArt: Boolean = false,
@@ -78,6 +78,10 @@ class FrameRecognizer(
     private val bySetAndNumber: (set: String, number: String) -> CardPrinting? = { _, _ -> null },
     private val artOf: (Int) -> ArtSignature? = { null },
     private val symbols: SetSymbols? = null,
+    /** Idiomas de un nombre traducido (clave normalizada), p. ej. ["es", "pt"]; null si es inglés. */
+    private val nameLanguages: (key: String) -> List<String>? = { null },
+    /** Idiomas aparte del inglés en que se imprimió una edición; null si no se sabe. */
+    private val setLanguages: (set: String) -> Set<String>? = { null },
 ) {
 
     /** [art]: si se da, las ediciones dudosas se deciden comparando la ilustración. */
@@ -109,12 +113,13 @@ class FrameRecognizer(
         }
         if (match == null) return null
 
-        val printings = match.names.flatMap(printingsOf)
-        if (printings.isEmpty()) return null
+        val all = match.names.flatMap(printingsOf)
+        if (all.isEmpty()) return null
         val collector = parseCollector(sorted.drop(nameIndex + 1), setCodes)
-        val lang = detectLanguage(sorted, match, collector)
-        val spanish = lang == "es"
-        var (printing, exact) = resolve(printings, collector, spanish)
+        val lang = detectLanguage(sorted.drop(nameIndex + 1), match, collector)
+        val printings = inLanguage(all, lang)
+        val foreign = lang != "en"
+        var (printing, exact) = resolve(printings, collector, foreign)
         var decidedByArt = false
         var decidedBySymbol = false
         if (!exact && art != null) {
@@ -123,7 +128,7 @@ class FrameRecognizer(
             byArt(printings, sorted, nameIndex, art)?.let { artId ->
                 candidates = printings.filter { it.artId == artId }
                 decidedByArt = true
-                val r = if (candidates.size == 1) candidates[0] to true else resolve(candidates, collector, spanish)
+                val r = if (candidates.size == 1) candidates[0] to true else resolve(candidates, collector, foreign)
                 printing = r.first
                 exact = r.second
             }
@@ -132,7 +137,7 @@ class FrameRecognizer(
             if (!exact) {
                 bySymbol(candidates, sorted, nameIndex, art)?.let { winners ->
                     decidedBySymbol = true
-                    val r = if (winners.size == 1) winners[0] to true else resolve(winners, collector, spanish)
+                    val r = if (winners.size == 1) winners[0] to true else resolve(winners, collector, foreign)
                     printing = r.first
                     exact = r.second
                 }
@@ -140,6 +145,17 @@ class FrameRecognizer(
         }
         return FrameResult(printing.name, printing, exact, collector, lang, byArt = decidedByArt,
             bySymbol = decidedBySymbol, photoArt = lastPhotoArt)
+    }
+
+    /**
+     * Las impresiones de ediciones que existen en el idioma de la carta: una francesa
+     * no puede ser de Antiquities (solo en inglés) ni de Salvat 2011, pero sí de Salvat
+     * 2005. Si no queda ninguna (datos incompletos), todas.
+     */
+    private fun inLanguage(printings: List<CardPrinting>, lang: String): List<CardPrinting> {
+        if (lang == "en") return printings
+        return printings.filter { p -> p.lang == lang || setLanguages(p.setCode)?.contains(lang) != false }
+            .ifEmpty { printings }
     }
 
     /**
@@ -273,9 +289,7 @@ class FrameRecognizer(
         val info = parseCollector(sorted, setCodes)
         for (set in info.sets) for (num in info.numbers) {
             bySetAndNumber(set, num)?.let {
-                val spanish = info.language == "es" ||
-                    (info.language == null && sorted.any { l -> isTypeLine(l, SPANISH_TYPE_WORDS, fuzzy = false) })
-                return FrameResult(it.name, it, true, info, if (spanish) "es" else "en")
+                return FrameResult(it.name, it, true, info, info.language ?: typeLineLanguage(sorted) ?: "en")
             }
         }
         return null
@@ -283,20 +297,50 @@ class FrameRecognizer(
 
     /**
      * Idioma de la carta, por orden de fiabilidad: el código impreso junto a la
-     * edición, un nombre leído que es la traducción (no el nombre inglés) y la
-     * línea de tipo en español.
+     * edición ("MOM • FR"), un nombre leído que es una traducción (y en qué idioma:
+     * si se escribe igual en varios, decide la línea de tipo) y la línea de tipo.
      */
-    private fun detectLanguage(sorted: List<OcrLine>, match: NameMatcher.Match, info: CollectorInfo): String {
-        when (info.language) {
-            "es" -> return "es"
-            "en" -> return "en"
-        }
+    private fun detectLanguage(belowName: List<OcrLine>, match: NameMatcher.Match, info: CollectorInfo): String {
+        info.language?.let { return it }
         val englishKeys = match.names.flatMap { name ->
             listOf(name) + name.split(" // ")
         }.map(NameMatcher::normalize).toSet()
-        if (match.key !in englishKeys) return "es"
-        // Sin tolerancia a errores: "basic" está a una letra de "basica".
-        return if (sorted.any { isTypeLine(it, SPANISH_TYPE_WORDS, fuzzy = false) }) "es" else "en"
+        val typeLang = typeLineLanguage(belowName)
+        if (match.key !in englishKeys) {
+            // "Devastarion" se parece tanto a "Devastation" como a "Devastación": "Sorcery" decide.
+            if (typeLang == "en") return "en"
+            val langs = nameLanguages(match.key) ?: return typeLang ?: "es"
+            return typeLang?.takeIf { it in langs } ?: langs.first()
+        }
+        return typeLang ?: "en"
+    }
+
+    /**
+     * Idioma de la línea de tipo, por su primera palabra ("Kreatur" alemán, "Sorcery"
+     * inglés). Una palabra de varios idiomas decide solo si ninguno es el inglés, por el
+     * más común ("Criatura": español antes que portugués); "Creature" (inglés o francés)
+     * no decide. Solo las palabras largas admiten errores de lectura ("Beschyürung"):
+     * en las cortas uno cambia de idioma ("basic" / "basica").
+     */
+    private fun typeLineLanguage(lines: List<OcrLine>): String? {
+        for (line in lines) {
+            val first = NameMatcher.normalize(line.words.firstOrNull() ?: continue)
+            TYPE_WORD_LANGS[first]?.let { langs -> if (langs.size == 1 || "en" !in langs) return langs.first() }
+            if (first.length >= FUZZY_TYPE_WORD_MIN) closestTypeLanguage(first)?.let { return it }
+        }
+        return null
+    }
+
+    /** El idioma de la palabra de tipo más cercana (hasta 2 letras), si es única y no es inglesa. */
+    private fun closestTypeLanguage(word: String): String? {
+        var best = 3
+        val langs = HashSet<String>()
+        for ((candidate, lang) in TYPE_WORD_LANGUAGES) {
+            val d = NameMatcher.boundedLevenshtein(word, candidate, best)
+            if (d < best) { best = d; langs.clear() }
+            if (d == best) langs.add(lang)
+        }
+        return langs.singleOrNull()?.takeIf { best <= 2 && it != "en" }
     }
 
     /**
@@ -386,31 +430,62 @@ class FrameRecognizer(
             }
         }
 
-        /** Primera palabra de la línea de tipo en español (normalizada, sin tildes). */
-        private val SPANISH_TYPE_WORDS = listOf(
-            "criatura", "instantaneo", "conjuro", "artefacto", "encantamiento", "tierra",
-            "legendaria", "legendario", "batalla", "basica", "invocar", "encantar", "interrupcion",
-        )
-
-        private val TYPE_WORDS = listOf(
+        private val ENGLISH_TYPE_WORDS = listOf(
             "legendary", "creature", "instant", "sorcery", "artifact", "enchantment", "land",
             "planeswalker", "battle", "tribal", "kindred", "basic", "snow", "summon", "enchant",
             "interrupt", "token",
-        ) + SPANISH_TYPE_WORDS
+        )
+
+        /** Primera palabra de la línea de tipo en cada idioma (normalizada, sin tildes). */
+        private val FOREIGN_TYPE_WORDS = mapOf(
+            "es" to listOf(
+                "criatura", "instantaneo", "conjuro", "artefacto", "encantamiento", "tierra",
+                "legendaria", "legendario", "batalla", "basica", "invocar", "encantar", "interrupcion",
+            ),
+            "fr" to listOf(
+                "creature", "ephemere", "rituel", "artefact", "enchantement", "terrain", "legendaire",
+                "bataille", "tribal", "neigeux", "invocation", "invoquer", "interruption",
+            ),
+            "de" to listOf(
+                "kreatur", "spontanzauber", "hexerei", "artefakt", "verzauberung", "land", "legendare",
+                "legendarer", "legendares", "standardland", "schlacht", "stammesverwandt", "verzauberungszauber",
+                "beschworung", "unterbrechung",
+            ),
+            "it" to listOf(
+                "creatura", "istantaneo", "stregoneria", "artefatto", "incantesimo", "terra", "leggendaria",
+                "leggendario", "battaglia", "tribale", "evoca", "interruzione",
+            ),
+            "pt" to listOf(
+                "criatura", "magica", "feitico", "artefato", "encantamento", "terreno", "lendaria", "lendario",
+                "batalha", "basico", "tribal",
+            ),
+        )
+
+        /** Todas las palabras de tipo con su idioma (las compartidas, una vez por idioma). */
+        private val TYPE_WORD_LANGUAGES: List<Pair<String, String>> =
+            ENGLISH_TYPE_WORDS.map { it to "en" } + FOREIGN_TYPE_WORDS.flatMap { (lang, words) -> words.map { it to lang } }
+
+        /** Letras mínimas de una palabra de tipo para admitir errores de lectura. */
+        private const val FUZZY_TYPE_WORD_MIN = 10
+
+        /** Idiomas de cada palabra de tipo, el más común primero (inglés, español, francés...). */
+        private val TYPE_WORD_LANGS: Map<String, List<String>> =
+            TYPE_WORD_LANGUAGES.groupBy({ it.first }, { it.second }).mapValues { it.value.distinct() }
+
+        private val TYPE_WORDS = (ENGLISH_TYPE_WORDS + FOREIGN_TYPE_WORDS.values.flatten()).distinct()
 
         /**
-         * [spanish]: la carta está impresa en español. Entonces se prefieren las
-         * ediciones que solo existen en español (colección Salvat: "58/60" en la
-         * carta, "A58" en Scryfall) y no se da por segura una inglesa que solo
-         * coincide por el número.
+         * [foreign]: la carta no está en inglés. Entonces se prefieren las ediciones
+         * que no existen en inglés (colección Salvat: "58/60" en la carta, "A58" en
+         * Scryfall) y no se da por segura una inglesa que solo coincide por el número.
          */
         fun resolve(
             printings: List<CardPrinting>,
             info: CollectorInfo,
-            spanish: Boolean = false,
+            foreign: Boolean = false,
         ): Pair<CardPrinting, Boolean> {
             if (printings.size == 1) return printings[0] to true
-            val spanishOnly = if (spanish) printings.filter { it.lang == "es" } else emptyList()
+            val foreignOnly = if (foreign) printings.filter { it.lang != "en" } else emptyList()
             // Códigos de edición leídos con una letra mal ("KTN" -> "KTK"), solo entre las
             // ediciones de esta carta: fuera de ellas sería adivinar.
             val candidateSets = printings.map { it.setCode }.distinct()
@@ -434,13 +509,13 @@ class FrameRecognizer(
                 if (inSet.isNotEmpty()) return defaultPick(byYear(inSet, info.year)) to false
             }
 
-            // 2b. Ediciones exclusivas en español, por número (con o sin letra delante).
-            if (spanishOnly.isNotEmpty() && info.numbers.isNotEmpty()) {
-                val m = spanishOnly.filter { p -> info.numbers.any { numberMatchesWithPrefix(p.numberNorm, it) } }
+            // 2b. Ediciones que no existen en inglés, por número (con o sin letra delante).
+            if (foreignOnly.isNotEmpty() && info.numbers.isNotEmpty()) {
+                val m = foreignOnly.filter { p -> info.numbers.any { numberMatchesWithPrefix(p.numberNorm, it) } }
                 if (m.size == 1) return m[0] to true
                 if (m.isNotEmpty()) return defaultPick(m) to false
             }
-            val certain = spanishOnly.isEmpty()
+            val certain = foreignOnly.isEmpty()
 
             // 3. Número (fuerte), confirmado con el tamaño de la edición y sin contradecir el año.
             if (info.numbers.isNotEmpty()) {
@@ -514,6 +589,8 @@ class FrameRecognizer(
         private val DIGITS = Regex("^\\d{1,4}$")
         // Las cartas recientes imprimen "SP" para español; algunas antiguas, "ES".
         private val LANGUAGES = setOf("EN", "ES", "SP", "FR", "DE", "IT", "PT", "JP", "JA", "RU", "KO", "CS", "CT", "ZHS", "ZHT")
+        /** Códigos de idioma impresos que la app distingue. */
+        private val PRINTED_LANGUAGES = mapOf("EN" to "en", "ES" to "es", "SP" to "es", "FR" to "fr", "DE" to "de", "IT" to "it", "PT" to "pt")
         private const val RARITY_LETTERS = "CURMSLTPB"
 
         /**
@@ -544,9 +621,6 @@ class FrameRecognizer(
 
                 val tokens = line.text.split(TOKEN_SPLIT).filter { it.isNotEmpty() }
                 val hasLanguage = tokens.any { it in LANGUAGES || (it == it.uppercase() && gluedLanguageAt(it) != null) }
-                // Solo cuenta junto a un código de edición: "EN"/"ES" sueltos pueden ser otra cosa.
-                val langToken = tokens.firstOrNull { it == "EN" || it == "ES" || it == "SP" }
-                    ?: tokens.firstNotNullOfOrNull { t -> gluedLanguageAt(t)?.let { t.substring(it, it + 2) } }
                 val hasBullet = line.text.any { it == '•' || it == '·' || it == '*' }
 
                 for ((i, token) in tokens.withIndex()) {
@@ -561,7 +635,7 @@ class FrameRecognizer(
                     val score = 1 + (if (hasLanguage) 2 else 0) + (if (hasBullet) 1 else 0) +
                         (if (tokens.size <= 4) 1 else 0)
                     setScores.merge(code, score, ::maxOf)
-                    if (langToken != null) language = if (langToken == "EN") "en" else "es"
+                    printedLanguage(tokens, i)?.let { language = it }
                 }
             }
             val ranked = setScores.entries.sortedByDescending { it.value }
@@ -621,11 +695,26 @@ class FrameRecognizer(
             return null
         }
 
+        /**
+         * El idioma impreso tras el código de edición [i]: pegado ("MOMFR"), en el
+         * token siguiente ("M20 • DE") o pegado al artista ("RNA ENTITUS": solo
+         * EN/ES/SP). En otro sitio "DE" o "IT" pueden ser palabras del texto.
+         */
+        private fun printedLanguage(tokens: List<String>, i: Int): String? {
+            val token = tokens[i]
+            gluedLanguageAt(token)?.let { at -> PRINTED_LANGUAGES[token.substring(at, at + 2)]?.let { return it } }
+            val next = tokens.getOrNull(i + 1)?.takeIf { it == it.uppercase() } ?: return null
+            PRINTED_LANGUAGES[next]?.let { return it }
+            return next.take(2).takeIf { next.length > 2 && it in GLUED_TO_ARTIST }?.let(PRINTED_LANGUAGES::get)
+        }
+
+        private val GLUED_TO_ARTIST = setOf("EN", "ES", "SP")
+
         /** Posición de un "EN"/"ES" pegado tras un código de 3-5 caracteres ("MOMEN", "MOMES"), o null. */
         private fun gluedLanguageAt(token: String): Int? =
             (3..5).firstOrNull { i ->
                 token.length >= i + 2 && token.length <= i + 4 &&
-                    (token.startsWith("EN", i) || token.startsWith("ES", i) || token.startsWith("SP", i))
+                    PRINTED_LANGUAGES.keys.any { token.startsWith(it, i) }
             }
 
         private fun stripZeros(s: String) = s.trimStart('0').ifEmpty { "0" }

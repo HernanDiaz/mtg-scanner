@@ -88,7 +88,10 @@ import java.text.Normalizer
 private val REVIEW_COLOR = Color(0xFFFFB74D)
 
 /** Idiomas que se pueden asignar a una carta de la colección. */
-private val LANGUAGES = listOf("en" to R.string.lang_en, "es" to R.string.lang_es)
+private val LANGUAGES = listOf(
+    "en" to R.string.lang_en, "es" to R.string.lang_es, "fr" to R.string.lang_fr,
+    "de" to R.string.lang_de, "it" to R.string.lang_it, "pt" to R.string.lang_pt,
+)
 
 private val SORTS = listOf(
     CollectionStore.Sort.RECENT to R.string.sort_recent,

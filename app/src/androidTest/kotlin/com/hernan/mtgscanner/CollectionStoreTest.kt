@@ -26,7 +26,7 @@ import org.junit.runner.RunWith
 class CollectionStoreTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private lateinit var store: CollectionStore
-    private val catalog by lazy { Catalog(context) }
+    private val catalog by lazy { appCatalog() }
 
     @Before fun setUp() {
         context.deleteDatabase(DB)
@@ -163,9 +163,11 @@ class CollectionStoreTest {
         assertEquals("Lightning Bolt", catalog.printingsOfAnyName("Relámpago").first().name)
         assertEquals("Delver of Secrets // Insectile Aberration", catalog.printingsOfAnyName("Delver of Secrets").first().name)
         assertTrue(catalog.printingsOfAnyName("Carta que no existe").isEmpty())
-        assertTrue(catalog.isForeignName("Relámpago"))
-        assertFalse(catalog.isForeignName("lightning bolt"))
-        assertFalse(catalog.isForeignName("Insectile Aberration"))
+        assertEquals("es", catalog.languageOfName("Relámpago"))
+        assertEquals("fr", catalog.languageOfName("Foudre"))
+        assertEquals("de", catalog.languageOfName("Blitzschlag"))
+        assertEquals(null, catalog.languageOfName("lightning bolt"))
+        assertEquals(null, catalog.languageOfName("Insectile Aberration"))
         assertEquals("m11", catalog.setCodeFor("M11"))
         assertEquals("m11", catalog.setCodeFor("Magic 2011"))
         assertEquals(null, catalog.setCodeFor("Edición inventada"))
@@ -177,7 +179,7 @@ class CollectionStoreTest {
             override fun bySetAndNumber(setCode: String, numberNorm: String) = catalog.bySetAndNumber(setCode, numberNorm)
             override fun printingsOf(name: String) = catalog.printingsOfAnyName(name)
             override fun setCode(value: String) = catalog.setCodeFor(value)
-            override fun isForeignName(name: String) = catalog.isForeignName(name)
+            override fun languageOfName(name: String) = catalog.languageOfName(name)
         }
     }
 

@@ -52,9 +52,9 @@ class RecognitionEval {
         val instr = InstrumentationRegistry.getInstrumentation()
         val filesDir = instr.targetContext.getExternalFilesDir(null)!!
         val dir = File(filesDir, "testset/$subset")
-        val catalog = Catalog(instr.targetContext)
+        val catalog = appCatalog()
         val recognizer = FrameRecognizer(catalog.names, catalog.setCodes, catalog::printingsOf, catalog::bySetAndNumber, catalog::art,
-            if (useSymbols) catalog.symbols else null)
+            if (useSymbols) catalog.symbols else null, catalog::nameLanguages, catalog::setLanguages)
         val ocr = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
         val rows = parseCsv(File(dir, "labels.csv").readText())

@@ -23,6 +23,8 @@ class Catalog(context: Context) {
     private val sets: Map<String, SetInfo>
     private val printingsCache = ConcurrentHashMap<String, List<CardPrinting>>()
     private val arts = HashMap<Int, ArtSignature>()
+    /** Nombre traducido (normalizado) -> sus idiomas, el más frecuente primero. */
+    private val foreignNames = HashMap<String, List<String>>(160_000)
     /** Nombre de carta -> legalidad por formato ([Legality]). */
     private val legality = HashMap<String, Int>(40_000)
     /** Símbolos de edición de referencia; null con un catálogo antiguo que no los trae. */
@@ -32,16 +34,24 @@ class Catalog(context: Context) {
         val file = ensureCopied(context)
         db = SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY)
 
-        val entries = ArrayList<Pair<String, String>>(40_000)
-        db.rawQuery("SELECT norm, name FROM names", null).use { c ->
-            while (c.moveToNext()) entries.add(c.getString(0) to c.getString(1))
+        val entries = ArrayList<Pair<String, String>>(200_000)
+        val langLists = HashMap<String, List<String>>() // "es,pt" -> [es, pt], compartidas
+        db.rawQuery("SELECT norm, name, lang FROM names", null).use { c ->
+            while (c.moveToNext()) {
+                entries.add(c.getString(0) to c.getString(1))
+                val lang = c.getString(2)
+                if (lang != "en") foreignNames[c.getString(0)] = langLists.getOrPut(lang) { lang.split(",") }
+            }
         }
         names = NameMatcher(entries)
 
         val loaded = HashMap<String, SetInfo>()
-        db.rawQuery("SELECT code, name, set_type, printed_size FROM sets", null).use { c ->
+        val langSets = HashMap<String, Set<String>>() // "fr,de" -> {fr, de}, compartidos
+        db.rawQuery("SELECT code, name, set_type, printed_size, langs FROM sets", null).use { c ->
             while (c.moveToNext()) {
-                loaded[c.getString(0)] = SetInfo(c.getString(1), c.getString(2), if (c.isNull(3)) null else c.getInt(3))
+                val langs = c.getString(4)
+                loaded[c.getString(0)] = SetInfo(c.getString(1), c.getString(2), if (c.isNull(3)) null else c.getInt(3),
+                    langSets.getOrPut(langs) { langs.split(",").filter { it.isNotEmpty() }.toSet() })
             }
         }
         sets = loaded
@@ -81,7 +91,7 @@ class Catalog(context: Context) {
     /** Huella de una ilustración, para elegir edición por la imagen. */
     fun art(id: Int): ArtSignature? = arts[id]
 
-    private data class SetInfo(val name: String, val type: String?, val size: Int?)
+    private data class SetInfo(val name: String, val type: String?, val size: Int?, val langs: Set<String>)
 
     /** Todas las impresiones de un nombre, de la más reciente a la más antigua. */
     fun printingsOf(name: String): List<CardPrinting> = printingsCache.getOrPut(name) {
@@ -109,7 +119,7 @@ class Catalog(context: Context) {
         override fun bySetAndNumber(setCode: String, numberNorm: String) = this@Catalog.bySetAndNumber(setCode, numberNorm)
         override fun printingsOf(name: String) = printingsOfAnyName(name)
         override fun setCode(value: String) = setCodeFor(value)
-        override fun isForeignName(name: String) = this@Catalog.isForeignName(name)
+        override fun languageOfName(name: String) = this@Catalog.languageOfName(name)
     }
 
     /** Código de edición a partir de un código ("M11", "m11") o un nombre ("Magic 2011"). */
@@ -118,13 +128,23 @@ class Catalog(context: Context) {
         return if (code in sets) code else setsByName[NameMatcher.normalize(value)]
     }
 
-    /** "Relámpago": un nombre del catálogo que no es el inglés de ninguna carta (ni de una de sus caras). */
-    fun isForeignName(name: String): Boolean {
+    /** Idiomas aparte del inglés en que se imprimió una edición (vacío: solo inglés); null si no se conoce. */
+    fun setLanguages(code: String): Set<String>? = sets[code]?.langs
+
+    /** Idiomas de un nombre traducido ("relampago" -> [es]); null si no es un nombre traducido. */
+    fun nameLanguages(key: String): List<String>? = foreignNames[key]
+
+    /**
+     * Idioma de un nombre escrito por una persona si es una traducción ("Relámpago" -> "es",
+     * "Foudre" -> "fr"), o null si es el nombre inglés de alguna carta (o de una de sus caras).
+     */
+    fun languageOfName(name: String): String? {
         val key = NameMatcher.normalize(name)
-        val match = names.match(name)?.takeIf { it.distance == 0 } ?: return false
-        return match.names.none { full ->
+        val match = names.match(name)?.takeIf { it.distance == 0 } ?: return null
+        val english = match.names.any { full ->
             NameMatcher.normalize(full) == key || full.split(" // ").any { NameMatcher.normalize(it) == key }
         }
+        return if (english) null else foreignNames[key]?.first()
     }
 
     /**

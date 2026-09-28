@@ -22,7 +22,7 @@ class DemoCollectionSeed {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         context.deleteDatabase("collection.db")
         val store = CollectionStore(context)
-        val catalog = Catalog(context)
+        val catalog = appCatalog()
 
         fun first(name: String) = catalog.printingsOf(name).first { it.prices.eur != null }
         store.add(first("Lightning Bolt"), false, "NM", needsReview = false)

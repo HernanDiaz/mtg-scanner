@@ -25,7 +25,8 @@ mkdir -p build/eval
 for s in "${SUBSETS[@]}"; do
   # Copia las fotos solo si faltan o cambiaron (labels.csv distinto: otro conjunto generado).
   local_sum=$(md5sum < "testset/$s/labels.csv" | cut -d' ' -f1)
-  remote_sum=$("$ADB" shell "md5sum < $FILES/testset/$s/labels.csv 2>/dev/null" | tr -d '\r' | cut -d' ' -f1)
+  # Si aún no está en el dispositivo, el md5 falla: cuenta como distinto.
+  remote_sum=$("$ADB" shell "md5sum $FILES/testset/$s/labels.csv 2>/dev/null" | tr -d '\r' | cut -d' ' -f1 || true)
   if [ "$local_sum" != "$remote_sum" ]; then
     echo "Copiando testset/$s ($(ls "testset/$s" | wc -l) ficheros)..."
     "$ADB" shell "rm -rf $FILES/testset/$s; mkdir -p $FILES/testset"

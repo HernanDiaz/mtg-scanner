@@ -69,7 +69,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     init {
         viewModelScope.launch {
             val catalog = app.catalog.await()
-            val recognizer = FrameRecognizer(catalog.names, catalog.setCodes, catalog::printingsOf, catalog::bySetAndNumber, catalog::art, catalog.symbols)
+            val recognizer = FrameRecognizer(catalog.names, catalog.setCodes, catalog::printingsOf, catalog::bySetAndNumber, catalog::art, catalog.symbols,
+                catalog::nameLanguages, catalog::setLanguages)
             _analyzer.value = TextAnalyzer(recognizer, analysisExecutor, ::onFrame)
             _ui.update { it.copy(loading = false) }
         }

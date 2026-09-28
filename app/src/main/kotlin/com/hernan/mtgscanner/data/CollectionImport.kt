@@ -53,8 +53,8 @@ object CollectionImport {
         fun printingsOf(name: String): List<CardPrinting>
         /** Código de edición a partir de un código o un nombre, o null si no existe. */
         fun setCode(value: String): String?
-        /** El nombre está escrito en otro idioma (los alias del catálogo son en español). */
-        fun isForeignName(name: String): Boolean = false
+        /** Idioma del nombre si es una traducción ("Relámpago" -> "es"); null si es el inglés. */
+        fun languageOfName(name: String): String? = null
     }
 
     // ------------------------------------------------------------------ leer
@@ -165,9 +165,9 @@ object CollectionImport {
                 quantity = row.quantity,
                 foil = if (row.foil) card.hasFoil || !card.hasNonfoil else !card.hasNonfoil,
                 condition = row.condition ?: defaultCondition,
-                // Sin idioma en el fichero: el del nombre ("Relámpago" -> "es") o el de la impresión
+                // Sin idioma en el fichero: el del nombre ("Relámpago" -> "es", "Foudre" -> "fr") o el de la impresión
                 // (las ediciones que solo existen en español).
-                lang = row.lang ?: ("es".takeIf { row.name != null && lookup.isForeignName(row.name) }) ?: card.lang,
+                lang = row.lang ?: row.name?.let(lookup::languageOfName) ?: card.lang,
                 needsReview = row.needsReview || !certain,
                 deck = row.deck,
             )

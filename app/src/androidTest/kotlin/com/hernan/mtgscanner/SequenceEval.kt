@@ -32,8 +32,9 @@ class SequenceEval {
         val instr = InstrumentationRegistry.getInstrumentation()
         // Fotogramas copiados al dispositivo por tools/run_sequences.sh.
         val root = File(instr.targetContext.getExternalFilesDir(null)!!, "testset/secuencias")
-        val catalog = Catalog(instr.targetContext)
-        val recognizer = FrameRecognizer(catalog.names, catalog.setCodes, catalog::printingsOf, catalog::bySetAndNumber, catalog::art, catalog.symbols)
+        val catalog = appCatalog()
+        val recognizer = FrameRecognizer(catalog.names, catalog.setCodes, catalog::printingsOf, catalog::bySetAndNumber, catalog::art, catalog.symbols,
+                catalog::nameLanguages, catalog::setLanguages)
         val ocr = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
         val summary = StringBuilder("secuencia\tesperadas\tañadidas\tbien\tperdidas\tsobrantes\tdetalle\n")

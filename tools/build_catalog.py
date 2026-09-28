@@ -33,7 +33,7 @@ USER_AGENT = "MTGScanner/0.1 (proyecto personal)"
 BULK_INDEX = "https://api.scryfall.com/bulk-data"
 
 # Versión del esquema: la app la compara para saber si debe recopiar el asset.
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 13
 
 # Layouts que no son cartas "de colección" normales.
 SKIP_LAYOUTS = {"art_series", "token", "double_faced_token", "emblem", "vanguard", "scheme", "planar"}
@@ -136,13 +136,15 @@ def jsonl(path):
 
 
 def foreign_names(all_cards_path, languages):
-    """Alias (nombre impreso normalizado -> nombre inglés) en los idiomas pedidos.
+    """Alias (nombre impreso normalizado, nombre inglés, idioma) en los idiomas pedidos,
+    y en qué idiomas se imprimió cada edición ({set: {idiomas}}).
 
     También guarda en data/ una lista de impresiones con escaneo en alta
     resolución por idioma, para generar fotos de prueba (tools/make_testset.py).
     """
     counts = {}
     samples = []
+    set_langs = {}
     markers = tuple(f'"lang":"{lang}"' for lang in languages)
     for line in jsonl(all_cards_path):
         if not any(m in line for m in markers):  # filtro rápido antes de parsear
@@ -150,9 +152,10 @@ def foreign_names(all_cards_path, languages):
         c = json.loads(line)
         if c.get("lang") not in languages or c.get("digital") or c.get("layout") in SKIP_LAYOUTS:
             continue
+        set_langs.setdefault(c["set"], set()).add(c["lang"])
         printed = [c.get("printed_name")] + [f.get("printed_name") for f in c.get("card_faces", [])]
         for pn in filter(None, printed):
-            key = (norm_name(pn), c["name"])
+            key = (norm_name(pn), c["name"], c["lang"])
             counts[key] = counts.get(key, 0) + 1
         if c.get("image_status") == "highres_scan" and c.get("printed_name"):
             samples.append((c["id"], c["lang"], c["name"], c["printed_name"], c["set"],
@@ -163,12 +166,23 @@ def foreign_names(all_cards_path, languages):
         w.writerow(["id", "lang", "name", "printed_name", "set_code", "collector_number", "released_at"])
         w.writerows(samples)
     # Hay algún error en los datos ("Isla" -> Plains en una impresión): por cada
-    # nombre traducido se queda la traducción mayoritaria.
+    # nombre traducido se queda la traducción mayoritaria, con todos sus idiomas (algunos
+    # nombres se escriben igual en dos, como en español y portugués).
+    # Si en dos idiomas nombra cartas distintas ("Apagar": Snuff Out en español, Erase en
+    # portugués), gana el idioma que va antes en la lista (el español primero).
     best = {}
-    for (norm, name), n in counts.items():
-        if norm not in best or n > best[norm][1]:
-            best[norm] = (name, n)
-    return {(norm, name) for norm, (name, _) in best.items()}
+    langs = {}
+    for (norm, name, lang), n in counts.items():
+        by_name = best.setdefault(norm, {}).setdefault(lang, {})
+        by_name[name] = by_name.get(name, 0) + n
+        langs.setdefault((norm, name), {})[lang] = n
+    result = set()
+    for norm, by_lang in best.items():
+        by_name = by_lang[min(by_lang, key=languages.index)]
+        name = max(by_name, key=by_name.get)
+        seen = langs[(norm, name)]
+        result.add((norm, name, ",".join(sorted(seen, key=seen.get, reverse=True))))
+    return result, set_langs
 
 
 def load_art_signatures():
@@ -195,7 +209,7 @@ def load_set_symbols():
     return refs, icons
 
 
-def build(jsonl_path, updated_at, extra_names):
+def build(jsonl_path, updated_at, extra_names, set_langs):
     arts = load_art_signatures()
     symbols, symbol_kinds = load_set_symbols()
     art_ids = {ill: v[0] for ill, v in arts.items()}
@@ -213,7 +227,8 @@ def build(jsonl_path, updated_at, extra_names):
             name TEXT NOT NULL,
             released_at TEXT,
             set_type TEXT,               -- core, expansion, masters, promo...
-            printed_size INTEGER         -- el "/274" impreso en la carta
+            printed_size INTEGER,        -- el "/274" impreso en la carta
+            langs TEXT NOT NULL          -- otros idiomas en que se imprimió ("fr,de"; "" = solo inglés)
         );
         CREATE TABLE cards (
             id TEXT PRIMARY KEY,         -- uuid de Scryfall
@@ -257,6 +272,7 @@ def build(jsonl_path, updated_at, extra_names):
         CREATE TABLE names (
             norm TEXT NOT NULL,          -- nombre normalizado de una cara
             name TEXT NOT NULL,          -- cards.name al que corresponde
+            lang TEXT NOT NULL,          -- "en" o los idiomas del nombre traducido ("es,pt" si se escribe igual)
             PRIMARY KEY (norm, name)
         ) WITHOUT ROWID;
         """
@@ -308,15 +324,17 @@ def build(jsonl_path, updated_at, extra_names):
     db.executemany("INSERT INTO symbols VALUES (?,?,?,?,?,?)", symbols)
     db.executemany("INSERT INTO set_icons VALUES (?,?,?)", symbol_kinds)
     db.executemany(
-        "INSERT INTO sets VALUES (?,?,?,?,?)",
-        [(*v, *set_info.get(v[0], (None, None))) for v in sets.values()],
+        "INSERT INTO sets VALUES (?,?,?,?,?,?)",
+        [(*v, *set_info.get(v[0], (None, None)), ",".join(sorted(set_langs.get(v[0], ()))))
+         for v in sets.values()],
     )
     # Alias en otros idiomas, solo de cartas que están en el catálogo.
     # Un alias nunca tapa un nombre inglés que se escriba igual.
     known = {n for _, n in names}
     english_norms = {norm for norm, _ in names}
-    foreign = {(norm, n) for norm, n in extra_names if n in known and norm and norm not in english_norms}
-    db.executemany("INSERT OR IGNORE INTO names VALUES (?,?)", names | foreign)
+    foreign = {(norm, n, lang) for norm, n, lang in extra_names if n in known and norm and norm not in english_norms}
+    db.executemany("INSERT OR IGNORE INTO names VALUES (?,?,'en')", names)
+    db.executemany("INSERT OR IGNORE INTO names VALUES (?,?,?)", foreign)
     db.executemany("INSERT INTO legality VALUES (?,?)", legality.items())
     db.executescript(
         """
@@ -347,13 +365,13 @@ def build(jsonl_path, updated_at, extra_names):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--refresh", action="store_true", help="volver a descargar los datos")
-    ap.add_argument("--languages", default="es",
+    ap.add_argument("--languages", default="es,fr,de,it,pt",
                     help="idiomas de los nombres alternativos, separados por comas ('' para ninguno)")
     args = ap.parse_args()
     path, updated_at = download_bulk("default_cards", args.refresh)
     languages = [x for x in args.languages.split(",") if x]
-    extra = foreign_names(download_bulk("all_cards", args.refresh)[0], languages) if languages else set()
-    build(path, updated_at, extra)
+    extra, set_langs = foreign_names(download_bulk("all_cards", args.refresh)[0], languages) if languages else (set(), {})
+    build(path, updated_at, extra, set_langs)
 
 
 if __name__ == "__main__":

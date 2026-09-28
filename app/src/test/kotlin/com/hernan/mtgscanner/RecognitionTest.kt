@@ -255,6 +255,69 @@ class FrameRecognizerTest {
         assertEquals("en", r.lang)
     }
 
+    @Test fun otherPrintedLanguageCodes() {
+        fun lang(code: String) = FrameRecognizer.parseCollector(listOf(line("R 0163", 900), line("M20 • $code ARTIST", 920)), SETS).language
+        assertEquals(listOf("fr", "de", "it", "pt"), listOf("FR", "DE", "IT", "PT").map(::lang))
+        assertEquals("fr", FrameRecognizer.parseCollector(listOf(line("R 0163", 900), line("M20FR ARTIST", 920)), SETS).language)
+        val r = recognizer.recognize(listOf(line("Shock", 50), line("Éphémère", 500), line("163/280 C", 900), line("M20 • FR", 920)))!!
+        assertEquals("fr", r.lang)
+        assertEquals("m20-163", r.printing.id)
+    }
+
+    /** Sin código de idioma, la línea de tipo en un idioma concreto lo decide. */
+    @Test fun languageFromTypeLine() {
+        assertEquals("de", recognizer.recognize(listOf(line("Shock", 50), line("Spontanzauber", 500)))!!.lang)
+        assertEquals("it", recognizer.recognize(listOf(line("Shock", 50), line("Istantaneo", 500)))!!.lang)
+        assertEquals("pt", recognizer.recognize(listOf(line("Shock", 50), line("Mágica Instantânea", 500)))!!.lang)
+        // "Creature" / "Créature": no distingue inglés de francés; sin más pistas, inglés.
+        assertEquals("en", recognizer.recognize(listOf(line("Shock", 50), line("Créature", 500)))!!.lang)
+    }
+
+    /** Las palabras de tipo largas se reconocen con errores de lectura, salvo si se parecen más a una inglesa. */
+    @Test fun misreadLongTypeWords() {
+        assertEquals("de", recognizer.recognize(listOf(line("Shock", 50), line("Beschyürung yon Goblin", 500)))!!.lang)
+        assertEquals("fr", recognizer.recognize(listOf(line("Shock", 50), line("Enchantenent", 500)))!!.lang)
+        assertEquals("en", recognizer.recognize(listOf(line("Shock", 50), line("Enchantmemt", 500)))!!.lang)
+    }
+
+    /** "Criatura" es español o portugués, nunca inglés: con un nombre igual en todos los idiomas, español. */
+    @Test fun sharedForeignTypeWordPrefersSpanish() =
+        assertEquals("es", recognizer.recognize(listOf(line("Shock", 50), line("Criatura legendaria - Humano", 500)))!!.lang)
+
+    /** El idioma se busca bajo el nombre: "Terra" (italiano "tierra") en el nombre no cuenta. */
+    @Test fun nameLineIsNotTheTypeLine() {
+        val r = FrameRecognizer(NameMatcher(listOf("terra" to "Terra")), SETS, printingsOf = { PRINTINGS["Shock"].orEmpty() })
+        assertEquals("en", r.recognize(listOf(line("Terra", 50), line("Legendary Creature", 500)))!!.lang)
+    }
+
+    /** Un nombre leído a medias que se parece a una traducción no vence a "Sorcery". */
+    @Test fun englishTypeLineBeatsFuzzyForeignName() {
+        val r = FrameRecognizer(
+            NameMatcher(listOf("shock" to "Shock", "choque" to "Shock")), SETS, printingsOf = { PRINTINGS[it].orEmpty() },
+            nameLanguages = { if (it == "choque") listOf("es") else null },
+        )
+        assertEquals("en", r.recognize(listOf(line("Choque", 50), line("Sorcery", 500)))!!.lang)
+    }
+
+    @Test fun printedLanguageOnlyNextToTheSetCode() {
+        // El artista pegado: "RNA EN TITUS LUNTER" -> "ENTITUS" no es italiano.
+        assertEquals("en", FrameRecognizer.parseCollector(listOf(line("260/259 L", 900), line("M20 ENTITUS LUNTER", 920)), SETS).language)
+        // En texto en mayúsculas, "DE" es una preposición.
+        assertEquals(null, FrameRecognizer.parseCollector(listOf(line("CARTA DE M20 BLANCA", 900)), SETS).language)
+        assertEquals("de", FrameRecognizer.parseCollector(listOf(line("R 0163", 900), line("M20 • DE >RUWEN LIU", 920)), SETS).language)
+    }
+
+    /** Un nombre que se escribe igual en español y portugués: decide la línea de tipo. */
+    @Test fun nameSharedBetweenLanguages() {
+        val r = FrameRecognizer(
+            NameMatcher(listOf("shock" to "Shock", "choque" to "Shock")), SETS, printingsOf = { PRINTINGS[it].orEmpty() },
+            nameLanguages = { if (it == "choque") listOf("es", "pt") else null },
+        )
+        assertEquals("pt", r.recognize(listOf(line("Choque", 50), line("Mágica Instantânea", 500)))!!.lang)
+        assertEquals("es", r.recognize(listOf(line("Choque", 50), line("Instantáneo", 500)))!!.lang)
+        assertEquals("es", r.recognize(listOf(line("Choque", 50), line("Criatura", 500)))!!.lang) // compartida: el más frecuente
+    }
+
     @Test fun recentCardsPrintSpForSpanish() =
         assertEquals("es", FrameRecognizer.parseCollector(listOf(line("R 0163", 900), line("M20 • SP >RUWEN LIU", 920)), SETS).language)
 
@@ -266,6 +329,20 @@ class FrameRecognizerTest {
         val r = recognizer.recognize(listOf(
             line("Pantano", 50), line("Tierra básica Pantano", 500), line("TM & 1993-2005 Wizards 58/60", 900),
         ))!!
+        assertEquals("psal-A58", r.printing.id)
+        assertTrue(r.exact)
+    }
+
+    /** Una carta francesa no puede ser de Salvat 2011 (solo en inglés): es la de Salvat 2005. */
+    @Test fun editionsNotPrintedInTheCardLanguageAreDiscarded() {
+        val r = FrameRecognizer(
+            NameMatcher(listOf("swamp" to "Swamp", "marais" to "Swamp")), SETS, printingsOf = { PRINTINGS[it].orEmpty() },
+            nameLanguages = { if (it == "marais") listOf("fr") else null },
+            setLanguages = { if (it == "psal") setOf("es", "fr", "it") else emptySet() },
+        ).recognize(listOf(
+            line("Marais", 50), line("Terrain de base : marais", 500), line("TM & 1993-2006 Wizards 58/60", 900),
+        ))!!
+        assertEquals("fr", r.lang)
         assertEquals("psal-A58", r.printing.id)
         assertTrue(r.exact)
     }
@@ -561,7 +638,7 @@ class CollectionImportTest {
         override fun setCode(value: String): String? =
             value.lowercase().takeIf { c -> all.any { it.setCode == c } }
                 ?: all.firstOrNull { it.setName.equals(value.removeSuffix(" set"), ignoreCase = true) }?.setCode
-        override fun isForeignName(name: String) = NameMatcher.normalize(name) in spanish
+        override fun languageOfName(name: String) = "es".takeIf { NameMatcher.normalize(name) in spanish }
     }
 
     private fun resolve(text: String) = import.resolve(import.parse(text), lookup)
