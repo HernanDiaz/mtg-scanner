@@ -1,6 +1,7 @@
 package com.hernan.mtgscanner.ui
 
 import android.app.Application
+import android.graphics.Bitmap
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.os.SystemClock
@@ -12,6 +13,7 @@ import com.hernan.mtgscanner.App
 import com.hernan.mtgscanner.data.CardDetails
 import com.hernan.mtgscanner.data.CardPrinting
 import com.hernan.mtgscanner.data.CollectionStore
+import com.hernan.mtgscanner.data.TestPhotos
 import com.hernan.mtgscanner.scan.FrameRecognizer
 import com.hernan.mtgscanner.scan.FrameResult
 import com.hernan.mtgscanner.scan.ScanSession
@@ -46,6 +48,8 @@ data class ScannerUi(
     /** Mazo al que van las cartas escaneadas (null = ninguno). */
     val scanDeck: CollectionStore.Deck? = null,
     val decks: List<CollectionStore.Deck> = emptyList(),
+    /** Fotos de prueba guardadas (con el modo de prueba activado). */
+    val testPhotoCount: Int = 0,
 )
 
 class ScannerViewModel(application: Application) : AndroidViewModel(application) {
@@ -74,6 +78,9 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             _analyzer.value = TextAnalyzer(recognizer, analysisExecutor, ::onFrame)
             _ui.update { it.copy(loading = false) }
         }
+        viewModelScope.launch(Dispatchers.IO) {
+            settings.testPhotos.collect { on -> if (on) _ui.update { it.copy(testPhotoCount = testPhotos.count()) } }
+        }
         viewModelScope.launch {
             combine(store.version, settings.currency, settings.scanDeck, settings.priceKind) { _, currency, deck, kind ->
                 Triple(currency, deck, kind)
@@ -96,13 +103,47 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     suspend fun cardDetails(id: String): CardDetails? =
         withContext(Dispatchers.IO) { runCatching { CardDetails.fetch(id) }.getOrNull() }
 
+    // ------------------------------------------------------------------ fotos de prueba
+
+    private val testPhotos = app.testPhotos
+    /** Último fotograma en que se leyó cada nombre (solo con el modo de prueba). */
+    private val recentFrames = LinkedHashMap<String, Bitmap>()
+    @Volatile private var captureNext = false
+    private var photoSeq = 0
+
+    /** Guarda el próximo fotograma aunque no se reconozca la carta. */
+    fun captureFrame() { captureNext = true }
+
+    private fun savePhoto(bitmap: Bitmap, entryId: Long?, got: FrameResult?) {
+        val now = System.currentTimeMillis()
+        val (w, h) = _analyzer.value?.viewSize ?: (bitmap.width to bitmap.height)
+        testPhotos.save(bitmap, TestPhotos.Photo(
+            TestPhotos.fileName(now, photoSeq++), entryId, got?.name, got?.printing?.setCode, got?.printing?.collectorNumber,
+            got?.exact == true, got?.lang, w, h, now,
+        ))
+        _ui.update { it.copy(testPhotoCount = it.testPhotoCount + 1) }
+    }
+
     /** Llamado desde [analysisExecutor] con cada fotograma procesado. */
-    private fun onFrame(result: FrameResult?, rawTopLine: String?) {
+    private fun onFrame(result: FrameResult?, rawTopLine: String?, frame: () -> Bitmap) {
         val reading = result?.let { "${it.name} · ${it.printing.setCode.uppercase()} ${it.printing.collectorNumber}" }
             ?: rawTopLine
         if (reading != _ui.value.reading) _ui.update { it.copy(reading = reading) }
 
+        val testing = settings.testPhotos.value
+        if (testing && result != null) {
+            recentFrames.remove(result.name)
+            recentFrames[result.name] = frame()
+            while (recentFrames.size > 3) recentFrames.remove(recentFrames.keys.first())
+        }
+        if (captureNext) {
+            captureNext = false
+            val bmp = frame()
+            viewModelScope.launch(Dispatchers.IO) { savePhoto(bmp, null, result) }
+        }
+
         val accepted = session.onFrame(result, SystemClock.elapsedRealtime()) ?: return
+        val photo = if (testing) recentFrames.remove(accepted.name) else null
         val printing = accepted.printing
         val foil = (_ui.value.foil && printing.hasFoil) || !printing.hasNonfoil
         val needsReview = !accepted.exact
@@ -110,6 +151,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch(Dispatchers.IO) {
             val id = store.add(printing, foil, settings.defaultCondition.value, needsReview, accepted.lang,
                 accepted.photoArt?.toPacked(), deckId = _ui.value.scanDeck?.id)
+            photo?.let { savePhoto(it, id, accepted) }
             val wished = store.fulfillWish(printing.name)
             _ui.update { it.copy(lastAdded = AddedCard(id, printing, foil, needsReview, accepted.lang, wished)) }
         }

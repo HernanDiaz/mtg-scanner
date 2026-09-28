@@ -370,6 +370,29 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
 
     // ------------------------------------------------------------------ copia de seguridad e importar
 
+    // Fotos de prueba (ver TestPhotos).
+    val testPhotosEnabled: StateFlow<Boolean> = settings.testPhotos
+
+    fun setTestPhotos(on: Boolean) = settings.setTestPhotos(on)
+
+    /** Cuántas fotos hay y cuánto ocupan. */
+    suspend fun testPhotosInfo(): Pair<Int, Long> = withContext(Dispatchers.IO) { app.testPhotos.count() to app.testPhotos.size() }
+
+    /** Zip con las fotos y su respuesta correcta (la carta tal como está ahora), para compartirlo. */
+    suspend fun exportTestPhotos(): Intent = withContext(Dispatchers.IO) {
+        val dir = File(app.cacheDir, "exports").apply { mkdirs() }
+        dir.listFiles { f -> f.name.startsWith(TEST_PHOTOS_PREFIX) }?.forEach { it.delete() } // los de otras veces
+        val stamp = SimpleDateFormat("yyyy-MM-dd_HHmm", Locale.ROOT).format(Date())
+        val file = File(dir, "$TEST_PHOTOS_PREFIX-$stamp.zip")
+        app.testPhotos.export(file, store::entriesNow)
+        val uri = FileProvider.getUriForFile(app, "${app.packageName}.files", file)
+        val send = Intent(Intent.ACTION_SEND).setType("application/zip").putExtra(Intent.EXTRA_STREAM, uri)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        Intent.createChooser(send, app.getString(R.string.test_photos_share))
+    }
+
+    suspend fun clearTestPhotos() = withContext(Dispatchers.IO) { app.testPhotos.clear() }
+
     // Copia automática (ver AutoBackup).
     val autoBackup: StateFlow<AutoBackup.State> = app.autoBackup.state
 
@@ -472,3 +495,5 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
         const val MOVERS = 10
     }
 }
+
+private const val TEST_PHOTOS_PREFIX = "mtg-fotos-prueba"

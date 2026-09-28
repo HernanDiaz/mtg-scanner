@@ -1,5 +1,7 @@
 package com.hernan.mtgscanner.scan
 
+import android.graphics.Bitmap
+import android.graphics.Matrix
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.google.mlkit.vision.common.InputImage
@@ -15,7 +17,8 @@ import java.util.concurrent.Executor
 class TextAnalyzer(
     private val recognizer: FrameRecognizer,
     private val executor: Executor,
-    private val onResult: (result: FrameResult?, rawTopLine: String?) -> Unit,
+    /** [frame]: el fotograma derecho; solo vale durante la llamada (luego se libera). */
+    private val onResult: (result: FrameResult?, rawTopLine: String?, frame: () -> Bitmap) -> Unit,
 ) : ImageAnalysis.Analyzer {
 
     private val ocr = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
@@ -46,9 +49,13 @@ class TextAnalyzer(
                     bmp.getPixel(sx.coerceIn(0, bmp.width - 1), sy.coerceIn(0, bmp.height - 1)) and 0xFFFFFF
                 }
                 val result = recognizer.recognize(lines, art)
-                onResult(result, lines.minByOrNull { it.top }?.text)
+                onResult(result, lines.minByOrNull { it.top }?.text) {
+                    val bmp = bitmap
+                    if (rotation == 0) bmp.copy(Bitmap.Config.ARGB_8888, false)
+                    else Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, Matrix().apply { postRotate(rotation.toFloat()) }, true)
+                }
             }
-            .addOnFailureListener(executor) { onResult(null, null) }
+            .addOnFailureListener(executor) { onResult(null, null) { proxy.toBitmap() } }
             .addOnCompleteListener(executor) { proxy.close() }
     }
 

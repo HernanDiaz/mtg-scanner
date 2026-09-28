@@ -259,6 +259,26 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         }
     }
 
+    /** Cómo está ahora una entrada (fotos de prueba: la edición corregida es la buena). */
+    data class EntryNow(
+        val cardId: String, val name: String, val setCode: String, val collectorNumber: String,
+        val lang: String, val needsReview: Boolean,
+    )
+
+    fun entriesNow(ids: Collection<Long>): Map<Long, EntryNow> = buildMap {
+        ids.chunked(500).forEach { chunk ->
+            readableDatabase.rawQuery(
+                "SELECT id, card_id, name, set_code, collector_number, lang, needs_review FROM entries " +
+                    "WHERE id IN (${chunk.joinToString(",")})", null
+            ).use { c ->
+                while (c.moveToNext()) {
+                    put(c.getLong(0), EntryNow(c.getString(1), c.getString(2), c.getString(3), c.getString(4),
+                        c.getString(5), c.getInt(6) != 0))
+                }
+            }
+        }
+    }
+
     fun delete(entryId: Long) {
         writableDatabase.delete("entries", "id = ?", arrayOf(entryId.toString()))
         changed()

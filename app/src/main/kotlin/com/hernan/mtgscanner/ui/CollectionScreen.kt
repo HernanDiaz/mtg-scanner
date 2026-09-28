@@ -120,6 +120,7 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
     var showHistory by remember { mutableStateOf(false) }
     var showConditionPricing by remember { mutableStateOf(false) }
     var showAutoBackup by remember { mutableStateOf(false) }
+    var showTestPhotos by remember { mutableStateOf(false) }
     val autoBackup by vm.autoBackup.collectAsStateWithLifecycle()
     val autoBackupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         uri?.let(vm::enableAutoBackup)
@@ -185,6 +186,10 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_cards)) },
                                 onClick = { fileMenu = false; importLauncher.launch(arrayOf("*/*")) },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.test_photos_menu)) },
+                                onClick = { fileMenu = false; showTestPhotos = true },
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.condition_pricing_menu)) },
@@ -425,6 +430,27 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
             onBackupNow = vm::autoBackupNow,
             onDisable = vm::disableAutoBackup,
             onDismiss = { showAutoBackup = false },
+        )
+    }
+    if (showTestPhotos) {
+        val enabled by vm.testPhotosEnabled.collectAsStateWithLifecycle()
+        var info by remember { mutableStateOf(0 to 0L) }
+        var exportingPhotos by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { info = vm.testPhotosInfo() }
+        TestPhotosDialog(
+            enabled = enabled, count = info.first, bytes = info.second, exporting = exportingPhotos,
+            onEnabled = vm::setTestPhotos,
+            onExport = {
+                scope.launch {
+                    exportingPhotos = true
+                    runCatching { vm.exportTestPhotos() }
+                        .onSuccess { context.startActivity(it) }
+                        .onFailure { vm.showMessage(context.getString(R.string.test_photos_export_failed, it.message)) }
+                    exportingPhotos = false
+                }
+            },
+            onClear = { scope.launch { vm.clearTestPhotos(); info = vm.testPhotosInfo() } },
+            onDismiss = { showTestPhotos = false },
         )
     }
     if (showHistory) {

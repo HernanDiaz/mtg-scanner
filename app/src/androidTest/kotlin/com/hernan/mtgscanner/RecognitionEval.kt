@@ -76,8 +76,10 @@ class RecognitionEval {
                 l.boundingBox?.let { OcrLine(l.text, it.left, it.top, it.right, it.bottom) }
             }
             if (guide) {
-                val viewH = bitmap.width * 2200 / 1080
-                lines = GuideRegion.filter(lines, GuideRegion.inImage(bitmap.width, viewH, bitmap.width, bitmap.height))
+                // Las fotos del móvil (TestPhotos) traen el tamaño real de la vista de la cámara.
+                val viewW = r["view_w"]?.toIntOrNull() ?: bitmap.width
+                val viewH = r["view_h"]?.toIntOrNull() ?: (bitmap.width * 2200 / 1080)
+                lines = GuideRegion.filter(lines, GuideRegion.inImage(viewW, viewH, bitmap.width, bitmap.height))
             }
             val art = if (!useArt) null else ArtSampler { x, y ->
                 bitmap.getPixel(x.coerceIn(0, bitmap.width - 1), y.coerceIn(0, bitmap.height - 1)) and 0xFFFFFF

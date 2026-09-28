@@ -253,4 +253,22 @@
     <string name="auto_backup_disable">Turn off</string>
     <string name="auto_backup_restore">To restore it: ⋮ → Import cards or backup → choose the file → Replace.</string>
     <string name="auto_backup_android">Android also saves the app data (collection, decks, wishlist, history) to your Google account and restores it when you reinstall the app or change phones, if Android backup is on.</string>
+    <string name="test_photos">Test photos</string>
+    <string name="test_photos_menu">Test photos…</string>
+    <string name="test_photos_explain">To measure how well the app recognises cards with your phone. While it is on, every scanned card also saves the camera photo it was recognised from. Afterwards, fix any wrong cards in the collection (edition, language, or delete them): what is left in the collection is taken as the right answer for each photo.</string>
+    <string name="test_photos_switch">Save test photos</string>
+    <string name="test_photos_saved">Saved: %1$d photos (%2$s MB)</string>
+    <string name="test_photos_export">Export and share (Drive…)</string>
+    <string name="test_photos_exporting">Preparing the file…</string>
+    <string name="test_photos_share">Share test photos</string>
+    <string name="test_photos_export_failed">Could not export the photos: %1$s</string>
+    <string name="test_photos_clear">Delete photos</string>
+    <string name="test_photos_clear_confirm">Delete the %1$d photos? Export them first if you have not.</string>
+    <string name="test_photos_delete">Delete</string>
+    <string name="test_photos_how">When a card is not recognised, tap “Save photo” on the scanner: it is saved too, to be labelled later. The file includes the photos and a list with the right card for each one.</string>
+    <plurals name="test_photos_count">
+        <item quantity="one">Test · %1$d photo</item>
+        <item quantity="other">Test · %1$d photos</item>
+    </plurals>
+    <string name="test_photos_capture">Save photo</string>
 </resources>

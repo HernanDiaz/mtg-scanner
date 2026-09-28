@@ -7,6 +7,7 @@ import com.hernan.mtgscanner.data.AutoBackup
 import com.hernan.mtgscanner.data.Catalog
 import com.hernan.mtgscanner.data.CollectionStore
 import com.hernan.mtgscanner.data.Settings
+import com.hernan.mtgscanner.data.TestPhotos
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +27,7 @@ class App : Application(), ImageLoaderFactory {
     val collection by lazy { CollectionStore(this) }
     val settings by lazy { Settings(this) }
     val autoBackup by lazy { AutoBackup(this) }
+    val testPhotos by lazy { TestPhotos(java.io.File(noBackupFilesDir, "test_photos")) }
 
     override fun onCreate() {
         super.onCreate()

@@ -250,4 +250,22 @@
     <string name="auto_backup_disable">Desactivar</string>
     <string name="auto_backup_restore">Para restaurarla: ⋮ → Importar cartas o copia → elige el archivo → Sustituir.</string>
     <string name="auto_backup_android">Además, Android guarda los datos de la app (colección, mazos, deseos, historial) en tu cuenta de Google y los recupera al reinstalarla o cambiar de móvil, si la copia de Android está activada.</string>
+    <string name="test_photos">Fotos de prueba</string>
+    <string name="test_photos_menu">Fotos de prueba…</string>
+    <string name="test_photos_explain">Para medir cómo reconoce la app las cartas con tu móvil. Mientras esté activado, cada carta escaneada guarda también la foto de la cámara con la que se reconoció. Después, corrige en la colección las cartas mal reconocidas (edición, idioma, o bórralas): lo que quede en la colección se toma como la respuesta correcta de cada foto.</string>
+    <string name="test_photos_switch">Guardar fotos de prueba</string>
+    <string name="test_photos_saved">Guardadas: %1$d fotos (%2$s MB)</string>
+    <string name="test_photos_export">Exportar y compartir (Drive…)</string>
+    <string name="test_photos_exporting">Preparando el archivo…</string>
+    <string name="test_photos_share">Compartir fotos de prueba</string>
+    <string name="test_photos_export_failed">No se pudieron exportar las fotos: %1$s</string>
+    <string name="test_photos_clear">Borrar fotos</string>
+    <string name="test_photos_clear_confirm">¿Borrar las %1$d fotos? Expórtalas antes si no lo has hecho.</string>
+    <string name="test_photos_delete">Borrar</string>
+    <string name="test_photos_how">Si una carta no se reconoce, pulsa «Guardar foto» en el escáner: se guarda también, para etiquetarla después. El archivo lleva las fotos y una lista con la carta correcta de cada una.</string>
+    <plurals name="test_photos_count">
+        <item quantity="one">Prueba · %1$d foto</item>
+        <item quantity="other">Prueba · %1$d fotos</item>
+    </plurals>
+    <string name="test_photos_capture">Guardar foto</string>
 </resources>

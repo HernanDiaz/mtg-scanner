@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -52,6 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.hernan.mtgscanner.R
 import androidx.compose.ui.text.font.FontWeight
@@ -90,6 +92,7 @@ fun ScannerScreen(vm: ScannerViewModel = viewModel()) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     val analyzer by vm.analyzer.collectAsStateWithLifecycle()
     val currency by vm.settings.currency.collectAsStateWithLifecycle()
+    val testing by vm.settings.testPhotos.collectAsStateWithLifecycle()
     var choosingDeck by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<com.hernan.mtgscanner.data.CardPrinting?>(null) }
 
@@ -126,6 +129,20 @@ fun ScannerScreen(vm: ScannerViewModel = viewModel()) {
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(12.dp)) {
             ui.lastAdded?.let { added -> LastAddedCard(added, currency, onUndo = vm::undo, onOpen = { detail = added.printing }) }
             Spacer(Modifier.size(8.dp))
+            // Modo de prueba: cuántas fotos van y guardar la de una carta que no reconoce.
+            if (testing) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
+                    Text(
+                        pluralStringResource(R.plurals.test_photos_count, ui.testPhotoCount, ui.testPhotoCount),
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.background(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.shapes.small)
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    )
+                    Spacer(Modifier.weight(1f))
+                    FilledTonalButton(onClick = vm::captureFrame) { Text(stringResource(R.string.test_photos_capture)) }
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(selected = ui.foil, onClick = vm::toggleFoil, label = { Text(stringResource(R.string.foil)) })
                 FilterChip(selected = ui.torch, onClick = vm::toggleTorch, label = { Text(stringResource(R.string.torch)) })

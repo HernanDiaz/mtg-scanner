@@ -35,6 +35,15 @@ class Settings(context: Context) {
         _priceKind.value = k
     }
 
+    /** Modo de prueba: guardar el fotograma de cada carta escaneada ([TestPhotos]). */
+    private val _testPhotos = MutableStateFlow(prefs.getBoolean("test_photos", false))
+    val testPhotos: StateFlow<Boolean> = _testPhotos
+
+    fun setTestPhotos(on: Boolean) {
+        prefs.edit().putBoolean("test_photos", on).apply()
+        _testPhotos.value = on
+    }
+
     /** Valorar cada carta según su estado ([conditionFactors]). */
     private val _conditionPricing = MutableStateFlow(prefs.getBoolean("condition_pricing", false))
     val conditionPricing: StateFlow<Boolean> = _conditionPricing
