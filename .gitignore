@@ -16,3 +16,7 @@ __pycache__/
 /capturas/
 # Configuración de red solo para depurar en este ordenador (certificado del antivirus)
 /app/src/debug/
+
+# Fotos de prueba exportadas del móvil (cartas del usuario)
+/fotos de prueba/
+/fotos_movil/

@@ -1,5 +1,6 @@
 package com.hernan.mtgscanner.ui
 
+import kotlinx.coroutines.delay
 import android.Manifest
 import android.content.pm.PackageManager
 import android.util.Size
@@ -279,6 +280,22 @@ private fun CameraPreview(analyzer: TextAnalyzer, executor: Executor, torch: Boo
     }
 
     LaunchedEffect(camera, torch) { camera?.cameraControl?.enableTorch(torch) }
+    // Sin zoom, para llenar el marco guía la carta queda a ~8 cm: más cerca de lo que
+    // enfoca la mayoría de móviles, y la línea de edición y número sale borrosa. Con
+    // zoom se sostiene a ~15 cm, enfocada, y sin perder detalle (el sensor tiene mucha
+    // más resolución que la imagen que se analiza). No más de ~2x: algunos móviles
+    // pasan ahí al teleobjetivo, que no enfoca de cerca.
+    LaunchedEffect(camera) {
+        val cam = camera ?: return@LaunchedEffect
+        // El rango de zoom llega cuando la cámara termina de abrirse.
+        var range = cam.cameraInfo.zoomState.value
+        repeat(50) { if (range == null) { delay(100); range = cam.cameraInfo.zoomState.value } }
+        val r = range ?: return@LaunchedEffect
+        cam.cameraControl.setZoomRatio(SCAN_ZOOM.coerceIn(r.minZoomRatio, r.maxZoomRatio))
+    }
 
     AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
 }
+
+/** Zoom de la cámara al escanear (ver CameraPreview). */
+private const val SCAN_ZOOM = 1.7f
