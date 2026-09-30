@@ -268,4 +268,15 @@
         <item quantity="other">Prueba · %1$d fotos</item>
     </plurals>
     <string name="test_photos_capture">Guardar foto</string>
+    <string name="selected_count">%1$d seleccionadas · %2$s</string>
+    <string name="select_all">Todas</string>
+    <string name="move">Mover</string>
+    <string name="delete">Eliminar</string>
+    <string name="delete_all_menu">Eliminar todas…</string>
+    <string name="delete_question">¿Eliminar %1$s?</string>
+    <string name="delete_explain">Se quitan todas las copias de las filas elegidas de %1$s. Se puede deshacer justo después.</string>
+    <string name="deleted_cards">Eliminadas: %1$s</string>
+    <string name="restored_cards">Recuperadas: %1$s</string>
+    <string name="move_many_title">Mover %1$s</string>
+    <string name="select_several">Seleccionar varias</string>
 </resources>

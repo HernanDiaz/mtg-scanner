@@ -1,5 +1,9 @@
 package com.hernan.mtgscanner.ui
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material3.Checkbox
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -14,6 +18,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -121,6 +127,10 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
     var showConditionPricing by remember { mutableStateOf(false) }
     var showAutoBackup by remember { mutableStateOf(false) }
     var showTestPhotos by remember { mutableStateOf(false) }
+    /** Filas seleccionadas (por su clave); vacío = sin modo selección. */
+    var selected by remember { mutableStateOf(emptySet<String>()) }
+    var confirmDelete by remember { mutableStateOf<List<CollectionStore.Group>?>(null) }
+    var movingMany by remember { mutableStateOf<List<CollectionStore.Group>?>(null) }
     val autoBackup by vm.autoBackup.collectAsStateWithLifecycle()
     val autoBackupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         uri?.let(vm::enableAutoBackup)
@@ -149,7 +159,28 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
         if (next == null) reviewing = false
     }
 
+    val selectedGroups = ui.groups.filter { it.sheetKey() in selected }
+    BackHandler(enabled = selected.isNotEmpty()) { selected = emptySet() }
+
     Column(Modifier.fillMaxSize()) {
+        if (selected.isNotEmpty()) {
+            Surface(color = MaterialTheme.colorScheme.primaryContainer) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { selected = emptySet() }) { Icon(Icons.Default.Close, stringResource(R.string.cancel)) }
+                    Text(
+                        stringResource(R.string.selected_count, selectedGroups.size, cardsLabel(selectedGroups.sumOf { it.quantity })),
+                        Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
+                    TextButton(onClick = { selected = ui.groups.map { it.sheetKey() }.toSet() }) { Text(stringResource(R.string.select_all)) }
+                    TextButton(onClick = { movingMany = selectedGroups }, enabled = selectedGroups.isNotEmpty()) {
+                        Text(stringResource(R.string.move))
+                    }
+                    IconButton(onClick = { confirmDelete = selectedGroups }, enabled = selectedGroups.isNotEmpty()) {
+                        Icon(Icons.Default.Delete, stringResource(R.string.delete))
+                    }
+                }
+            }
+        }
         Surface(tonalElevation = 2.dp) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -190,6 +221,11 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.test_photos_menu)) },
                                 onClick = { fileMenu = false; showTestPhotos = true },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.delete_all_menu)) },
+                                enabled = ui.groups.isNotEmpty(),
+                                onClick = { fileMenu = false; confirmDelete = ui.groups },
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.condition_pricing_menu)) },
@@ -308,8 +344,11 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                     }
                 }
                 ui.message?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall)
-                    LaunchedEffect(it) { delay(4000); vm.clearMessage() }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(it, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                        if (ui.canUndoDelete) TextButton(onClick = vm::undoDelete) { Text(stringResource(R.string.undo)) }
+                    }
+                    LaunchedEffect(it) { delay(if (ui.canUndoDelete) 8000 else 4000); vm.clearMessage() }
                 }
             }
         }
@@ -329,9 +368,13 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
         }
         LazyColumn(Modifier.fillMaxSize()) {
             items(ui.groups, key = { "${it.cardId}-${it.foil}-${it.condition}-${it.lang}-${it.needsReview}-${it.deckId}" }) { g ->
+                val key = g.sheetKey()
                 GroupRow(
                     g, ui.currency,
                     deckName = if (ui.filter.deckId == null) ui.decks.firstOrNull { it.id == g.deckId }?.name else null,
+                    selecting = selected.isNotEmpty(),
+                    isSelected = key in selected,
+                    onSelect = { selected = if (key in selected) selected - key else selected + key },
                     onClick = { viewing = g },
                     onEdit = { reviewing = false; editing = g },
                     onMove = { moving = g },
@@ -430,6 +473,26 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
             onBackupNow = vm::autoBackupNow,
             onDisable = vm::disableAutoBackup,
             onDismiss = { showAutoBackup = false },
+        )
+    }
+    confirmDelete?.let { targets ->
+        AlertDialog(
+            onDismissRequest = { confirmDelete = null },
+            title = { Text(stringResource(R.string.delete_question, cardsLabel(targets.sumOf { it.quantity }))) },
+            text = { Text(stringResource(R.string.delete_explain, scopeLabel)) },
+            confirmButton = {
+                TextButton(onClick = { vm.deleteGroups(targets); confirmDelete = null; selected = emptySet() }) {
+                    Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    movingMany?.let { targets ->
+        MoveManyDialog(
+            count = targets.sumOf { it.quantity }, decks = ui.decks, anyInDeck = targets.any { it.deckId != null },
+            onMove = { deckId, newName -> vm.moveGroups(targets, deckId, newName); movingMany = null; selected = emptySet() },
+            onDismiss = { movingMany = null },
         )
     }
     if (showTestPhotos) {
@@ -618,14 +681,20 @@ private fun ExportDialog(scope: String, cards: Int, onPick: (CollectionExport.Fo
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun GroupRow(
     g: CollectionStore.Group, currency: Currency, deckName: String?,
+    selecting: Boolean, isSelected: Boolean, onSelect: () -> Unit,
     onClick: () -> Unit, onEdit: () -> Unit, onMove: () -> Unit, onRemove: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
+    // Pulsación larga: selecciona. Seleccionando, tocar marca o desmarca.
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = 12.dp, top = 8.dp, bottom = 8.dp),
+        Modifier.fillMaxWidth()
+            .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+            .combinedClickable(onClick = if (selecting) onSelect else onClick, onLongClick = onSelect)
+            .padding(start = 12.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         CardThumb(g.smallImageUrl, 44.dp)
@@ -649,15 +718,60 @@ private fun GroupRow(
             Text("x${g.quantity}", style = MaterialTheme.typography.bodySmall)
             Text(formatPrice(g.unitPrice?.times(g.quantity), currency), fontWeight = FontWeight.Bold)
         }
-        Box {
+        if (selecting) {
+            Checkbox(checked = isSelected, onCheckedChange = { onSelect() })
+        } else Box {
             IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, stringResource(R.string.more_options)) }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(text = { Text(stringResource(R.string.select_several)) }, onClick = { menu = false; onSelect() })
                 DropdownMenuItem(text = { Text(stringResource(R.string.move_to_deck)) }, onClick = { menu = false; onMove() })
                 DropdownMenuItem(text = { Text(stringResource(R.string.change_edition)) }, onClick = { menu = false; onEdit() })
                 DropdownMenuItem(text = { Text(stringResource(R.string.remove_one)) }, onClick = { menu = false; onRemove() })
             }
         }
     }
+}
+
+/** Mover varias filas enteras a un mazo (o sacarlas del suyo). [onMove]: mazo, o nombre de uno nuevo. */
+@Composable
+private fun MoveManyDialog(
+    count: Int,
+    decks: List<CollectionStore.Deck>,
+    anyInDeck: Boolean,
+    onMove: (deckId: Long?, newName: String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var newName by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.move_many_title, cardsLabel(count))) },
+        text = {
+            Column {
+                LazyColumn(Modifier.heightIn(max = 300.dp)) {
+                    if (anyInDeck) {
+                        item {
+                            Text(stringResource(R.string.take_out_of_deck), Modifier.fillMaxWidth().clickable { onMove(null, null) }
+                                .padding(vertical = 12.dp))
+                            HorizontalDivider()
+                        }
+                    }
+                    items(decks, key = { it.id }) { d ->
+                        Text(stringResource(R.string.deck_with_count, d.name, d.cards), Modifier.fillMaxWidth().clickable { onMove(d.id, null) }
+                            .padding(vertical = 12.dp))
+                        HorizontalDivider()
+                    }
+                }
+                OutlinedTextField(
+                    value = newName, onValueChange = { newName = it }, singleLine = true,
+                    label = { Text(stringResource(R.string.or_to_new_deck)) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onMove(null, newName) }, enabled = newName.isNotBlank()) { Text(stringResource(R.string.create_and_move)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
 }
 
 /** Mover copias de una fila a un mazo (o sacarlas de su mazo). */
@@ -731,6 +845,7 @@ private fun DeckNameDialog(title: String, initial: String, onConfirm: (String) -
  * con un botón para darla por buena; debajo, un buscador y la lista, ordenada por
  * parecido con la ilustración fotografiada si se conoce.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PrintingPicker(
     title: String,
@@ -789,8 +904,9 @@ private fun PrintingPicker(
                     }
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.language), style = MaterialTheme.typography.bodySmall)
+                // Seis idiomas no caben en una fila: pasan a la siguiente.
+                Text(stringResource(R.string.language), style = MaterialTheme.typography.bodySmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LANGUAGES.forEach { (code, label) ->
                         FilterChip(selected = lang == code, onClick = { onLangChange(code) }, label = { Text(stringResource(label)) })
                     }

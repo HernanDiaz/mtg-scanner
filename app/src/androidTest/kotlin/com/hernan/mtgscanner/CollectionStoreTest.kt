@@ -50,6 +50,38 @@ class CollectionStoreTest {
         assertEquals(0, store.summary(Currency.EUR).pendingReview)
     }
 
+    /** Borrar varias filas de golpe, deshacerlo (con la foto intacta) y moverlas a un mazo. */
+    @Test fun deleteRestoreAndMoveSeveralRows() {
+        val swamp = catalog.printingsOf("Swamp").first()
+        val bolt = catalog.printingsOf("Lightning Bolt").first()
+        val art = ByteArray(288) { it.toByte() }
+        store.add(swamp, false, "NM", needsReview = false)
+        store.add(swamp, false, "NM", needsReview = false, art = art) // la fila muestra la foto del último escaneo
+        store.add(bolt, true, "EX", needsReview = true, lang = "es")
+        val shock = catalog.printingsOf("Shock").first()
+        store.add(shock, false, "NM", needsReview = false)
+        val before = store.groups(Currency.EUR)
+        assertEquals(3, before.size)
+
+        val targets = before.filter { it.name != "Shock" }
+        val deleted = store.deleteGroups(targets)
+        assertEquals(3, deleted.size) // dos pantanos y un rayo
+        assertEquals(listOf("Shock"), store.groups(Currency.EUR).map { it.name })
+
+        store.restore(deleted)
+        val after = store.groups(Currency.EUR)
+        assertEquals(before.map { it.sheetKeyForTest() }.sorted(), after.map { it.sheetKeyForTest() }.sorted())
+        assertArrayEquals(art, after.single { it.name == "Swamp" }.art)
+
+        val deck = store.createDeck("Pruebas")
+        store.moveGroupsToDeck(after.filter { it.name != "Shock" }, deck)
+        assertEquals(3, store.groups(Currency.EUR, CollectionFilter(deckId = deck)).sumOf { it.quantity })
+        store.moveGroupsToDeck(store.groups(Currency.EUR, CollectionFilter(deckId = deck)), null)
+        assertTrue(store.groups(Currency.EUR).all { it.deckId == null })
+    }
+
+    private fun CollectionStore.Group.sheetKeyForTest() = "$cardId|$quantity|$foil|$condition|$lang|$needsReview|$deckId"
+
     @Test fun newPendingCopyDoesNotUnconfirmReviewedOnes() {
         val swamp = catalog.printingsOf("Swamp").first()
         store.add(swamp, false, "NM", needsReview = true)

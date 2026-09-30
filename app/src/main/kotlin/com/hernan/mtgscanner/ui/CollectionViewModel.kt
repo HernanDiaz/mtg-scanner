@@ -2,6 +2,7 @@ package com.hernan.mtgscanner.ui
 
 import android.app.Application
 import android.content.res.Resources
+import android.content.ContentValues
 import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -54,6 +55,8 @@ data class CollectionUi(
     /** Con un mazo abierto: formato -> cartas que impiden jugarlo en él (0 = legal). */
     val deckFormats: Map<String, Int> = emptyMap(),
     val message: String? = null,
+    /** El mensaje es de un borrado que se puede deshacer. */
+    val canUndoDelete: Boolean = false,
 ) {
     /** "Toda la colección", "Mazo Goblins · Rojo"... para títulos y exportaciones. */
     fun scopeLabel(res: Resources): String {
@@ -238,6 +241,37 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
         if (k == settings.priceKind.value) return
         settings.setPriceKind(k)
         if (k != PriceKind.TREND && _ui.value.summary.cards + _ui.value.pendingTotal > 0) updatePrices()
+    }
+
+    /** Lo último borrado de golpe, para "Deshacer" mientras se ve el mensaje. */
+    private var lastDeleted: List<ContentValues>? = null
+
+    /** Borra todas las copias de estas filas (varias seleccionadas o todo lo que se ve). */
+    fun deleteGroups(groups: List<CollectionStore.Group>) {
+        if (groups.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val rows = store.deleteGroups(groups)
+            lastDeleted = rows
+            _ui.update { it.copy(message = app.getString(R.string.deleted_cards, app.cardsLabel(rows.size)), canUndoDelete = true) }
+        }
+    }
+
+    fun undoDelete() {
+        val rows = lastDeleted ?: return
+        lastDeleted = null
+        _ui.update { it.copy(canUndoDelete = false) }
+        viewModelScope.launch(Dispatchers.IO) {
+            store.restore(rows)
+            _ui.update { it.copy(message = app.getString(R.string.restored_cards, app.cardsLabel(rows.size))) }
+        }
+    }
+
+    /** Mueve todas las copias de estas filas a un mazo; con [newDeckName], a uno nuevo. */
+    fun moveGroups(groups: List<CollectionStore.Group>, deckId: Long?, newDeckName: String? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val target = newDeckName?.takeIf { it.isNotBlank() }?.let { store.createDeck(it.trim()) } ?: deckId
+            store.moveGroupsToDeck(groups, target)
+        }
     }
 
     fun removeOne(group: CollectionStore.Group) {
@@ -485,7 +519,10 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     suspend fun searchNames(query: String): List<String> =
         withContext(Dispatchers.Default) { app.catalog.await().names.search(query) }
 
-    fun clearMessage() = _ui.update { it.copy(message = null) }
+    fun clearMessage() {
+        lastDeleted = null
+        _ui.update { it.copy(message = null, canUndoDelete = false) }
+    }
 
     fun showMessage(text: String) = _ui.update { it.copy(message = text) }
 

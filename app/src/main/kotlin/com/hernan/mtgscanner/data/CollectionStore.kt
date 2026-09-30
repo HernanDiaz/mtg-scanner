@@ -2,6 +2,7 @@ package com.hernan.mtgscanner.data
 
 import android.content.ContentValues
 import android.content.Context
+import android.database.DatabaseUtils
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -276,6 +277,56 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
                         c.getString(5), c.getInt(6) != 0))
                 }
             }
+        }
+    }
+
+    /**
+     * Borra todas las copias de estas filas. Devuelve lo borrado, tal cual, para
+     * poder deshacerlo con [restore].
+     */
+    fun deleteGroups(groups: Collection<Group>): List<ContentValues> {
+        val db = writableDatabase
+        val deleted = ArrayList<ContentValues>()
+        db.beginTransaction()
+        try {
+            for (g in groups) {
+                db.query("entries", null, GROUP_WHERE, g.whereArgs(), null, null, null).use { c ->
+                    while (c.moveToNext()) deleted.add(ContentValues().also { DatabaseUtils.cursorRowToContentValues(c, it) })
+                }
+                db.delete("entries", GROUP_WHERE, g.whereArgs())
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+            changed()
+        }
+        return deleted
+    }
+
+    /** Vuelve a poner lo que borró [deleteGroups] (con los mismos ids: las fotos de prueba siguen enlazadas). */
+    fun restore(rows: List<ContentValues>) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            rows.forEach { db.insertWithOnConflict("entries", null, it, SQLiteDatabase.CONFLICT_IGNORE) }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+            changed()
+        }
+    }
+
+    /** Mueve todas las copias de estas filas a un mazo (o las saca del suyo). */
+    fun moveGroupsToDeck(groups: Collection<Group>, deckId: Long?) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val values = ContentValues().apply { if (deckId == null) putNull("deck_id") else put("deck_id", deckId) }
+            groups.forEach { db.update("entries", values, GROUP_WHERE, it.whereArgs()) }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+            changed()
         }
     }
 

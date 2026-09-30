@@ -271,4 +271,15 @@
         <item quantity="other">Test · %1$d photos</item>
     </plurals>
     <string name="test_photos_capture">Save photo</string>
+    <string name="selected_count">%1$d selected · %2$s</string>
+    <string name="select_all">All</string>
+    <string name="move">Move</string>
+    <string name="delete">Delete</string>
+    <string name="delete_all_menu">Delete all…</string>
+    <string name="delete_question">Delete %1$s?</string>
+    <string name="delete_explain">All copies of the selected rows are removed from %1$s. You can undo it right after.</string>
+    <string name="deleted_cards">Deleted: %1$s</string>
+    <string name="restored_cards">Restored: %1$s</string>
+    <string name="move_many_title">Move %1$s</string>
+    <string name="select_several">Select several</string>
 </resources>
