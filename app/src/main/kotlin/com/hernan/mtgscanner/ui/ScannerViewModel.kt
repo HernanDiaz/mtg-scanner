@@ -2,6 +2,7 @@ package com.hernan.mtgscanner.ui
 
 import android.app.Application
 import android.graphics.Bitmap
+import androidx.annotation.VisibleForTesting
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.os.SystemClock
@@ -70,6 +71,14 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     private val tone = runCatching { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 70) }.getOrNull()
     private val vibrator = application.getSystemService(Vibrator::class.java)
 
+    // Fotos de prueba. Antes de init: sus corrutinas pueden usarlas antes de que
+    // termine el constructor (y una propiedad declarada después aún sería null).
+    private val testPhotos = app.testPhotos
+    /** Último fotograma en que se leyó cada nombre (solo con el modo de prueba). */
+    private val recentFrames = LinkedHashMap<String, Bitmap>()
+    @Volatile private var captureNext = false
+    private var photoSeq = 0
+
     init {
         viewModelScope.launch {
             val catalog = app.catalog.await()
@@ -105,12 +114,6 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
 
     // ------------------------------------------------------------------ fotos de prueba
 
-    private val testPhotos = app.testPhotos
-    /** Último fotograma en que se leyó cada nombre (solo con el modo de prueba). */
-    private val recentFrames = LinkedHashMap<String, Bitmap>()
-    @Volatile private var captureNext = false
-    private var photoSeq = 0
-
     /** Guarda el próximo fotograma aunque no se reconozca la carta. */
     fun captureFrame() { captureNext = true }
 
@@ -124,8 +127,9 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         _ui.update { it.copy(testPhotoCount = it.testPhotoCount + 1) }
     }
 
-    /** Llamado desde [analysisExecutor] con cada fotograma procesado. */
-    private fun onFrame(result: FrameResult?, rawTopLine: String?, frame: () -> Bitmap) {
+    /** Llamado desde [analysisExecutor] con cada fotograma procesado (y desde las pruebas, sin cámara). */
+    @VisibleForTesting
+    internal fun onFrame(result: FrameResult?, rawTopLine: String?, frame: () -> Bitmap) {
         val reading = result?.let { "${it.name} · ${it.printing.setCode.uppercase()} ${it.printing.collectorNumber}" }
             ?: rawTopLine
         if (reading != _ui.value.reading) _ui.update { it.copy(reading = reading) }
