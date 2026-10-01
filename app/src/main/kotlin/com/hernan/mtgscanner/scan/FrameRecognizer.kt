@@ -310,6 +310,9 @@ class FrameRecognizer(
             // "Devastarion" se parece tanto a "Devastation" como a "Devastación": "Sorcery" decide.
             if (typeLang == "en") return "en"
             val langs = nameLanguages(match.key) ?: return typeLang ?: "es"
+            // Nombre leído con errores: "Montafña" está tan cerca de "Montagna" (italiano) como
+            // de "Montaña"; si la línea de tipo dice "Tierra básica", es español.
+            if (match.distance > 0 && typeLang != null && typeLang !in langs) return typeLang
             return typeLang?.takeIf { it in langs } ?: langs.first()
         }
         return typeLang ?: "en"
@@ -352,9 +355,16 @@ class FrameRecognizer(
         val limit = minOf(NAME_SEARCH_LINES, sorted.size)
         for (i in 0 until limit) {
             if (isTypeLine(sorted[i], TYPE_WORDS) && names.match(sorted[i].text)?.distance != 0) return i
+            // Si no se leyó la línea de tipo, el texto de reglas tampoco es el nombre:
+            // "Retira del juego..." no es "Retirar" (Withdraw), ni "Flying" es "Fling".
+            if (i > 0 && isRulesLine(sorted[i])) return i
         }
         return limit
     }
+
+    /** Una frase ("... objetivo.") o una habilidad sola ("Flying", "Vuela"): texto de reglas. */
+    private fun isRulesLine(line: OcrLine): Boolean =
+        line.text.trimEnd().endsWith('.') || NameMatcher.normalize(line.text) in KEYWORD_LINES
 
     private fun isTypeLine(line: OcrLine, words: List<String>, fuzzy: Boolean = true): Boolean {
         val first = NameMatcher.normalize(line.words.firstOrNull() ?: return false)
@@ -441,6 +451,7 @@ class FrameRecognizer(
             "es" to listOf(
                 "criatura", "instantaneo", "conjuro", "artefacto", "encantamiento", "tierra",
                 "legendaria", "legendario", "batalla", "basica", "invocar", "encantar", "interrupcion",
+                "hechizo", // antiguas: "Hechizo instantáneo"
             ),
             "fr" to listOf(
                 "creature", "ephemere", "rituel", "artefact", "enchantement", "terrain", "legendaire",
@@ -464,6 +475,22 @@ class FrameRecognizer(
         /** Todas las palabras de tipo con su idioma (las compartidas, una vez por idioma). */
         private val TYPE_WORD_LANGUAGES: List<Pair<String, String>> =
             ENGLISH_TYPE_WORDS.map { it to "en" } + FOREIGN_TYPE_WORDS.flatMap { (lang, words) -> words.map { it to lang } }
+
+        /** Habilidades que ocupan una línea sola, normalizadas, en los seis idiomas. */
+        private val KEYWORD_LINES = setOf(
+            "flying", "trample", "firststrike", "doublestrike", "vigilance", "haste", "reach", "deathtouch",
+            "lifelink", "defender", "menace", "hexproof", "indestructible", "banding", "fear", "shroud", "intimidate",
+            "vuela", "arrolla", "danaprimero", "dananprimero", "dobleataque", "vigilancia", "prisa", "alcance",
+            "toquemortal", "vinculovital", "defensor", "amenaza", "antimaleficio", "indestructible", "miedo",
+            "vol", "pietinement", "initiative", "doubleinitiative", "celerite", "portee", "contactmortel",
+            "lienvital", "defenseur", "menace",
+            "fliegend", "trampelschaden", "erstschlag", "doppelschlag", "wachsamkeit", "eile", "reichweite",
+            "todesberuhrung", "lebensverknupfung", "verteidiger", "bedrohlich", "fluchsicher", "unzerstorbar",
+            "volare", "travolgere", "attaccoprimo", "doppioattacco", "cautela", "rapidita", "raggiungere",
+            "toccoletale", "legamevitale", "difensore", "minacciare", "antimalocchio", "indistruttibile",
+            "voar", "atropelar", "iniciativa", "golpeduplo", "impeto", "toquemortifero", "vinculoavida",
+            "ameaca", "resistenciaamagia", "indestrutivel",
+        )
 
         /** Letras mínimas de una palabra de tipo para admitir errores de lectura. */
         private const val FUZZY_TYPE_WORD_MIN = 10

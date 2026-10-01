@@ -280,6 +280,41 @@ class FrameRecognizerTest {
         assertEquals("en", recognizer.recognize(listOf(line("Shock", 50), line("Enchantmemt", 500)))!!.lang)
     }
 
+    // ---- Errores vistos en fotos reales del móvil
+
+    /** Sin leer el nombre ni el tipo antiguo, "Retira del juego..." no es "Retirar" (Withdraw en portugués). */
+    @Test fun rulesSentenceIsNotAName() {
+        val r = FrameRecognizer(
+            NameMatcher(listOf("shock" to "Shock", "retirar" to "Withdraw")), SETS, printingsOf = { PRINTINGS[it].orEmpty() },
+            nameLanguages = { if (it == "retirar") listOf("pt") else null },
+        )
+        assertNull(r.recognize(listOf(
+            line("Cbpdho cn yuadhuno", 50), line("Heclizo instunuteo", 480), line("Retira del juego la criatura objetivo.", 520),
+        )))
+        assertNull(r.recognize(listOf(line("Hechizo instantáneo", 480), line("Retira del juego la criatura objetivo.", 520))))
+    }
+
+    /** "Montafña" se parece a "Montagna" (italiano), pero la línea de tipo es española. */
+    @Test fun misreadForeignNameTakesTheTypeLineLanguage() {
+        val r = FrameRecognizer(
+            NameMatcher(listOf("mountain" to "Mountain", "montana" to "Mountain", "montagna" to "Mountain")), SETS,
+            printingsOf = { PRINTINGS["Shock"].orEmpty() },
+            nameLanguages = { mapOf("montana" to listOf("es"), "montagna" to listOf("it"))[it] },
+        )
+        assertEquals("es", r.recognize(listOf(line("Montafña", 50), line("Tierra básica - Montaña", 500)))!!.lang)
+        assertEquals("it", r.recognize(listOf(line("Montagna", 50), line("Terra Base - Montagna", 500)))!!.lang)
+    }
+
+    /** Una habilidad sola en su línea ("Flying") no es un nombre ("Fling"). */
+    @Test fun keywordLineIsNotAName() {
+        val r = FrameRecognizer(NameMatcher(listOf("fling" to "Fling", "shock" to "Shock")), SETS, printingsOf = { PRINTINGS["Shock"].orEmpty() })
+        assertNull(r.recognize(listOf(line("Berrs Agel", 50), line("3*", 60), line("Flying", 520))))
+    }
+
+    /** A igual distancia gana el nombre de la misma longitud: el OCR cambia letras ("Ierror" -> "Terror"). */
+    @Test fun ocrSubstitutionPreferredOnTies() =
+        assertEquals(listOf("Terror"), NameMatcher(listOf("error" to "Trial // Error", "terror" to "Terror")).match("Ierror")!!.names)
+
     /** "Criatura" es español o portugués, nunca inglés: con un nombre igual en todos los idiomas, español. */
     @Test fun sharedForeignTypeWordPrefersSpanish() =
         assertEquals("es", recognizer.recognize(listOf(line("Shock", 50), line("Criatura legendaria - Humano", 500)))!!.lang)
@@ -528,6 +563,19 @@ class ArtSignatureTest {
         val other = com.hernan.mtgscanner.scan.ArtSignature.compute(0f, 0f, 200f, 150f) { x, y -> smooth(y * 2 + 50, x / 2) }
         assertTrue("oscurecida ${a.similarity(darker)}", a.similarity(darker) > 0.9)
         assertTrue("otra ${a.similarity(other)}", a.similarity(darker) - a.similarity(other) > 0.15)
+    }
+
+    /** Luz cálida y reflejo de funda (más rojo, menos azul, menos contraste): sigue siendo la misma ilustración. */
+    @Test fun toleratesColorCastAndGlare() {
+        val a = com.hernan.mtgscanner.scan.ArtSignature.compute(0f, 0f, 200f, 150f, ::smooth)
+        val warm = com.hernan.mtgscanner.scan.ArtSignature.compute(0f, 0f, 200f, 150f) { x, y ->
+            val c = smooth(x, y)
+            fun ch(v: Int, gain: Double, add: Int) = (v * gain + add).toInt().coerceIn(0, 255)
+            (ch((c shr 16) and 0xFF, 0.6, 110) shl 16) or (ch((c shr 8) and 0xFF, 0.6, 80) shl 8) or ch(c and 0xFF, 0.5, 40)
+        }
+        val other = com.hernan.mtgscanner.scan.ArtSignature.compute(0f, 0f, 200f, 150f) { x, y -> smooth(y * 2 + 50, x / 2) }
+        assertTrue("con tinte ${a.similarity(warm)}", a.similarity(warm) > 0.9)
+        assertTrue("otra ${other.similarity(warm)}", a.similarity(warm) - other.similarity(warm) > 0.15)
     }
 }
 

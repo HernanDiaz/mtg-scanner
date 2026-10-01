@@ -75,7 +75,11 @@ class NameMatcher(entries: List<Pair<String, String>>) {
         return Match(exact.getValue(first.first), first.second, q.length, first.first)
     }
 
-    /** Los [keep] nombres normalizados más cercanos con distancia <= [maxDist]. */
+    /**
+     * Los [keep] nombres normalizados más cercanos con distancia <= [maxDist]. A igual
+     * distancia, el de longitud más parecida: el OCR suele cambiar una letra por otra
+     * ("Ierror" es "Terror", no "Error").
+     */
     private fun nearest(q: String, maxDist: Int, keep: Int = 1): List<Pair<String, Int>> {
         val best = ArrayList<Pair<String, Int>>(keep + 1)
         var limit = maxDist
@@ -86,7 +90,7 @@ class NameMatcher(entries: List<Pair<String, String>>) {
                 val d = boundedLevenshtein(q, cand, limit)
                 if (d > limit) continue
                 best.add(cand to d)
-                best.sortBy { it.second }
+                best.sortWith(compareBy({ it.second }, { kotlin.math.abs(it.first.length - q.length) }))
                 if (best.size > keep) best.removeAt(best.size - 1)
                 if (best.size == keep) limit = best.last().second
             }

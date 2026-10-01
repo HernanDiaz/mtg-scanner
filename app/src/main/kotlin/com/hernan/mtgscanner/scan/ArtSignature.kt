@@ -10,6 +10,12 @@ import kotlin.math.sqrt
  * Se compara por correlación normalizada, probando desplazamientos de ±1 celda
  * para tolerar que el recorte de la foto no coincida exactamente. Medido con fotos
  * simuladas: acierta la ilustración el 84 % de las veces (un pHash, el 64 %).
+ *
+ * La correlación no se hace sobre R, G y B sino sobre luminancia y dos ejes de color
+ * (rojo-verde, azul-amarillo), cada uno normalizado por separado: así no influye el
+ * tinte de la luz ni el reflejo de una funda, que confundían ilustraciones parecidas
+ * en fotos reales (Hymn to Tourach, Snow-Covered Swamp). Con fotos del móvil y los
+ * conjuntos simulados: ninguna decisión segura errónea (antes 3) y 17 aciertos más.
  */
 class ArtSignature(private val values: FloatArray) {
 
@@ -20,30 +26,51 @@ class ArtSignature(private val values: FloatArray) {
         ((hi shl 4) or lo).toByte()
     }
 
-    /** Correlación máxima entre −1 y 1 (1 = idénticas salvo brillo y contraste). */
+    /** Luminancia, rojo-verde y azul-amarillo, cada plano con media 0 y desviación 1. */
+    private val features: FloatArray by lazy {
+        val f = FloatArray(values.size)
+        for (i in 0 until W * H) {
+            val r = values[3 * i]; val g = values[3 * i + 1]; val b = values[3 * i + 2]
+            f[3 * i] = 0.299f * r + 0.587f * g + 0.114f * b
+            f[3 * i + 1] = r - g
+            f[3 * i + 2] = b - (r + g) / 2
+        }
+        for (c in 0 until 3) {
+            var mean = 0.0
+            for (i in 0 until W * H) mean += f[3 * i + c]
+            mean /= W * H
+            var variance = 0.0
+            for (i in 0 until W * H) { val d = f[3 * i + c] - mean; variance += d * d }
+            val sd = sqrt(variance / (W * H)) + 1e-6
+            for (i in 0 until W * H) f[3 * i + c] = ((f[3 * i + c] - mean) / sd).toFloat()
+        }
+        f
+    }
+
+    /** Correlación máxima entre −1 y 1 (1 = idénticas salvo brillo, contraste y tinte). */
     fun similarity(other: ArtSignature): Double {
         var best = -1.0
         for (dy in -SHIFT..SHIFT) for (dx in -SHIFT..SHIFT) {
-            best = maxOf(best, correlation(other, dx, dy))
+            best = maxOf(best, correlation(features, other.features, dx, dy))
         }
         return best
     }
 
-    /** Correlación de la zona común cuando esta se desplaza (dx, dy) celdas respecto a [other]. */
-    private fun correlation(other: ArtSignature, dx: Int, dy: Int): Double {
+    /** Correlación de la zona común cuando [a] se desplaza (dx, dy) celdas respecto a [b]. */
+    private fun correlation(a: FloatArray, b: FloatArray, dx: Int, dy: Int): Double {
         val x0 = maxOf(0, dx); val x1 = W + minOf(0, dx)
         val y0 = maxOf(0, dy); val y1 = H + minOf(0, dy)
         var n = 0
         var sa = 0.0; var sb = 0.0
         for (y in y0 until y1) for (x in x0 until x1) for (c in 0 until 3) {
-            sa += values[idx(x, y, c)]; sb += other.values[idx(x - dx, y - dy, c)]; n++
+            sa += a[idx(x, y, c)]; sb += b[idx(x - dx, y - dy, c)]; n++
         }
         val ma = sa / n; val mb = sb / n
         var cov = 0.0; var va = 0.0; var vb = 0.0
         for (y in y0 until y1) for (x in x0 until x1) for (c in 0 until 3) {
-            val a = values[idx(x, y, c)] - ma
-            val b = other.values[idx(x - dx, y - dy, c)] - mb
-            cov += a * b; va += a * a; vb += b * b
+            val da = a[idx(x, y, c)] - ma
+            val db = b[idx(x - dx, y - dy, c)] - mb
+            cov += da * db; va += da * da; vb += db * db
         }
         return if (va == 0.0 || vb == 0.0) 0.0 else cov / sqrt(va * vb)
     }
