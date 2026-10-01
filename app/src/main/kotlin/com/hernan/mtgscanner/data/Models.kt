@@ -31,6 +31,8 @@ data class CardPrinting(
     val cardmarketId: Int? = null,
     /** Legalidad por formato (ver [Legality]); es de la carta, igual en todas sus impresiones. */
     val legality: Int = 0,
+    /** Color del borde: 'b' negro, 'w' blanco, 'n' sin borde, 's' plateado, 'g' dorado, 'y' amarillo. */
+    val border: Char = 'b',
 ) {
     val releaseYear: Int? get() = releasedAt?.take(4)?.toIntOrNull()
 

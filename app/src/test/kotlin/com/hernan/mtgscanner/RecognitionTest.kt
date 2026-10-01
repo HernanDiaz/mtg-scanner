@@ -62,7 +62,7 @@ private val MATCHER = NameMatcher(listOf(
     "swamp" to "Swamp", "pantano" to "Swamp", "ritualsiniestro" to "Dark Ritual",
 ))
 
-private fun line(text: String, top: Int, left: Int = 10) = OcrLine(text, left, top, left + 200, top + 20)
+private fun line(text: String, top: Int, left: Int = 10, right: Int = left + 200) = OcrLine(text, left, top, right, top + 20)
 
 class NameMatcherTest {
     @Test fun exactMatch() = assertEquals(listOf("Lightning Bolt"), MATCHER.match("Lightning Bolt")!!.names)
@@ -303,6 +303,91 @@ class FrameRecognizerTest {
         )
         assertEquals("es", r.recognize(listOf(line("Montafña", 50), line("Tierra básica - Montaña", 500)))!!.lang)
         assertEquals("it", r.recognize(listOf(line("Montagna", 50), line("Terra Base - Montagna", 500)))!!.lang)
+    }
+
+    /** Revised lleva "Illus. ©" y ninguna línea de Wizards; 4ª edición, "© 1995 Wizards of the Coast". */
+    @Test fun revisedAndFourthEditionByTheirFooter() {
+        val drain = listOf(
+            card("Drain Life", "4ed", "132", "1995-04-01", eur = 0.3, setSize = null),
+            card("Drain Life", "3ed", "106", "1994-04-11", eur = 0.8, setSize = null),
+        )
+        fun pick(vararg footer: String) =
+            FrameRecognizer.resolve(drain, FrameRecognizer.parseCollector(footer.mapIndexed { i, t -> line(t, 900 + 20 * i) }, SETS)).first.setCode
+        assertEquals("3ed", pick("toughness.", "IIus. ODouglas Shuler"))
+        assertEquals("3ed", pick("Iis, �-Ron Spencer"))
+        assertEquals("4ed", pick("Illus. Douglas Shuler", "1995 Wzrds of the Coastr Idg Todos loderechos"))
+        assertEquals("4ed", pick("Illus. Douglas Shuler")) // sin pistas: la más barata
+    }
+
+    /** Con borde blanco en la foto, Revised; sin él, Beta (borde negro). Ninguna se da por segura. */
+    @Test fun borderColorPicksTheEdition() {
+        val drain = listOf(
+            card("Drain Life", "leb", "108", "1993-10-04", eur = 90.0, setSize = null).copy(border = 'b'),
+            card("Drain Life", "3ed", "106", "1994-04-11", eur = 0.8, setSize = null).copy(border = 'w'),
+        )
+        val r = FrameRecognizer(NameMatcher(listOf("drainlife" to "Drain Life")), SETS, printingsOf = { drain })
+        val lines = listOf(
+            line("Drain Life", 50, left = 110, right = 300), line("Sorcery", 500, left = 110, right = 260),
+            line("Drain Life does 1 damage to a single target", 540, left = 110, right = 500),
+            line("for each swamp in play. You may not", 570, left = 110, right = 490),
+        )
+        // Mesa oscura; franja blanca (el borde) justo fuera del marco; marco gris.
+        fun sampler(white: Boolean) = com.hernan.mtgscanner.scan.ArtSampler { x, _ ->
+            when {
+                x < 62 -> 0x5A3C28
+                x < 81 -> if (white) 0xF0F0F0 else 0x202020
+                else -> 0x787878
+            }
+        }
+        val revised = r.recognize(lines, sampler(white = true))!!
+        assertEquals("3ed", revised.printing.setCode)
+        assertFalse(revised.exact)
+        assertEquals("leb", r.recognize(lines, sampler(white = false))!!.printing.setCode)
+    }
+
+    /** "Braingeyser" es la carta de Beta, no la cara de "Dirgur Focusmage // Braingeyser". */
+    @Test fun wholeCardBeatsAFaceWithTheSameName() {
+        val beta = card("Braingeyser", "leb", "50", "1993-10-04", eur = 80.0, setSize = null)
+        val soc = card("Dirgur Focusmage // Braingeyser", "soc", "68", "2025-01-01", eur = 0.3)
+        val r = FrameRecognizer(
+            NameMatcher(listOf("braingeyser" to "Braingeyser", "braingeyser" to "Dirgur Focusmage // Braingeyser")), SETS,
+            printingsOf = { if (it == "Braingeyser") listOf(beta) else listOf(soc) },
+        )
+        assertEquals("Braingeyser", r.recognize(listOf(line("Braingeyser", 50), line("Sorcery", 500)))!!.name)
+
+        // Con las dos caras iguales ("X // X", Secret Lair) también es la carta entera.
+        val sld = card("Anointed Procession // Anointed Procession", "sld", "1511", "2023-01-01", eur = 0.2)
+        val akh = card("Anointed Procession", "akh", "2", "2017-04-28", eur = 3.0)
+        val r2 = FrameRecognizer(
+            NameMatcher(listOf("anointedprocession" to "Anointed Procession", "anointedprocession" to sld.name)), SETS,
+            printingsOf = { if (it == sld.name) listOf(sld) else listOf(akh) },
+        )
+        assertEquals(sld.name, r2.recognize(listOf(line("Anointed Procession", 50), line("Enchantment", 500)))!!.name)
+    }
+
+    /** "Tsla" sobre "Tierra" es "Isla": las básicas admiten un error aunque el nombre sea corto. */
+    @Test fun misreadBasicLandOverALandTypeLine() {
+        val r = FrameRecognizer(
+            NameMatcher(listOf("island" to "Island", "isla" to "Island", "tesla" to "Tesla")), SETS,
+            printingsOf = { name -> listOf(card(name, "4ed", "367", "1995-04-01")) },
+            nameLanguages = { if (it == "isla") listOf("es") else null },
+        )
+        val island = r.recognize(listOf(line("Tsla", 50), line("Tierra", 500), line("Añade a tu reserva de maná.", 540)))!!
+        assertEquals("Island", island.name)
+        assertEquals("es", island.lang)
+        // Sin línea de tipo de tierra no se arriesga.
+        assertNull(r.recognize(listOf(line("Tsla", 50), line("Criatura", 500), line("Vuela.", 540))))
+    }
+
+    /** "Tierra" bajo un nombre mal leído es la línea de tipo, no la cara "Earth" de Heaven // Earth. */
+    @Test fun typeLineMatchingAFaceIsNotTheName() {
+        val r = FrameRecognizer(
+            NameMatcher(listOf("isla" to "Island", "tierra" to "Heaven // Earth")), SETS,
+            printingsOf = { name -> listOf(card(name, "4ed", "367", "1995-04-01")) },
+            nameLanguages = { if (it == "tierra" || it == "isla") listOf("es") else null },
+        )
+        assertEquals("Island", r.recognize(listOf(line("Isia", 50), line("Tierra", 500), line("Añade a tu reserva de maná.", 540)))!!.name)
+        assertNull(r.recognize(listOf(line("Xyzw", 50), line("Tierra", 500), line("Añade a tu reserva de maná.", 540))))
     }
 
     /** Una habilidad sola en su línea ("Flying") no es un nombre ("Fling"). */

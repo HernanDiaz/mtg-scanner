@@ -60,7 +60,7 @@ class RecognitionEval {
         val rows = parseCsv(File(dir, "labels.csv").readText())
         val header = rows.first()
         val out = StringBuilder(
-            "file\tgroup\tdifficulty\toutcome\texpected\tgot\tgot_id\tset_read\tnumber_read\tms\tlang_expected\tlang_read\tlines\tart_true\tart_debug\tsymbol_debug\n"
+            "file\tgroup\tdifficulty\toutcome\texpected\tgot\tgot_id\tset_read\tnumber_read\tms\tlang_expected\tlang_read\tlines\tart_true\tart_debug\tsymbol_debug\tborder_debug\n"
         )
         val counts = sortedMapOf<String, Int>()
         var dumped = 0
@@ -134,6 +134,7 @@ class RecognitionEval {
                 catalog.byId(expectedId)?.artId?.toString() ?: "",
                 recognizer.artDebug ?: "",
                 recognizer.symbolDebug ?: "",
+                recognizer.borderDebug ?: "",
             ).joinToString("\t")).append('\n')
         }
 

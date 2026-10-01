@@ -33,7 +33,7 @@ USER_AGENT = "MTGScanner/0.1 (proyecto personal)"
 BULK_INDEX = "https://api.scryfall.com/bulk-data"
 
 # Versión del esquema: la app la compara para saber si debe recopiar el asset.
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 14
 
 # Layouts que no son cartas "de colección" normales.
 SKIP_LAYOUTS = {"art_series", "token", "double_faced_token", "emblem", "vanguard", "scheme", "planar"}
@@ -245,7 +245,8 @@ def build(jsonl_path, updated_at, extra_names, set_langs):
             usd REAL, usd_foil REAL, eur REAL, eur_foil REAL,
             art_id INTEGER,              -- arts.id, solo si la carta tiene varias ilustraciones
             style TEXT NOT NULL,         -- cómo va impreso el símbolo (symbol_style)
-            cm_id INTEGER                -- idProduct de Cardmarket (para su guía de precios)
+            cm_id INTEGER,               -- idProduct de Cardmarket (para su guía de precios)
+            border TEXT NOT NULL         -- borde: b negro, w blanco, n sin borde, s plateado, g dorado, y amarillo
         );
         CREATE TABLE arts (
             id INTEGER PRIMARY KEY,
@@ -303,6 +304,8 @@ def build(jsonl_path, updated_at, extra_names, set_langs):
             price(p, "usd"), price(p, "usd_foil"), price(p, "eur"), price(p, "eur_foil"),
             art_ids.get(c.get("illustration_id") or (c.get("card_faces") or [{}])[0].get("illustration_id")),
             card_colors(c), symbol_style(c), c.get("cardmarket_id"),
+            {"black": "b", "white": "w", "borderless": "n", "silver": "s", "gold": "g", "yellow": "y"}.get(
+                c.get("border_color"), "b"),
         ))
         sets.setdefault(c["set"], (c["set"], c["set_name"], c.get("released_at")))
         # La legalidad es de la carta, no de la impresión: basta una.
@@ -317,7 +320,7 @@ def build(jsonl_path, updated_at, extra_names, set_langs):
 
     db.executemany(
         "INSERT INTO cards (id,name,set_code,collector_number,number_norm,rarity,released_at,"
-        "finishes,promo,lang,usd,usd_foil,eur,eur_foil,art_id,colors,style,cm_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "finishes,promo,lang,usd,usd_foil,eur,eur_foil,art_id,colors,style,cm_id,border) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         rows,
     )
     db.executemany("INSERT INTO arts VALUES (?,?)", arts.values())

@@ -30,6 +30,10 @@ data class CollectorInfo(
     val language: String? = null,
     /** Posibles códigos de edición junto al idioma que no existen tal cual ("KTN"): lecturas con error. */
     val unreadSets: List<String> = emptyList(),
+    /** "Illus. © Artista": el © va con el ilustrador, como hasta Revised (1994). */
+    val artistCopyright: Boolean = false,
+    /** Se leyó la línea "© 1995 Wizards of the Coast": de 4ª edición (1995) en adelante. */
+    val wizardsLine: Boolean = false,
 ) {
     val setCode get() = sets.firstOrNull()
     val number get() = numbers.firstOrNull()
@@ -88,6 +92,7 @@ class FrameRecognizer(
     fun recognize(lines: List<OcrLine>, art: ArtSampler? = null): FrameResult? {
         artDebug = null
         symbolDebug = null
+        borderDebug = null
         lastSymbolWindow = null
         lastPhotoArt = null
         val sorted = lines.sortedBy { it.top }
@@ -108,18 +113,25 @@ class FrameRecognizer(
         if (match == null) {
             // Solo la línea superior: en el texto de reglas daría falsos positivos
             // ("be regenerated" -> "Regenerate").
-            match = names.matchRelaxed(sorted[0].text)
+            match = names.matchRelaxed(sorted[0].text) ?: basicLand(sorted, zone)
             nameIndex = 0
         }
         if (match == null) return null
 
-        val all = match.names.flatMap(printingsOf)
+        val all = wholeCardNames(match).flatMap(printingsOf)
         if (all.isEmpty()) return null
         val collector = parseCollector(sorted.drop(nameIndex + 1), setCodes)
         val lang = detectLanguage(sorted.drop(nameIndex + 1), match, collector)
         val printings = inLanguage(all, lang)
         val foreign = lang != "en"
         var (printing, exact) = resolve(printings, collector, foreign)
+        // El borde solo si la edición sigue en duda: medirlo convierte la imagen a color.
+        val border = if (!exact && art != null) detectBorder(sorted, nameIndex, art) else null
+        if (border != null) {
+            val r = resolve(printings, collector, foreign, border)
+            printing = r.first
+            exact = r.second
+        }
         var decidedByArt = false
         var decidedBySymbol = false
         if (!exact && art != null) {
@@ -128,7 +140,7 @@ class FrameRecognizer(
             byArt(printings, sorted, nameIndex, art)?.let { artId ->
                 candidates = printings.filter { it.artId == artId }
                 decidedByArt = true
-                val r = if (candidates.size == 1) candidates[0] to true else resolve(candidates, collector, foreign)
+                val r = if (candidates.size == 1) candidates[0] to true else resolve(candidates, collector, foreign, border)
                 printing = r.first
                 exact = r.second
             }
@@ -137,7 +149,7 @@ class FrameRecognizer(
             if (!exact) {
                 bySymbol(candidates, sorted, nameIndex, art)?.let { winners ->
                     decidedBySymbol = true
-                    val r = if (winners.size == 1) winners[0] to true else resolve(winners, collector, foreign)
+                    val r = if (winners.size == 1) winners[0] to true else resolve(winners, collector, foreign, border)
                     printing = r.first
                     exact = r.second
                 }
@@ -183,6 +195,76 @@ class FrameRecognizer(
         val second = ranked.getOrNull(1)?.second ?: -1.0
         if (best.second < ART_MIN_SIMILARITY || best.second - second < ART_MIN_MARGIN) return null
         return best.first
+    }
+
+    /** Perfil del borde de la última carta (solo para las evaluaciones): ver [borderProfile]. */
+    var borderDebug: String? = null
+        private set
+
+    /**
+     * Borde de la carta, mirando el lado izquierdo en tres franjas cortas a distintas alturas
+     * (con la carta algo girada, el borde se desplaza a lo largo de una franja alta y se
+     * emborrona): 'w' si alguna franja muestra el borde blanco (una banda clara y sin color),
+     * 'k' si ninguna tiene nada claro en toda la zona del borde (borde negro), null si no se
+     * puede medir o no está claro. Medido con fotos del móvil y con fotos simuladas.
+     */
+    private fun detectBorder(sorted: List<OcrLine>, nameIndex: Int, art: ArtSampler): Char? {
+        val slices = leftBorderSlices(sorted, nameIndex, art) ?: return null
+        borderDebug = slices.joinToString(" | ") { s -> s.joinToString(",") { "${it.first}/${it.second}" } }
+        val white = slices.any { bins ->
+            var run = 0
+            bins.any { (lum, sat) ->
+                run = if (lum >= WHITE_BORDER_LUM && sat <= WHITE_BORDER_SAT) run + 1 else 0
+                run >= WHITE_BORDER_RUN
+            }
+        }
+        if (white) return 'w'
+        // Negro solo si no hay nada claro en la zona del borde de ninguna franja: un borde
+        // blanco mal medido (girado, con tinte) suele dejar algo claro.
+        val dark = slices.all { bins -> bins.take(BORDER_ZONE_BINS).all { it.first < BLACK_BORDER_MAX_LUM } }
+        return if (dark) 'k' else null
+    }
+
+    /**
+     * Luminancia y saturación medias en franjas verticales que cruzan el borde izquierdo de la
+     * carta (de 10 % fuera a 10 % dentro del ancho estimado, cada 1 %), de fuera adentro, en
+     * tres alturas bajo la línea de tipo. (El borde derecho no sirve: su posición estimada
+     * falla mucho más.)
+     */
+    private fun leftBorderSlices(sorted: List<OcrLine>, nameIndex: Int, art: ArtSampler): List<List<Pair<Int, Int>>>? {
+        val name = sorted.getOrNull(nameIndex) ?: return null
+        val typeIndex = typeLineIndex(sorted, nameIndex) ?: return null
+        val type = sorted[typeIndex]
+        val body = sorted.drop(typeIndex + 1)
+        if (body.isEmpty()) return null
+        val widest = body.maxOf { it.right - it.left }
+        val wide = body.filter { it.right - it.left >= widest * 0.6f }
+        val left = minOf(wide.minOf { it.left }, name.left, type.left).toFloat()
+        val right = maxOf(wide.maxOf { it.right }, type.right).toFloat()
+        val cardW = (right - left) / TEXT_WIDTH_FRACTION
+        if (cardW < 100) return null
+        val cardLeft = left - (1 - TEXT_WIDTH_FRACTION) / 2 * cardW
+        fun bin(x0: Float, x1: Float, y0: Int, y1: Int): Pair<Int, Int>? {
+            var lum = 0.0; var sat = 0.0; var n = 0
+            var y = y0
+            while (y < y1) {
+                var x = x0
+                while (x < x1) {
+                    val c = art.rgb(x.toInt(), y)
+                    val r = (c shr 16) and 0xFF; val g = (c shr 8) and 0xFF; val b = c and 0xFF
+                    val mx = maxOf(r, g, b); val mn = minOf(r, g, b)
+                    lum += 0.299 * r + 0.587 * g + 0.114 * b; sat += (mx - mn).toDouble(); n++
+                    x += 2f
+                }
+                y += 2
+            }
+            return if (n == 0) null else (lum / n).toInt() to (sat / n).toInt()
+        }
+        return listOf(0.05f, 0.17f, 0.29f).map { from ->
+            val y0 = (type.bottom + from * cardW).toInt()
+            val y1 = (type.bottom + (from + 0.06f) * cardW).toInt()
+            (0 until 20).map { i -> bin(cardLeft + (i - 10) * 0.01f * cardW, cardLeft + (i - 9) * 0.01f * cardW, y0, y1) ?: return null }
+        }
     }
 
     /** Diagnóstico de la última comparación de símbolos (solo para las evaluaciones). */
@@ -351,10 +433,40 @@ class FrameRecognizer(
      * de la línea de tipo ("Creature — Goblin"), como mucho [NAME_SEARCH_LINES].
      * Evita tomar como nombre una palabra clave del texto ("Flying" -> "Fling").
      */
+    /**
+     * Tierras básicas con el nombre leído con un error ("Tsla" -> "Isla"): los nombres cortos
+     * solo se aceptan exactos, pero si debajo está la línea de tipo de tierra ("Tierra", "Land")
+     * a una letra de distancia de una básica no hay otra carta posible.
+     */
+    private fun basicLand(sorted: List<OcrLine>, zone: Int): NameMatcher.Match? {
+        if (zone !in 1..2) return null // el nombre arriba y la línea de tipo una o dos líneas debajo
+        val type = sorted.getOrNull(zone) ?: return null
+        val typeWord = NameMatcher.normalize(type.words.firstOrNull() ?: return null)
+        if (typeWord !in LAND_TYPE_WORDS && LAND_TYPE_WORDS.none { NameMatcher.boundedLevenshtein(typeWord, it, 1) <= 1 }) return null
+        val read = NameMatcher.normalize(sorted[0].text)
+        if (read.length < 3) return null
+        val hits = BASIC_LAND_NAMES.filterKeys { NameMatcher.boundedLevenshtein(read, it, 1) <= 1 }
+        val key = hits.keys.singleOrNull() ?: return null
+        return names.match(key)?.takeIf { hits.getValue(key) in it.names }?.copy(distance = 1)
+    }
+
+    /**
+     * Si el nombre leído es el de una carta entera, no cuentan las caras de otras que se
+     * llaman igual: "Braingeyser" (Beta) no es "Dirgur Focusmage // Braingeyser".
+     */
+    private fun wholeCardNames(match: NameMatcher.Match): List<String> {
+        if (match.names.size < 2) return match.names
+        // "Anointed Procession // Anointed Procession" (las dos caras iguales) es la carta entera.
+        return match.names.filter { n -> n.split(" // ").all { NameMatcher.normalize(it) == match.key } }
+            .ifEmpty { match.names }
+    }
+
     private fun nameZone(sorted: List<OcrLine>): Int {
         val limit = minOf(NAME_SEARCH_LINES, sorted.size)
         for (i in 0 until limit) {
-            if (isTypeLine(sorted[i], TYPE_WORDS) && names.match(sorted[i].text)?.distance != 0) return i
+            // Una línea de tipo que coincide con un nombre solo puede ser el nombre si es la
+            // primera: "Tierra" (tipo de las tierras en español) es también la cara "Earth".
+            if (isTypeLine(sorted[i], TYPE_WORDS) && (i > 0 || names.match(sorted[i].text)?.distance != 0)) return i
             // Si no se leyó la línea de tipo, el texto de reglas tampoco es el nombre:
             // "Retira del juego..." no es "Retirar" (Withdraw), ni "Flying" es "Fling".
             if (i > 0 && isRulesLine(sorted[i])) return i
@@ -400,6 +512,13 @@ class FrameRecognizer(
         private const val SYMBOL_TWIN = 0.8
         /** Fracción del ancho de la carta que ocupa el texto de reglas. */
         private const val TEXT_WIDTH_FRACTION = 0.84f
+        /** Borde blanco: al menos 3 franjas seguidas (3 % del ancho) claras y sin color. */
+        private const val WHITE_BORDER_LUM = 195
+        private const val WHITE_BORDER_SAT = 45
+        private const val WHITE_BORDER_RUN = 3
+        /** Negro: en las 14 primeras franjas (de 10 % fuera a 4 % dentro) nada pasa de esta luminancia. */
+        private const val BORDER_ZONE_BINS = 14
+        private const val BLACK_BORDER_MAX_LUM = 150
 
         /**
          * Dónde está la ilustración en la foto: entre el nombre y la línea de tipo,
@@ -443,7 +562,7 @@ class FrameRecognizer(
         private val ENGLISH_TYPE_WORDS = listOf(
             "legendary", "creature", "instant", "sorcery", "artifact", "enchantment", "land",
             "planeswalker", "battle", "tribal", "kindred", "basic", "snow", "summon", "enchant",
-            "interrupt", "token",
+            "interrupt", "token", "mono", "poly", // antiguas: "Mono Artifact", "Poly Artifact"
         )
 
         /** Primera palabra de la línea de tipo en cada idioma (normalizada, sin tildes). */
@@ -475,6 +594,19 @@ class FrameRecognizer(
         /** Todas las palabras de tipo con su idioma (las compartidas, una vez por idioma). */
         private val TYPE_WORD_LANGUAGES: List<Pair<String, String>> =
             ENGLISH_TYPE_WORDS.map { it to "en" } + FOREIGN_TYPE_WORDS.flatMap { (lang, words) -> words.map { it to lang } }
+
+        /** Primera palabra de la línea de tipo de las tierras, en los seis idiomas. */
+        private val LAND_TYPE_WORDS = setOf("land", "tierra", "terrain", "terra", "terreno", "basic", "basica", "standardland")
+
+        /** Nombres de las tierras básicas en los seis idiomas (normalizados) -> nombre inglés. */
+        private val BASIC_LAND_NAMES = mapOf(
+            "plains" to "Plains", "llanura" to "Plains", "plaine" to "Plains", "ebene" to "Plains", "pianura" to "Plains", "planicie" to "Plains",
+            "island" to "Island", "isla" to "Island", "ile" to "Island", "insel" to "Island", "isola" to "Island", "ilha" to "Island",
+            "swamp" to "Swamp", "pantano" to "Swamp", "marais" to "Swamp", "sumpf" to "Swamp", "palude" to "Swamp",
+            "mountain" to "Mountain", "montana" to "Mountain", "montagne" to "Mountain", "gebirge" to "Mountain",
+            "montagna" to "Mountain", "montanha" to "Mountain",
+            "forest" to "Forest", "bosque" to "Forest", "foret" to "Forest", "wald" to "Forest", "foresta" to "Forest", "floresta" to "Forest",
+        )
 
         /** Habilidades que ocupan una línea sola, normalizadas, en los seis idiomas. */
         private val KEYWORD_LINES = setOf(
@@ -510,6 +642,7 @@ class FrameRecognizer(
             printings: List<CardPrinting>,
             info: CollectorInfo,
             foreign: Boolean = false,
+            border: Char? = null,
         ): Pair<CardPrinting, Boolean> {
             if (printings.size == 1) return printings[0] to true
             val foreignOnly = if (foreign) printings.filter { it.lang != "en" } else emptyList()
@@ -560,7 +693,7 @@ class FrameRecognizer(
             }
 
             // 4. Sin pistas de edición: año del copyright y la impresión más común.
-            return defaultPick(byYear(printings, info.year)) to false
+            return defaultPick(byYear(byBorder(byEra(printings, info), border), info.year)) to false
         }
 
         /**
@@ -587,6 +720,32 @@ class FrameRecognizer(
         /** El tamaño impreso a veces difiere un poco del de Scryfall (cartas extra, ★). */
         private fun sizeMatches(setSize: Int, read: Int) = read in (setSize - 10)..(setSize + 2)
 
+        /**
+         * Época por el pie de la carta, sin año leído: "Illus. ©" sin línea de Wizards es de
+         * Revised o antes (1994); con línea de Wizards, de 4ª edición (1995) en adelante.
+         * Así Revised no se toma por 4ª edición. Si no queda ninguna, no filtra.
+         */
+        private fun byEra(printings: List<CardPrinting>, info: CollectorInfo): List<CardPrinting> {
+            if (info.year != null) return printings
+            val keep: (Int) -> Boolean = when {
+                info.wizardsLine -> { y -> y >= 1995 }
+                info.artistCopyright -> { y -> y <= 1994 }
+                else -> return printings
+            }
+            return printings.filter { p -> p.releaseYear?.let(keep) == true }.ifEmpty { printings }
+        }
+
+        /**
+         * Por el borde visto en la foto ([detectBorder]): con borde blanco, solo las de borde
+         * blanco (Revised, no Beta; 4ª edición, no la de borde negro); sin él, las de borde
+         * negro primero. Solo orienta la sugerencia: nunca da una edición por segura.
+         */
+        private fun byBorder(printings: List<CardPrinting>, border: Char?): List<CardPrinting> = when (border) {
+            'w' -> printings.filter { it.border == 'w' }.ifEmpty { printings }
+            'k' -> printings.filter { it.border != 'w' }.ifEmpty { printings }
+            else -> printings
+        }
+
         /** Filtra por año de impresión (±1); si no queda ninguna, no filtra. */
         private fun byYear(printings: List<CardPrinting>, year: Int?): List<CardPrinting> {
             if (year == null) return printings
@@ -610,6 +769,15 @@ class FrameRecognizer(
 
         // ---------------------------------------------------------------- línea de coleccionista
 
+        /** "Wizards of the Coast" y "Todos los derechos reservados"/"All rights reserved", con errores de lectura. */
+        private val WIZARDS_LINE = Regex("(?i)w[i1l]?z[a-z]{0,2}r?ds|wizards|\\bc[o0][au]st|derech|rights res|reservad|reserved")
+
+        /**
+         * "Illus. © Douglas Shuler", leído "IIus. ODouglas", "Ius. O-Mark", "Iis, �-Ron", "Ilus, © Margaret":
+         * una palabra tipo "Illus" seguida de ©, �, o una O pegada o suelta ante el nombre.
+         */
+        private val ARTIST_COPYRIGHT = Regex("^\\W{0,2}[IlLT1|][a-zA-Z|]{0,4}[.,]?\\s*(?:[©�]|O(?=-|\\s*[A-Z]))")
+
         private val SLASH_NUMBER = Regex("(\\d{1,4})\\s*/\\s*(\\d{1,4})")
         private val YEAR = Regex("(?<!\\d)(199[3-9]|20[0-4]\\d)(?!\\d)")
         private val TOKEN_SPLIT = Regex("[\\s•·*.,>\\-]+")
@@ -632,6 +800,8 @@ class FrameRecognizer(
             val setSizes = LinkedHashSet<Int>()
             val setScores = HashMap<String, Int>()
             var year: Int? = null
+            var artistCopyright = false
+            var wizardsLine = false
             var language: String? = null
             val unreadSets = LinkedHashSet<String>()
 
@@ -645,6 +815,8 @@ class FrameRecognizer(
                     }
                 }
                 YEAR.findAll(fixed).forEach { y -> year = maxOf(year ?: 0, y.value.toInt()) }
+                if (WIZARDS_LINE.containsMatchIn(line.text)) wizardsLine = true
+                if (ARTIST_COPYRIGHT.containsMatchIn(line.text)) artistCopyright = true
 
                 val tokens = line.text.split(TOKEN_SPLIT).filter { it.isNotEmpty() }
                 val hasLanguage = tokens.any { it in LANGUAGES || (it == it.uppercase() && gluedLanguageAt(it) != null) }
@@ -676,6 +848,8 @@ class FrameRecognizer(
                 year = year,
                 language = language,
                 unreadSets = unreadSets.toList(),
+                artistCopyright = artistCopyright,
+                wizardsLine = wizardsLine,
             )
         }
 
