@@ -76,6 +76,17 @@ class NameMatcher(entries: List<Pair<String, String>>) {
     }
 
     /**
+     * Candidatos para un nombre muy mal leído ("Mox Derl", "Blackk Lutob"): los [keep] más
+     * cercanos admitiendo hasta ~45 % de errores. No sirven solos: hay que confirmarlos con
+     * otra pista (la ilustración, ver FrameRecognizer).
+     */
+    fun closest(raw: String, keep: Int): List<Match> {
+        val q = normalize(raw)
+        if (q.length < 5) return emptyList()
+        return nearest(q, maxOf(2, q.length * 45 / 100), keep).map { (norm, d) -> Match(exact.getValue(norm), d, q.length, norm) }
+    }
+
+    /**
      * Los [keep] nombres normalizados más cercanos con distancia <= [maxDist]. A igual
      * distancia, el de longitud más parecida: el OCR suele cambiar una letra por otra
      * ("Ierror" es "Terror", no "Error").

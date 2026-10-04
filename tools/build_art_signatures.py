@@ -36,6 +36,9 @@ from build_catalog import DATA_DIR, SKIP_LAYOUTS, download_bulk, http_get, jsonl
 ART_DIR = os.path.join(DATA_DIR, "art")
 OUT = os.path.join(DATA_DIR, "art_signatures.csv")
 
+# Marcos antiguos (hasta 2003): ahí el OCR falla más con los nombres.
+OLD_FRAMES = {"1993", "1997"}
+
 GRID = 32
 SAMPLES = 4
 DCT = 8
@@ -82,10 +85,13 @@ def thumb(img):
 
 
 def wanted_illustrations():
-    """illustration_id -> url del art_crop, solo de nombres con varias ilustraciones."""
+    """illustration_id -> url del art_crop: de nombres con varias ilustraciones (para elegir
+    edición) y de todas las cartas con marco antiguo (para confirmar el nombre cuando el OCR
+    lo lee mal: "Mox Derl" -> Mox Pearl por la ilustración)."""
     path, _ = download_bulk("default_cards", False)
     by_name = {}
     urls = {}
+    old_names = set()
     for line in jsonl(path):
         c = json.loads(line)
         if c.get("digital") or "paper" not in c.get("games", []) or c.get("layout") in SKIP_LAYOUTS:
@@ -97,7 +103,9 @@ def wanted_illustrations():
             continue
         by_name.setdefault(c["name"], set()).add(ill)
         urls.setdefault(ill, uris["art_crop"])
-    return {ill: urls[ill] for ills in by_name.values() if len(ills) > 1 for ill in ills}
+        if c.get("frame") in OLD_FRAMES:
+            old_names.add(c["name"])
+    return {ill: urls[ill] for name, ills in by_name.items() if len(ills) > 1 or name in old_names for ill in ills}
 
 
 def main():

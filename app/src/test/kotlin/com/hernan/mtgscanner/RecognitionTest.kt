@@ -390,6 +390,38 @@ class FrameRecognizerTest {
         assertNull(r.recognize(listOf(line("Xyzw", 50), line("Tierra", 500), line("Añade a tu reserva de maná.", 540))))
     }
 
+    /** "Apatía" se escribe igual en portugués, pero "Encantar criatura" es español. */
+    @Test fun typeLineOfOneLanguageBeatsTheNameAlias() {
+        val r = FrameRecognizer(
+            NameMatcher(listOf("apathy" to "Apathy", "apatia" to "Apathy")), SETS,
+            printingsOf = { listOf(card("Apathy", "wth", "33", "1997-06-09")) },
+            nameLanguages = { if (it == "apatia") listOf("pt") else null },
+        )
+        assertEquals("es", r.recognize(listOf(line("Apatía", 50), line("Encantar criatura", 500)))!!.lang)
+        // Con "Criatura" (español o portugués) decide el nombre: portugués.
+        assertEquals("pt", r.recognize(listOf(line("Apatía", 50), line("Criatura - Humano", 500)))!!.lang)
+    }
+
+    /** "Invocar zombi" o "Encantar criatura" como tipo: la carta es antigua, no de 10ª edición. */
+    @Test fun oldTypeWordingLimitsTheYear() {
+        val fear = listOf(
+            card("Fear", "10e", "142", "2007-07-13", eur = 0.1),
+            card("Fear", "4ed", "137", "1995-04-01", eur = 0.3, setSize = null),
+        )
+        val r = FrameRecognizer(NameMatcher(listOf("fear" to "Fear")), SETS, printingsOf = { fear })
+        assertEquals("4ed", r.recognize(listOf(line("Fear", 50), line("Enchant Creature", 500)))!!.printing.setCode)
+        assertEquals("10e", r.recognize(listOf(line("Fear", 50), line("Enchantment - Aura", 500)))!!.printing.setCode)
+    }
+
+    /** Un mazo de iniciación (Introductory Two-Player) no gana por ser el más barato. */
+    @Test fun starterDecksAreNotTheDefault() {
+        val potion = listOf(
+            card("Alabaster Potion", "itp", "1", "1996-12-31", eur = 0.1, setType = "starter"),
+            card("Alabaster Potion", "4ed", "4", "1995-04-01", eur = 0.2, setSize = null),
+        )
+        assertEquals("4ed", FrameRecognizer.defaultPick(potion).setCode)
+    }
+
     /** Una habilidad sola en su línea ("Flying") no es un nombre ("Fling"). */
     @Test fun keywordLineIsNotAName() {
         val r = FrameRecognizer(NameMatcher(listOf("fling" to "Fling", "shock" to "Shock")), SETS, printingsOf = { PRINTINGS["Shock"].orEmpty() })
@@ -651,6 +683,33 @@ class ArtSignatureTest {
     }
 
     /** Luz cálida y reflejo de funda (más rojo, menos azul, menos contraste): sigue siendo la misma ilustración. */
+    /** "Mox Derl" no se parece lo bastante a ningún nombre: decide la ilustración entre los parecidos. */
+    @Test fun badlyReadNameConfirmedByTheIllustration() {
+        val pearlArt = com.hernan.mtgscanner.scan.ArtSignature.compute(0f, 0f, 200f, 150f, ::smooth)
+        val jetArt = com.hernan.mtgscanner.scan.ArtSignature.compute(0f, 0f, 200f, 150f) { x, y -> smooth(y * 2 + 50, x / 2) }
+        val pearl = card("Mox Pearl", "leb", "264", "1993-10-04", setSize = null).copy(artId = 1)
+        val jet = card("Mox Jet", "leb", "263", "1993-10-04", setSize = null).copy(artId = 2)
+        val r = FrameRecognizer(
+            NameMatcher(listOf("moxpearl" to "Mox Pearl", "moxjet" to "Mox Jet")), SETS,
+            printingsOf = { if (it == "Mox Pearl") listOf(pearl) else listOf(jet) },
+            artOf = { mapOf(1 to pearlArt, 2 to jetArt)[it] },
+        )
+        val lines = listOf(
+            line("Mox Derl", 50, left = 100, right = 300),
+            line("Add 1 white mana", 420, left = 100, right = 500),
+            line("to your mana pool. Tapping this", 450, left = 100, right = 480),
+        )
+        // La zona de la ilustración que estima la app (looseArtRegion) con estas líneas.
+        val (l, t, rr, b) = listOf(124f, 98.46f, 476f, 369.23f)
+        fun photo(f: (Int, Int) -> Int) = com.hernan.mtgscanner.scan.ArtSampler { x, y ->
+            f(((x - l) / (rr - l) * 200).toInt(), ((y - t) / (b - t) * 150).toInt())
+        }
+        assertEquals("Mox Pearl", r.recognize(lines, photo(::smooth))!!.name)
+        assertEquals("Mox Jet", r.recognize(lines, photo { x, y -> smooth(y * 2 + 50, x / 2) })!!.name)
+        // Sin ilustración que compare, no se arriesga.
+        assertNull(r.recognize(lines, photo { _, _ -> 0x808080 }))
+    }
+
     @Test fun toleratesColorCastAndGlare() {
         val a = com.hernan.mtgscanner.scan.ArtSignature.compute(0f, 0f, 200f, 150f, ::smooth)
         val warm = com.hernan.mtgscanner.scan.ArtSignature.compute(0f, 0f, 200f, 150f) { x, y ->

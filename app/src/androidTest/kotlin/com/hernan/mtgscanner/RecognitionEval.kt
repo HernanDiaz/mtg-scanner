@@ -54,7 +54,7 @@ class RecognitionEval {
         val dir = File(filesDir, "testset/$subset")
         val catalog = appCatalog()
         val recognizer = FrameRecognizer(catalog.names, catalog.setCodes, catalog::printingsOf, catalog::bySetAndNumber, catalog::art,
-            if (useSymbols) catalog.symbols else null, catalog::nameLanguages, catalog::setLanguages)
+            if (useSymbols) catalog.symbols else null, catalog::nameLanguages, catalog::setLanguages, catalog::searchArt)
         val ocr = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
         val rows = parseCsv(File(dir, "labels.csv").readText())

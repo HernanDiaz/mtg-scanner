@@ -27,8 +27,13 @@ class ArtSignature(private val values: FloatArray) {
     }
 
     /** Luminancia, rojo-verde y azul-amarillo, cada plano con media 0 y desviación 1. */
-    private val features: FloatArray by lazy {
-        val f = FloatArray(values.size)
+    private val features: FloatArray by lazy { normalized(FloatArray(values.size)) }
+
+    /**
+     * Las mismas características en [f] (sin guardarlas: para recorrer miles de
+     * huellas sin ocupar memoria).
+     */
+    private fun normalized(f: FloatArray): FloatArray {
         for (i in 0 until W * H) {
             val r = values[3 * i]; val g = values[3 * i + 1]; val b = values[3 * i + 2]
             f[3 * i] = 0.299f * r + 0.587f * g + 0.114f * b
@@ -44,7 +49,27 @@ class ArtSignature(private val values: FloatArray) {
             val sd = sqrt(variance / (W * H)) + 1e-6
             for (i in 0 until W * H) f[3 * i + c] = ((f[3 * i + c] - mean) / sd).toFloat()
         }
-        f
+        return f
+    }
+
+    /**
+     * Las [keep] huellas de [all] más parecidas a esta, de mayor a menor similitud. Primero
+     * una correlación rápida sin desplazamientos para descartar casi todas; luego la
+     * comparación completa ([similarity]) con las [PRESELECT] mejores.
+     */
+    fun mostSimilar(all: Map<Int, ArtSignature>, keep: Int): List<Pair<Int, Double>> {
+        val mine = features
+        val buf = FloatArray(values.size)
+        val quick = ArrayList<Pair<Int, Float>>(all.size)
+        for ((id, other) in all) {
+            val f = other.normalized(buf)
+            var dot = 0f
+            for (i in f.indices) dot += mine[i] * f[i]
+            quick.add(id to dot)
+        }
+        quick.sortByDescending { it.second }
+        return quick.take(PRESELECT).map { (id, _) -> id to similarity(all.getValue(id)) }
+            .sortedByDescending { it.second }.take(keep)
     }
 
     /** Correlación máxima entre −1 y 1 (1 = idénticas salvo brillo, contraste y tinte). */
@@ -79,6 +104,7 @@ class ArtSignature(private val values: FloatArray) {
         const val W = 16
         const val H = 12
         private const val SHIFT = 1
+        private const val PRESELECT = 60
         /** Muestras por celda y lado al reducir la foto (aproxima el promedio de la zona). */
         private const val SAMPLES = 8
 

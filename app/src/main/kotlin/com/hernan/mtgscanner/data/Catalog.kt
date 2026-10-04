@@ -91,6 +91,24 @@ class Catalog(context: Context) {
     /** Huella de una ilustración, para elegir edición por la imagen. */
     fun art(id: Int): ArtSignature? = arts[id]
 
+    /** Ilustración -> nombre de la carta (se carga la primera vez que se busca por imagen). */
+    private val artNames: Map<Int, String> by lazy {
+        HashMap<Int, String>(arts.size * 2).apply {
+            db.rawQuery("SELECT art_id, name FROM cards WHERE art_id IS NOT NULL GROUP BY art_id", null).use { c ->
+                while (c.moveToNext()) put(c.getInt(0), c.getString(1))
+            }
+        }
+    }
+
+    /**
+     * Las cartas cuya ilustración más se parece a [photo], buscando en todo el catálogo:
+     * (nombre, ilustración, similitud), la mejor de cada nombre primero.
+     */
+    fun searchArt(photo: ArtSignature, keep: Int): List<Triple<String, Int, Double>> =
+        photo.mostSimilar(arts, keep * 4)
+            .mapNotNull { (id, sim) -> artNames[id]?.let { Triple(it, id, sim) } }
+            .distinctBy { it.first }.take(keep)
+
     private data class SetInfo(val name: String, val type: String?, val size: Int?, val langs: Set<String>)
 
     /** Todas las impresiones de un nombre, de la más reciente a la más antigua. */
