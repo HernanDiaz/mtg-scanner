@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -49,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -65,8 +67,8 @@ import com.hernan.mtgscanner.data.Currency
 import java.text.DateFormat
 import java.util.Date
 
-/** Lo que la ficha lee de la colección: precios guardados y copias de la carta. */
-class CardSheet(val prices: CollectionStore.StoredPrices?, val copiesOfCard: Int)
+/** Lo que la ficha lee de la colección: precios guardados, copias de la carta y fotos de las copias. */
+class CardSheet(val prices: CollectionStore.StoredPrices?, val copiesOfCard: Int, val photos: List<java.io.File> = emptyList())
 
 /**
  * Ficha de una carta: imagen grande, precios, texto, legalidad y enlaces. Si se
@@ -143,6 +145,23 @@ fun CardDetailDialog(
                         TextButton(onClick = onChangeEdition) { Text(stringResource(R.string.change_edition)) }
                         TextButton(onClick = onMove) { Text(stringResource(R.string.move_to_deck)) }
                         TextButton(onClick = onRemoveOne) { Text(stringResource(R.string.remove_one)) }
+                    }
+                    // Fotos de las copias, tal como se escanearon (ver CardPhotos).
+                    val photos = sheet?.photos.orEmpty()
+                    if (photos.isNotEmpty()) {
+                        Text(
+                            pluralStringResource(R.plurals.your_photos, photos.size, photos.size),
+                            style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                        )
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            photos.forEach { f ->
+                                AsyncImage(
+                                    model = f, contentDescription = stringResource(R.string.your_photo),
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier.height(320.dp).clip(RoundedCornerShape(8.dp)),
+                                )
+                            }
+                        }
                     }
                 }
 

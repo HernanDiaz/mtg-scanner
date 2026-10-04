@@ -83,7 +83,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             val catalog = app.catalog.await()
             val recognizer = FrameRecognizer(catalog.names, catalog.setCodes, catalog::printingsOf, catalog::bySetAndNumber, catalog::art, catalog.symbols,
-                catalog::nameLanguages, catalog::setLanguages)
+                catalog::nameLanguages, catalog::setLanguages, catalog::searchArt)
             _analyzer.value = TextAnalyzer(recognizer, analysisExecutor, ::onFrame)
             _ui.update { it.copy(loading = false) }
         }
@@ -135,7 +135,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         if (reading != _ui.value.reading) _ui.update { it.copy(reading = reading) }
 
         val testing = settings.testPhotos.value
-        if (testing && result != null) {
+        val keepPhoto = settings.cardPhotos.value
+        if ((testing || keepPhoto) && result != null) {
             recentFrames.remove(result.name)
             recentFrames[result.name] = frame()
             while (recentFrames.size > 3) recentFrames.remove(recentFrames.keys.first())
@@ -147,7 +148,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         }
 
         val accepted = session.onFrame(result, SystemClock.elapsedRealtime()) ?: return
-        val photo = if (testing) recentFrames.remove(accepted.name) else null
+        val photo = if (testing || keepPhoto) recentFrames.remove(accepted.name) else null
         val printing = accepted.printing
         val foil = (_ui.value.foil && printing.hasFoil) || !printing.hasNonfoil
         val needsReview = !accepted.exact
@@ -155,7 +156,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch(Dispatchers.IO) {
             val id = store.add(printing, foil, settings.defaultCondition.value, needsReview, accepted.lang,
                 accepted.photoArt?.toPacked(), deckId = _ui.value.scanDeck?.id)
-            photo?.let { savePhoto(it, id, accepted) }
+            if (keepPhoto) photo?.let { runCatching { app.cardPhotos.save(id, it) } }
+            if (testing) photo?.let { savePhoto(it, id, accepted) }
             val wished = store.fulfillWish(printing.name)
             _ui.update { it.copy(lastAdded = AddedCard(id, printing, foil, needsReview, accepted.lang, wished)) }
         }

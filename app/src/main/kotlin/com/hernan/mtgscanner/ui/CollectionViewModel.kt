@@ -340,8 +340,10 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
 
     suspend fun printingOf(id: String): CardPrinting? = withContext(Dispatchers.IO) { app.catalog.await().byId(id) }
 
-    suspend fun cardSheet(id: String, name: String): CardSheet =
-        withContext(Dispatchers.IO) { CardSheet(store.storedPrices(id), store.copiesOf(name)) }
+    suspend fun cardSheet(id: String, name: String, group: CollectionStore.Group? = null): CardSheet =
+        withContext(Dispatchers.IO) {
+            CardSheet(store.storedPrices(id), store.copiesOf(name), group?.let { app.cardPhotos.of(store.entryIds(it)) }.orEmpty())
+        }
 
     fun addWish(p: CardPrinting) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -377,16 +379,33 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
      * Exporta lo que se está viendo (toda la colección, un mazo, un color...) y
      * devuelve el Intent para compartirlo. Los CSV van como fichero; la lista, como texto.
      */
-    suspend fun exportIntent(format: CollectionExport.Format): Intent = withContext(Dispatchers.IO) {
+    suspend fun exportIntent(format: CollectionExport.Format, photos: Boolean = false): Intent = withContext(Dispatchers.IO) {
         val catalog = app.catalog.await()
         val ui = _ui.value
-        val lines = CollectionExport.lines(store.groups(ui.currency, ui.filter, kind = ui.priceKind), catalog::setName, ::deckName,
-            detailed = format == CollectionExport.Format.CSV)
+        val detailed = format == CollectionExport.Format.CSV
+        val plain = CollectionExport.lines(store.groups(ui.currency, ui.filter, kind = ui.priceKind), catalog::setName, ::deckName,
+            detailed = detailed)
+        val withPhoto = if (photos) app.cardPhotos.of(store.allEntryIds()).mapNotNull { it.name.substringBefore('.').toLongOrNull() }.toSet() else emptySet()
+        val (lines, photoNames) = if (photos) {
+            CollectionExport.withPhotos(plain, store.entryKeys(), detailed, ::deckName, withPhoto::contains)
+        } else {
+            plain to emptyMap()
+        }
         val content = CollectionExport.render(format, lines, ui.currency, english = isEnglish())
         val date = SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date())
         val scope = ui.scopeLabel(app.resources)
         val send = Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_SUBJECT, app.getString(R.string.share_subject, scope, date))
-        if (format == CollectionExport.Format.TEXT) {
+        if (photos) {
+            // Zip con el CSV (que nombra las fotos de cada línea) y las fotos.
+            val dir = File(app.cacheDir, "exports").apply { mkdirs() }
+            dir.listFiles { f -> f.name.endsWith(".zip") }?.forEach { it.delete() } // los de otras veces
+            val file = File(dir, "${fileSafe(scope)}-$date.zip")
+            file.outputStream().use { out ->
+                app.cardPhotos.zip(out, "${fileSafe(scope)}-$date.${format.extension}", Char(0xFEFF) + content, photoNames)
+            }
+            val uri = FileProvider.getUriForFile(app, "${app.packageName}.files", file)
+            send.setType("application/zip").putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        } else if (format == CollectionExport.Format.TEXT) {
             send.setType(format.mime).putExtra(Intent.EXTRA_TEXT, content)
         } else {
             val dir = File(app.cacheDir, "exports").apply { mkdirs() }
@@ -427,6 +446,16 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
 
     suspend fun clearTestPhotos() = withContext(Dispatchers.IO) { app.testPhotos.clear() }
 
+    // Fotos de las cartas (ver CardPhotos).
+    val cardPhotosEnabled: StateFlow<Boolean> = settings.cardPhotos
+
+    fun setCardPhotos(on: Boolean) = settings.setCardPhotos(on)
+
+    /** Cuántas fotos hay y cuánto ocupan. */
+    suspend fun cardPhotosInfo(): Pair<Int, Long> = withContext(Dispatchers.IO) { app.cardPhotos.count() to app.cardPhotos.size() }
+
+    suspend fun clearCardPhotos() = withContext(Dispatchers.IO) { app.cardPhotos.clear() }
+
     // Copia automática (ver AutoBackup).
     val autoBackup: StateFlow<AutoBackup.State> = app.autoBackup.state
 
@@ -434,6 +463,11 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
         .onFailure { e -> _ui.update { it.copy(message = app.getString(R.string.backup_failed, e.message)) } }
 
     fun disableAutoBackup() = app.autoBackup.disable()
+
+    fun enableAutoBackupPhotos(uri: Uri) = runCatching { app.autoBackup.enablePhotos(uri) }
+        .onFailure { e -> _ui.update { it.copy(message = app.getString(R.string.backup_failed, e.message)) } }
+
+    fun disableAutoBackupPhotos() = app.autoBackup.disablePhotos()
 
     fun autoBackupNow() {
         viewModelScope.launch {

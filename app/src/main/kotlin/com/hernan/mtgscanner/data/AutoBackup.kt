@@ -42,6 +42,11 @@ class AutoBackup(private val app: App) {
         /** Último intento sin cambios que copiar (ms), o 0. */
         val lastChecked: Long = 0,
         val lastError: String? = null,
+        /** Con fotos: un segundo fichero, un zip con el CSV y las fotos ([CardPhotos]). */
+        val photosFile: Uri? = null,
+        val photosFileName: String? = null,
+        val lastPhotosSaved: Long = 0,
+        val lastPhotos: Int = 0,
     )
 
     sealed interface Outcome {
@@ -61,6 +66,10 @@ class AutoBackup(private val app: App) {
         lastCards = prefs.getInt("last_cards", 0),
         lastChecked = prefs.getLong("last_checked", 0),
         lastError = prefs.getString("last_error", null),
+        photosFile = prefs.getString("photos_file", null)?.let(Uri::parse),
+        photosFileName = prefs.getString("photos_file_name", null),
+        lastPhotosSaved = prefs.getLong("last_photos_saved", 0),
+        lastPhotos = prefs.getInt("last_photos", 0),
     )
 
     /** Al arrancar la app: que siga programada si está activa. */
@@ -75,7 +84,10 @@ class AutoBackup(private val app: App) {
             runCatching { resolver.releasePersistableUriPermission(old, RW) }
         }
         resolver.takePersistableUriPermission(uri, RW)
+        val photos = _state.value.photosFile
         prefs.edit().clear()
+            .putString("photos_file", photos?.toString())
+            .putString("photos_file_name", _state.value.photosFileName)
             .putString("file", uri.toString())
             .putString("file_name", displayName(uri))
             .apply()
@@ -84,8 +96,33 @@ class AutoBackup(private val app: App) {
         WorkManager.getInstance(app).enqueue(OneTimeWorkRequestBuilder<Worker>().build())
     }
 
+    /** El zip de fotos recién creado por el usuario (ACTION_CREATE_DOCUMENT); lo escribe ya. */
+    fun enablePhotos(uri: Uri) {
+        val resolver = app.contentResolver
+        _state.value.photosFile?.takeIf { it != uri }?.let { old ->
+            runCatching { resolver.releasePersistableUriPermission(old, RW) }
+        }
+        resolver.takePersistableUriPermission(uri, RW)
+        prefs.edit()
+            .putString("photos_file", uri.toString())
+            .putString("photos_file_name", displayName(uri))
+            .remove("photos_fingerprint").remove("last_photos_saved").remove("last_photos")
+            .apply()
+        _state.value = read()
+        WorkManager.getInstance(app).enqueue(OneTimeWorkRequestBuilder<Worker>().build())
+    }
+
+    /** Deja de copiar las fotos (el CSV sigue). */
+    fun disablePhotos() {
+        _state.value.photosFile?.let { runCatching { app.contentResolver.releasePersistableUriPermission(it, RW) } }
+        prefs.edit().remove("photos_file").remove("photos_file_name").remove("photos_fingerprint")
+            .remove("last_photos_saved").remove("last_photos").apply()
+        _state.value = read()
+    }
+
     fun disable() {
         _state.value.file?.let { runCatching { app.contentResolver.releasePersistableUriPermission(it, RW) } }
+        _state.value.photosFile?.let { runCatching { app.contentResolver.releasePersistableUriPermission(it, RW) } }
         prefs.edit().clear().apply()
         _state.value = read()
         WorkManager.getInstance(app).cancelUniqueWork(WORK)
@@ -97,9 +134,10 @@ class AutoBackup(private val app: App) {
         val now = System.currentTimeMillis()
         val outcome = runCatching {
             val content = CollectionBackup.build(app)
+            val photosChanged = runPhotos(force, content.fingerprint, now)
             if (!force && content.fingerprint == prefs.getString("fingerprint", null)) {
                 prefs.edit().putLong("last_checked", now).remove("last_error").apply()
-                return@runCatching Outcome.Unchanged
+                return@runCatching if (photosChanged) Outcome.Saved(content.cards) else Outcome.Unchanged
             }
             withContext(Dispatchers.IO) { write(uri, content.csv.toByteArray(Charsets.UTF_8)) }
             prefs.edit()
@@ -117,13 +155,32 @@ class AutoBackup(private val app: App) {
         outcome
     }
 
+    /**
+     * El zip con las fotos, si está activado y cambiaron las cartas o las fotos. Puede ocupar
+     * decenas de MB: solo se reescribe cuando hace falta. Devuelve si lo escribió.
+     */
+    private suspend fun runPhotos(force: Boolean, cardsFingerprint: String, now: Long): Boolean {
+        val uri = _state.value.photosFile ?: return false
+        val fingerprint = cardsFingerprint + app.cardPhotos.fingerprint()
+        if (!force && fingerprint == prefs.getString("photos_fingerprint", null)) return false
+        val content = CollectionBackup.build(app, photos = true)
+        withContext(Dispatchers.IO) {
+            open(uri).use { out -> app.cardPhotos.zip(out, ZIP_CSV_NAME, content.csv, content.photoNames) }
+        }
+        prefs.edit().putString("photos_fingerprint", fingerprint)
+            .putLong("last_photos_saved", now).putInt("last_photos", content.photoNames.size).apply()
+        return true
+    }
+
     /** "wt" vacía el fichero antes; algunos proveedores solo admiten "w". */
-    private fun write(uri: Uri, bytes: ByteArray) {
-        val resolver = app.contentResolver
-        val out = runCatching { resolver.openOutputStream(uri, "wt") }.getOrNull()
+    private fun open(uri: Uri) = app.contentResolver.let { resolver ->
+        runCatching { resolver.openOutputStream(uri, "wt") }.getOrNull()
             ?: resolver.openOutputStream(uri, "w")
             ?: error("no se puede escribir")
-        out.use { it.write(bytes) }
+    }
+
+    private fun write(uri: Uri, bytes: ByteArray) {
+        open(uri).use { it.write(bytes) }
     }
 
     private fun displayName(uri: Uri): String? = runCatching {
@@ -152,6 +209,8 @@ class AutoBackup(private val app: App) {
         const val PREFS = "auto_backup"
         private const val WORK = "auto_backup"
         const val FILE_NAME = "mtg-scanner-auto.csv"
+        const val PHOTOS_FILE_NAME = "mtg-scanner-auto-fotos.zip"
+        private const val ZIP_CSV_NAME = "coleccion.csv"
         private const val RW = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
     }
 }

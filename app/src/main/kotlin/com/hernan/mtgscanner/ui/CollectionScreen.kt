@@ -127,6 +127,10 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
     var showConditionPricing by remember { mutableStateOf(false) }
     var showAutoBackup by remember { mutableStateOf(false) }
     var showTestPhotos by remember { mutableStateOf(false) }
+    var showCardPhotos by remember { mutableStateOf(false) }
+    /** Hay fotos de cartas: la exportación ofrece el zip con ellas. */
+    var photoCount by remember { mutableStateOf(0) }
+    LaunchedEffect(exporting) { if (exporting) photoCount = vm.cardPhotosInfo().first }
     /** Filas seleccionadas (por su clave); vacío = sin modo selección. */
     var selected by remember { mutableStateOf(emptySet<String>()) }
     var confirmDelete by remember { mutableStateOf<List<CollectionStore.Group>?>(null) }
@@ -134,6 +138,9 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
     val autoBackup by vm.autoBackup.collectAsStateWithLifecycle()
     val autoBackupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         uri?.let(vm::enableAutoBackup)
+    }
+    val autoBackupPhotosLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        uri?.let(vm::enableAutoBackupPhotos)
     }
     val conditionPricing by vm.conditionPricing.collectAsStateWithLifecycle()
     val conditionFactors by vm.conditionFactors.collectAsStateWithLifecycle()
@@ -217,6 +224,10 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_cards)) },
                                 onClick = { fileMenu = false; importLauncher.launch(arrayOf("*/*")) },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.card_photos_menu)) },
+                                onClick = { fileMenu = false; showCardPhotos = true },
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.test_photos_menu)) },
@@ -395,7 +406,7 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
                 printing = p, group = g,
                 deckName = ui.decks.firstOrNull { it.id == g.deckId }?.name,
                 currency = ui.currency,
-                loadSheet = { vm.cardSheet(g.cardId, g.name) },
+                loadSheet = { vm.cardSheet(g.cardId, g.name, g) },
                 loadDetails = { vm.cardDetails(g.cardId) },
                 onCondition = { c -> vm.setCondition(g, c); viewing = g.copy(condition = c) },
                 onFoil = { f -> vm.setFoil(g, f); viewing = g.copy(foil = f) },
@@ -472,6 +483,7 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
             onChooseFile = { autoBackupLauncher.launch(AutoBackup.FILE_NAME) },
             onBackupNow = vm::autoBackupNow,
             onDisable = vm::disableAutoBackup,
+            onPhotos = { on -> if (on) autoBackupPhotosLauncher.launch(AutoBackup.PHOTOS_FILE_NAME) else vm.disableAutoBackupPhotos() },
             onDismiss = { showAutoBackup = false },
         )
     }
@@ -516,6 +528,17 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
             onDismiss = { showTestPhotos = false },
         )
     }
+    if (showCardPhotos) {
+        val enabled by vm.cardPhotosEnabled.collectAsStateWithLifecycle()
+        var info by remember { mutableStateOf(0 to 0L) }
+        LaunchedEffect(Unit) { info = vm.cardPhotosInfo() }
+        CardPhotosDialog(
+            enabled = enabled, count = info.first, bytes = info.second,
+            onEnabled = vm::setCardPhotos,
+            onClear = { scope.launch { vm.clearCardPhotos(); info = vm.cardPhotosInfo() } },
+            onDismiss = { showCardPhotos = false },
+        )
+    }
     if (showHistory) {
         ValueHistoryDialog(ui.currency, load = { vm.history(it) }, onDismiss = { showHistory = false })
     }
@@ -530,9 +553,14 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
         ExportDialog(
             scope = scopeLabel,
             cards = ui.summary.cards,
-            onPick = { format ->
+            withPhotos = photoCount > 0,
+            onPick = { format, photos ->
                 exporting = false
-                scope.launch { context.startActivity(vm.exportIntent(format)) }
+                scope.launch {
+                    runCatching { vm.exportIntent(format, photos) }
+                        .onSuccess { context.startActivity(it) }
+                        .onFailure { vm.showMessage(context.getString(R.string.test_photos_export_failed, it.message)) }
+                }
             },
             onDismiss = { exporting = false },
         )
@@ -657,7 +685,13 @@ private fun decksLabel(n: Int) = pluralStringResource(R.plurals.decks, n, n)
 
 /** Elegir formato de exportación de lo que se está viendo; luego se abre el menú de compartir de Android. */
 @Composable
-private fun ExportDialog(scope: String, cards: Int, onPick: (CollectionExport.Format) -> Unit, onDismiss: () -> Unit) {
+private fun ExportDialog(
+    scope: String,
+    cards: Int,
+    withPhotos: Boolean,
+    onPick: (CollectionExport.Format, photos: Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val descriptions = mapOf(
         CollectionExport.Format.CSV to R.string.format_csv_desc,
         CollectionExport.Format.MOXFIELD to R.string.format_moxfield_desc,
@@ -669,9 +703,16 @@ private fun ExportDialog(scope: String, cards: Int, onPick: (CollectionExport.Fo
         text = {
             Column {
                 CollectionExport.Format.entries.forEach { f ->
-                    Column(Modifier.fillMaxWidth().clickable { onPick(f) }.padding(vertical = 10.dp)) {
+                    Column(Modifier.fillMaxWidth().clickable { onPick(f, false) }.padding(vertical = 10.dp)) {
                         Text(stringResource(f.label), fontWeight = FontWeight.Bold)
                         Text(stringResource(descriptions.getValue(f)), style = MaterialTheme.typography.bodySmall)
+                    }
+                    HorizontalDivider()
+                }
+                if (withPhotos) {
+                    Column(Modifier.fillMaxWidth().clickable { onPick(CollectionExport.Format.CSV, true) }.padding(vertical = 10.dp)) {
+                        Text(stringResource(R.string.format_csv_photos), fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.format_csv_photos_desc), style = MaterialTheme.typography.bodySmall)
                     }
                     HorizontalDivider()
                 }

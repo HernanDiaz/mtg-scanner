@@ -44,6 +44,15 @@ class Settings(context: Context) {
         _testPhotos.value = on
     }
 
+    /** Guardar la foto de cada carta escaneada en su ficha ([CardPhotos]). */
+    private val _cardPhotos = MutableStateFlow(prefs.getBoolean("card_photos", false))
+    val cardPhotos: StateFlow<Boolean> = _cardPhotos
+
+    fun setCardPhotos(on: Boolean) {
+        prefs.edit().putBoolean("card_photos", on).apply()
+        _cardPhotos.value = on
+    }
+
     /** Valorar cada carta según su estado ([conditionFactors]). */
     private val _conditionPricing = MutableStateFlow(prefs.getBoolean("condition_pricing", false))
     val conditionPricing: StateFlow<Boolean> = _conditionPricing

@@ -30,7 +30,33 @@ object CollectionExport {
         val unitPrice: Double?,
         val deck: String? = null,
         val needsReview: Boolean = false,
+        /** Fotos de estas copias, como se llaman en el zip ([CardPhotos]). */
+        val photos: List<String> = emptyList(),
     )
+
+    /**
+     * Pone a cada línea los nombres de las fotos de sus copias. Devuelve las líneas y
+     * qué foto (por copia) va con qué nombre. [detailed] como en [lines].
+     */
+    fun withPhotos(
+        lines: List<Line>,
+        entries: List<CollectionStore.EntryKey>,
+        detailed: Boolean,
+        deckName: (Long?) -> String?,
+        hasPhoto: (Long) -> Boolean,
+    ): Pair<List<Line>, Map<Long, String>> {
+        fun key(cardId: String, foil: Boolean, condition: String, lang: String, deck: String?, review: Boolean) =
+            listOf(cardId, foil, condition, lang) + if (detailed) listOf(deck, review) else emptyList()
+        val byLine = entries.filter { hasPhoto(it.id) }.groupBy {
+            key(it.cardId, it.foil, it.condition, it.lang, deckName(it.deckId), it.needsReview)
+        }
+        val names = LinkedHashMap<Long, String>()
+        val out = lines.map { l ->
+            val ids = byLine[key(l.cardId, l.foil, l.condition, l.lang, l.deck, l.needsReview)].orEmpty().map { it.id }.sorted()
+            if (ids.isEmpty()) l else l.copy(photos = ids.map { id -> CardPhotos.photoName(id, l).also { names[id] = it } })
+        }
+        return out to names
+    }
 
     /**
      * Líneas a exportar. Con [detailed] (nuestro CSV, que sirve de copia de
@@ -65,18 +91,22 @@ object CollectionExport {
      */
     fun csv(lines: List<Line>, currency: Currency, english: Boolean = false): String = buildString {
         val c = currency.name
+        // La columna de fotos solo si hay fotos (exportación en zip con ellas).
+        val photos = lines.any { it.photos.isNotEmpty() }
+        val photosHeader = if (!photos) emptyArray() else arrayOf(if (english) "Photos" else "Fotos")
         if (english) {
             row("Quantity", "Name", "Set name", "Set code", "Number", "Language", "Condition", "Foil", "Deck", "Needs review",
-                "Unit price ($c)", "Total price ($c)", "Scryfall ID")
+                "Unit price ($c)", "Total price ($c)", "Scryfall ID", *photosHeader)
         } else {
             row("Cantidad", "Nombre", "Edición", "Código", "Número", "Idioma", "Estado", "Foil", "Mazo", "Por revisar",
-                "Precio unidad ($c)", "Precio total ($c)", "Scryfall ID")
+                "Precio unidad ($c)", "Precio total ($c)", "Scryfall ID", *photosHeader)
         }
         val yes = if (english) "yes" else "sí"
         for (l in lines) {
+            val photoCell = if (!photos) emptyArray() else arrayOf(l.photos.joinToString("; ") { "${CardPhotos.FOLDER}/$it" })
             row(l.quantity.toString(), l.name, l.setName, l.setCode.uppercase(), l.collectorNumber,
                 l.lang.uppercase(), l.condition, if (l.foil) yes else "no", l.deck.orEmpty(), if (l.needsReview) yes else "",
-                l.unitPrice?.let(::money) ?: "", l.unitPrice?.let { money(it * l.quantity) } ?: "", l.cardId)
+                l.unitPrice?.let(::money) ?: "", l.unitPrice?.let { money(it * l.quantity) } ?: "", l.cardId, *photoCell)
         }
     }
 

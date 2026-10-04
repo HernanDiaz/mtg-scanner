@@ -1,6 +1,8 @@
 package com.hernan.mtgscanner.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -9,11 +11,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -33,6 +37,8 @@ fun AutoBackupDialog(
     onChooseFile: () -> Unit,
     onBackupNow: () -> Unit,
     onDisable: () -> Unit,
+    /** Incluir fotos: true pide crear el zip; false deja de copiarlas. */
+    onPhotos: (Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val active = state.file != null
@@ -74,6 +80,27 @@ fun AutoBackupDialog(
                             stringResource(R.string.auto_backup_error, it),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    Row(Modifier.fillMaxWidth().clickable { onPhotos(state.photosFile == null) },
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = state.photosFile != null, onCheckedChange = { onPhotos(it) })
+                        Text(stringResource(R.string.auto_backup_photos), Modifier.weight(1f))
+                    }
+                    if (state.photosFile != null) {
+                        Text(
+                            stringResource(R.string.auto_backup_photos_file, state.photosFileName ?: AutoBackup.PHOTOS_FILE_NAME) +
+                                if (state.lastPhotosSaved > 0) {
+                                    "\n" + stringResource(R.string.auto_backup_photos_last, formatTime(state.lastPhotosSaved), state.lastPhotos)
+                                } else "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        Text(
+                            stringResource(R.string.auto_backup_photos_explain),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Button(onClick = onBackupNow, modifier = Modifier.fillMaxWidth()) {

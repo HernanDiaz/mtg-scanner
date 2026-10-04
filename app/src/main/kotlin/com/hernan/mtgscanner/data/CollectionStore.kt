@@ -416,6 +416,32 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         changed()
     }
 
+    /** Las copias (entradas) de una fila. */
+    fun entryIds(group: Group): List<Long> =
+        readableDatabase.rawQuery("SELECT id FROM entries WHERE $GROUP_WHERE", group.whereArgs()).use { c ->
+            buildList { while (c.moveToNext()) add(c.getLong(0)) }
+        }
+
+    /** Todas las copias, para saber qué fotos siguen teniendo carta. */
+    fun allEntryIds(): Set<Long> =
+        readableDatabase.rawQuery("SELECT id FROM entries", null).use { c ->
+            buildSet { while (c.moveToNext()) add(c.getLong(0)) }
+        }
+
+    /** Una copia y lo que la agrupa en una línea exportada ([CollectionExport.lines]). */
+    data class EntryKey(
+        val id: Long, val cardId: String, val foil: Boolean, val condition: String, val lang: String,
+        val deckId: Long?, val needsReview: Boolean,
+    )
+
+    fun entryKeys(): List<EntryKey> =
+        readableDatabase.rawQuery("SELECT id, card_id, foil, condition, lang, deck_id, needs_review FROM entries", null).use { c ->
+            buildList {
+                while (c.moveToNext()) add(EntryKey(c.getLong(0), c.getString(1), c.getInt(2) != 0, c.getString(3),
+                    c.getString(4), if (c.isNull(5)) null else c.getLong(5), c.getInt(6) != 0))
+            }
+        }
+
     private fun Group.whereArgs() = arrayOf(
         cardId, if (foil) "1" else "0", condition, lang, if (needsReview) "1" else "0", (deckId ?: NO_DECK).toString(),
     )

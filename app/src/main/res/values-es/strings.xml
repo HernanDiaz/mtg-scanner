@@ -279,4 +279,21 @@
     <string name="restored_cards">Recuperadas: %1$s</string>
     <string name="move_many_title">Mover %1$s</string>
     <string name="select_several">Seleccionar varias</string>
+    <string name="card_photos">Fotos de las cartas</string>
+    <string name="card_photos_menu">Fotos de las cartas…</string>
+    <string name="card_photos_explain">Guarda la foto de la cámara de cada carta que escanees. La verás en la ficha de la carta y podrás incluirla al exportar o en la copia automática. Cada foto ocupa unos 150 KB.</string>
+    <string name="card_photos_switch">Guardar la foto de cada carta</string>
+    <string name="card_photos_clear_confirm">¿Borrar las %1$d fotos? Las cartas siguen en la colección.</string>
+    <string name="card_photos_how">Al quitar una carta de la colección, su foto se borra la próxima vez que abras la app.</string>
+    <string name="your_photo">Tu foto</string>
+    <plurals name="your_photos">
+        <item quantity="one">Tu foto</item>
+        <item quantity="other">Tus fotos (%1$d)</item>
+    </plurals>
+    <string name="format_csv_photos">CSV con fotos (zip)</string>
+    <string name="format_csv_photos_desc">Lo mismo que el CSV y además las fotos de las cartas en una carpeta «fotos». Una columna dice qué fotos son de cada fila.</string>
+    <string name="auto_backup_photos">Incluir fotos</string>
+    <string name="auto_backup_photos_explain">Las fotos van en un segundo fichero (un zip con la lista y las fotos), que solo se guarda cuando cambian las cartas o las fotos. Puede ocupar decenas de MB.</string>
+    <string name="auto_backup_photos_file">Fotos: %1$s</string>
+    <string name="auto_backup_photos_last">Última copia: %1$s (%2$d fotos)</string>
 </resources>

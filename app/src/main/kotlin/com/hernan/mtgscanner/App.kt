@@ -4,6 +4,7 @@ import android.app.Application
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import com.hernan.mtgscanner.data.AutoBackup
+import com.hernan.mtgscanner.data.CardPhotos
 import com.hernan.mtgscanner.data.Catalog
 import com.hernan.mtgscanner.data.CollectionStore
 import com.hernan.mtgscanner.data.Settings
@@ -28,11 +29,14 @@ class App : Application(), ImageLoaderFactory {
     val settings by lazy { Settings(this) }
     val autoBackup by lazy { AutoBackup(this) }
     val testPhotos by lazy { TestPhotos(java.io.File(noBackupFilesDir, "test_photos")) }
+    val cardPhotos by lazy { CardPhotos(java.io.File(noBackupFilesDir, "card_photos")) }
 
     override fun onCreate() {
         super.onCreate()
         catalog = scope.async { Catalog(this@App) }
         autoBackup.ensureScheduled()
+        // Fotos de cartas que se borraron (en la sesión anterior: hasta salir se pueden recuperar con "Deshacer").
+        scope.launch { runCatching { cardPhotos.removeOrphans(collection.allEntryIds()) } }
         // Valor según el estado: la colección lo aplica al calcular totales y filas.
         scope.launch {
             combine(settings.conditionPricing, settings.conditionFactors) { on, f -> f.takeIf { on } }

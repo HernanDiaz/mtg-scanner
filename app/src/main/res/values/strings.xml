@@ -282,4 +282,21 @@
     <string name="restored_cards">Restored: %1$s</string>
     <string name="move_many_title">Move %1$s</string>
     <string name="select_several">Select several</string>
+    <string name="card_photos">Card photos</string>
+    <string name="card_photos_menu">Card photos…</string>
+    <string name="card_photos_explain">Saves the camera photo of each card you scan. You can see it on the card\'s page and include it when you export or in the automatic backup. Each photo takes about 150 KB.</string>
+    <string name="card_photos_switch">Save the photo of each card</string>
+    <string name="card_photos_clear_confirm">Delete the %1$d photos? The cards stay in the collection.</string>
+    <string name="card_photos_how">When you remove a card from the collection, its photo is deleted the next time you open the app.</string>
+    <string name="your_photo">Your photo</string>
+    <plurals name="your_photos">
+        <item quantity="one">Your photo</item>
+        <item quantity="other">Your photos (%1$d)</item>
+    </plurals>
+    <string name="format_csv_photos">CSV with photos (zip)</string>
+    <string name="format_csv_photos_desc">Same as CSV, plus the photos of the cards in a “fotos” folder. A column names the photos of each row.</string>
+    <string name="auto_backup_photos">Include photos</string>
+    <string name="auto_backup_photos_explain">Card photos go in a second file (a zip with the list and the photos), saved only when cards or photos change. It can take tens of MB.</string>
+    <string name="auto_backup_photos_file">Photos: %1$s</string>
+    <string name="auto_backup_photos_last">Last copy: %1$s (%2$d photos)</string>
 </resources>
