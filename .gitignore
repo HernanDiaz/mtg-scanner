@@ -20,3 +20,8 @@ __pycache__/
 # Fotos de prueba exportadas del móvil (cartas del usuario)
 /fotos de prueba/
 /fotos_movil/
+# Proyecto de Xcode generado por XcodeGen en el Mac (iosApp/project.yml)
+iosApp/*.xcodeproj
+iosApp/Info.plist
+# El catálogo para iOS se descarga de la release "catalog" (tools/publish_catalog.sh)
+iosApp/Resources/catalog.sqlite

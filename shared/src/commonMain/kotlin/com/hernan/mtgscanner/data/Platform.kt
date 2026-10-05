@@ -40,3 +40,8 @@ private val CP1252_HIGH = charArrayOf(
     '\uFFFD', '\u2018', '\u2019', '\u201C', '\u201D', '\u2022', '\u2013', '\u2014',
     '\u02DC', '\u2122', '\u0161', '\u203A', '\u0153', '\uFFFD', '\u017E', '\u0178',
 )
+
+/** Cerrojo reentrante: una sola consulta a la vez en la conexión del catálogo. */
+expect class CatalogLock() {
+    fun <T> withLock(block: () -> T): T
+}

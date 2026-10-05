@@ -6,6 +6,7 @@ import coil.ImageLoaderFactory
 import com.hernan.mtgscanner.data.AutoBackup
 import com.hernan.mtgscanner.data.CardPhotos
 import com.hernan.mtgscanner.data.Catalog
+import com.hernan.mtgscanner.data.openCatalog
 import com.hernan.mtgscanner.data.CollectionStore
 import com.hernan.mtgscanner.data.Settings
 import com.hernan.mtgscanner.data.TestPhotos
@@ -33,7 +34,7 @@ class App : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
-        catalog = scope.async { Catalog(this@App) }
+        catalog = scope.async { openCatalog(this@App) }
         autoBackup.ensureScheduled()
         // Fotos de cartas que se borraron (en la sesión anterior: hasta salir se pueden recuperar con "Deshacer").
         scope.launch { runCatching { cardPhotos.removeOrphans(collection.allEntryIds()) } }

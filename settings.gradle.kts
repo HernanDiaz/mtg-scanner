@@ -24,3 +24,4 @@ rootProject.name = "MtgScanner"
 
 include(":app")
 include(":shared")
+include(":iosui")

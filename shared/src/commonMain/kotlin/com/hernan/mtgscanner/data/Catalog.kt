@@ -1,27 +1,26 @@
 package com.hernan.mtgscanner.data
 
-import android.content.Context
-import android.database.Cursor
-import android.database.sqlite.SQLiteDatabase
-import java.io.File
+import androidx.sqlite.SQLiteConnection
+import androidx.sqlite.SQLiteStatement
 import com.hernan.mtgscanner.scan.ArtSignature
 import com.hernan.mtgscanner.scan.SetSymbols
 import com.hernan.mtgscanner.scan.SymbolRef
-import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Catálogo de todas las impresiones, de solo lectura. Viene empaquetado en
- * assets/catalog.sqlite (lo genera tools/build_catalog.py) y se copia a
- * almacenamiento interno la primera vez y tras cada actualización de la app.
+ * Catálogo de todas las impresiones, de solo lectura. Lo genera tools/build_catalog.py
+ * (catalog.sqlite) y va dentro de la app: en Android se copia de los assets al
+ * almacenamiento interno (openCatalog); en iPhone se lee directamente del paquete.
  * Construirlo es lento (~1 s): hacerlo fuera del hilo principal.
+ *
+ * La conexión no admite varios hilos a la vez: cada consulta toma [lock].
  */
-class Catalog(context: Context) {
+class Catalog(private val db: SQLiteConnection) {
 
-    private val db: SQLiteDatabase
+    private val lock = CatalogLock()
     val names: NameMatcher
     val setCodes: Set<String>
     private val sets: Map<String, SetInfo>
-    private val printingsCache = ConcurrentHashMap<String, List<CardPrinting>>()
+    private val printingsCache = ConcurrentCache<String, List<CardPrinting>>()
     private val arts = HashMap<Int, ArtSignature>()
     /** Nombre traducido (normalizado) -> sus idiomas, el más frecuente primero. */
     private val foreignNames = HashMap<String, List<String>>(160_000)
@@ -31,58 +30,43 @@ class Catalog(context: Context) {
     val symbols: SetSymbols?
 
     init {
-        val file = ensureCopied(context)
-        db = SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY)
-
         val entries = ArrayList<Pair<String, String>>(200_000)
         val langLists = HashMap<String, List<String>>() // "es,pt" -> [es, pt], compartidas
-        db.rawQuery("SELECT norm, name, lang FROM names", null).use { c ->
-            while (c.moveToNext()) {
-                entries.add(c.getString(0) to c.getString(1))
-                val lang = c.getString(2)
-                if (lang != "en") foreignNames[c.getString(0)] = langLists.getOrPut(lang) { lang.split(",") }
-            }
+        rows("SELECT norm, name, lang FROM names") { c ->
+            entries.add(c.getText(0) to c.getText(1))
+            val lang = c.getText(2)
+            if (lang != "en") foreignNames[c.getText(0)] = langLists.getOrPut(lang) { lang.split(",") }
         }
         names = NameMatcher(entries)
 
         val loaded = HashMap<String, SetInfo>()
         val langSets = HashMap<String, Set<String>>() // "fr,de" -> {fr, de}, compartidos
-        db.rawQuery("SELECT code, name, set_type, printed_size, langs FROM sets", null).use { c ->
-            while (c.moveToNext()) {
-                val langs = c.getString(4)
-                loaded[c.getString(0)] = SetInfo(c.getString(1), c.getString(2), if (c.isNull(3)) null else c.getInt(3),
-                    langSets.getOrPut(langs) { langs.split(",").filter { it.isNotEmpty() }.toSet() })
-            }
+        rows("SELECT code, name, set_type, printed_size, langs FROM sets") { c ->
+            val langs = c.getText(4)
+            loaded[c.getText(0)] = SetInfo(c.getText(1), c.textOrNull(2), c.intOrNull(3),
+                langSets.getOrPut(langs) { langs.split(",").filter { it.isNotEmpty() }.toSet() })
         }
         sets = loaded
         setCodes = loaded.keys
 
-        db.rawQuery("SELECT id, thumb FROM arts", null).use { c ->
-            while (c.moveToNext()) arts[c.getInt(0)] = ArtSignature.fromPacked(c.getBlob(1))
-        }
+        rows("SELECT id, thumb FROM arts") { c -> arts[c.getInt(0)] = ArtSignature.fromPacked(c.getBlob(1)) }
         runCatching {
-            db.rawQuery("SELECT name, bits FROM legality", null).use { c ->
-                while (c.moveToNext()) legality[c.getString(0)] = c.getInt(1)
-            }
+            rows("SELECT name, bits FROM legality") { c -> legality[c.getText(0)] = c.getInt(1) }
         }
 
         symbols = runCatching {
             val refs = HashMap<String, SymbolRef>()
-            db.rawQuery("SELECT set_code, rarity, style, w, h, rgb FROM symbols", null).use { c ->
-                while (c.moveToNext()) {
-                    refs[SetSymbols.key(c.getString(0), c.getString(1), c.getString(2))] =
-                        SymbolRef.fromBytes(c.getInt(3), c.getInt(4), c.getBlob(5))
-                }
+            rows("SELECT set_code, rarity, style, w, h, rgb FROM symbols") { c ->
+                refs[SetSymbols.key(c.getText(0), c.getText(1), c.getText(2))] =
+                    SymbolRef.fromBytes(c.getInt(3), c.getInt(4), c.getBlob(5))
             }
             val icons = HashMap<String, String>()
             val none = HashSet<String>()
             val other = HashSet<String>()
-            db.rawQuery("SELECT set_code, icon, kind FROM set_icons", null).use { c ->
-                while (c.moveToNext()) {
-                    val set = c.getString(0)
-                    if (!c.isNull(1)) icons[set] = c.getString(1)
-                    when (c.getString(2)) { "none" -> none += set; "other" -> other += set }
-                }
+            rows("SELECT set_code, icon, kind FROM set_icons") { c ->
+                val set = c.getText(0)
+                if (!c.isNull(1)) icons[set] = c.getText(1)
+                when (c.getText(2)) { "none" -> none += set; "other" -> other += set }
             }
             SetSymbols(refs, none, other, icons)
         }.getOrNull()
@@ -94,8 +78,8 @@ class Catalog(context: Context) {
     /** Ilustración -> nombre de la carta (se carga la primera vez que se busca por imagen). */
     private val artNames: Map<Int, String> by lazy {
         HashMap<Int, String>(arts.size * 2).apply {
-            db.rawQuery("SELECT art_id, name FROM cards WHERE art_id IS NOT NULL GROUP BY art_id", null).use { c ->
-                while (c.moveToNext()) put(c.getInt(0), c.getString(1))
+            rows("SELECT art_id, name FROM cards WHERE art_id IS NOT NULL GROUP BY art_id") { c ->
+                put(c.getInt(0), c.getText(1))
             }
         }
     }
@@ -180,59 +164,57 @@ class Catalog(context: Context) {
             printingsOf(exact).takeIf { it.isNotEmpty() }?.let { return it }
         }
         val front = name.trim() + " // "
-        val full = db.rawQuery("SELECT DISTINCT name FROM cards WHERE name >= ? AND name < ? LIMIT 1",
-            arrayOf(front, front + Char(0xFFFF))).use { c -> if (c.moveToFirst()) c.getString(0) else null }
+        var full: String? = null
+        rows("SELECT DISTINCT name FROM cards WHERE name >= ? AND name < ? LIMIT 1", front, front + Char(0xFFFF)) { c ->
+            full = c.getText(0)
+        }
         return full?.let(::printingsOf).orEmpty()
     }
 
-    private fun query(where: String, vararg args: String): List<CardPrinting> =
-        db.rawQuery("SELECT $COLUMNS FROM cards $where", args).use { c ->
-            buildList { while (c.moveToNext()) add(read(c)) }
-        }
+    private fun query(where: String, vararg args: String): List<CardPrinting> = buildList {
+        rows("SELECT $COLUMNS FROM cards $where", *args) { c -> add(read(c)) }
+    }
 
-    private fun read(c: Cursor) = CardPrinting(
-        id = c.getString(0),
-        name = c.getString(1),
-        setCode = c.getString(2),
-        setName = setName(c.getString(2)),
-        setType = sets[c.getString(2)]?.type,
-        setSize = sets[c.getString(2)]?.size,
-        collectorNumber = c.getString(3),
-        numberNorm = c.getString(4),
-        rarity = c.getString(5),
-        releasedAt = c.getString(6),
+    /** Ejecuta [sql] con [args] y llama a [row] con cada fila. */
+    private fun rows(sql: String, vararg args: String, row: (SQLiteStatement) -> Unit) = lock.withLock {
+        db.prepare(sql).use { st ->
+            args.forEachIndexed { i, a -> st.bindText(i + 1, a) }
+            while (st.step()) row(st)
+        }
+    }
+
+    private fun read(c: SQLiteStatement) = CardPrinting(
+        id = c.getText(0),
+        name = c.getText(1),
+        setCode = c.getText(2),
+        setName = setName(c.getText(2)),
+        setType = sets[c.getText(2)]?.type,
+        setSize = sets[c.getText(2)]?.size,
+        collectorNumber = c.getText(3),
+        numberNorm = c.getText(4),
+        rarity = c.textOrNull(5),
+        releasedAt = c.textOrNull(6),
         finishes = c.getInt(7),
         promo = c.getInt(8) != 0,
-        lang = c.getString(9),
+        lang = c.getText(9),
         prices = Prices(c.doubleOrNull(10), c.doubleOrNull(11), c.doubleOrNull(12), c.doubleOrNull(13)),
-        artId = if (c.isNull(14)) null else c.getInt(14),
-        colors = c.getString(15),
-        style = c.getString(16),
-        cardmarketId = if (c.isNull(17)) null else c.getInt(17),
-        border = c.getString(18).firstOrNull() ?: 'b',
-        legality = legality[c.getString(1)] ?: 0,
+        artId = c.intOrNull(14),
+        colors = c.getText(15),
+        style = c.getText(16),
+        cardmarketId = c.intOrNull(17),
+        border = c.getText(18).firstOrNull() ?: 'b',
+        legality = legality[c.getText(1)] ?: 0,
     )
 
-    private fun Cursor.doubleOrNull(i: Int) = if (isNull(i)) null else getDouble(i)
+    private fun SQLiteStatement.getInt(i: Int) = getLong(i).toInt()
+    private fun SQLiteStatement.intOrNull(i: Int) = if (isNull(i)) null else getLong(i).toInt()
+    private fun SQLiteStatement.textOrNull(i: Int) = if (isNull(i)) null else getText(i)
+    private fun SQLiteStatement.doubleOrNull(i: Int) = if (isNull(i)) null else getDouble(i)
 
     companion object {
-        private const val ASSET = "catalog.sqlite"
+        /** Nombre del fichero del catálogo dentro de la app. */
+        const val FILE_NAME = "catalog.sqlite"
         private const val COLUMNS = "id, name, set_code, collector_number, number_norm, rarity, " +
             "released_at, finishes, promo, lang, eur, eur_foil, usd, usd_foil, art_id, colors, style, cm_id, border"
-
-        private fun ensureCopied(context: Context): File {
-            val file = File(context.filesDir, ASSET)
-            val stamp = context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime
-            val prefs = context.getSharedPreferences("catalog", Context.MODE_PRIVATE)
-            if (!file.exists() || prefs.getLong("stamp", -1) != stamp) {
-                val tmp = File(context.filesDir, "$ASSET.tmp")
-                context.assets.open(ASSET).use { input ->
-                    tmp.outputStream().use { input.copyTo(it, 1 shl 16) }
-                }
-                tmp.renameTo(file)
-                prefs.edit().putLong("stamp", stamp).apply()
-            }
-            return file
-        }
     }
 }

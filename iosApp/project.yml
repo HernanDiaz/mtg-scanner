@@ -1,0 +1,66 @@
+# Proyecto de Xcode de la app de iPhone. Se genera en el Mac de GitHub con XcodeGen
+# (ver .github/workflows/ios.yml); el .xcodeproj no se guarda en el repositorio.
+# La app está en Kotlin (módulos iosui y shared); aquí solo está el arranque en Swift.
+#
+# Resources/catalog.sqlite (el catálogo de cartas, ~43 MB) no está en el repositorio:
+# el workflow lo descarga de la release "catalog" de GitHub (ver tools/publish_catalog.sh).
+name: MtgScanner
+options:
+  deploymentTarget:
+    iOS: "16.0"
+  developmentLanguage: en
+settings:
+  base:
+    MARKETING_VERSION: "0.1"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  MtgScanner:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+      - Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hernandiaz.mtgscanner
+        PRODUCT_NAME: MtgScanner
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        # Framework "Shared" que compila Gradle (paso previo "Compilar Kotlin")
+        FRAMEWORK_SEARCH_PATHS: ["$(inherited)", "$(SRCROOT)/../iosui/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"]
+        OTHER_LDFLAGS: ["$(inherited)", "-framework", "Shared", "-lsqlite3"]
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: MTG Scanner
+        CFBundleDevelopmentRegion: en
+        CFBundleLocalizations: [en, es]
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UIRequiresFullScreen: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        NSCameraUsageDescription: The camera is used to scan your Magic cards.
+        # Compose Multiplatform necesita pantallas a 120 Hz sin límite
+        CADisableMinimumFrameDurationOnPhone: true
+        ITSAppUsesNonExemptEncryption: false
+    preBuildScripts:
+      - name: Compilar Kotlin
+        basedOnDependencyAnalysis: false
+        script: |
+          cd "$SRCROOT/.."
+          ./gradlew :iosui:embedAndSignAppleFrameworkForXcode --no-configuration-cache
+schemes:
+  MtgScanner:
+    build:
+      targets:
+        MtgScanner: all
+    archive:
+      config: Release

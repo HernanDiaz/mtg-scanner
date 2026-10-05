@@ -1,18 +1,12 @@
-# Código común (módulo shared) en iPhone: lo compila para iOS y ejecuta sus pruebas
-# en el simulador. Solo se puede en un Mac; en Windows se comprueban en la JVM
-# (./gradlew :shared:testDebugUnitTest).
+# Código común en iOS sin subir nada: ejecuta las pruebas de shared en el simulador de
+# iPhone y compila la app de iPhone (iosui) para ver que todo enlaza.
+# Se lanza a mano: GitHub → Actions → "Código común en iOS" → Run workflow.
+# En Windows las pruebas se ejecutan en la JVM (./gradlew :shared:testAndroidHostTest).
+#
+# El repositorio es privado: los minutos de Mac cuentan x10 (unos 6-10 min por ejecución).
 name: Código común en iOS
 
 on:
-  push:
-    paths:
-      - "shared/**"
-      - "*.gradle.kts"
-      - "gradle/**"
-      - ".github/workflows/shared.yml"
-  pull_request:
-    paths:
-      - "shared/**"
   workflow_dispatch:
 
 jobs:
@@ -26,10 +20,17 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
-      - name: Pruebas en la JVM
-        run: ./gradlew :shared:testDebugUnitTest
-      - name: Compilar para iPhone y pruebas en el simulador
-        run: ./gradlew :shared:compileKotlinIosArm64 :shared:iosSimulatorArm64Test
+      - name: Caché de Kotlin/Native
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+      - name: SDK de Android
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" > /dev/null || true
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+      - name: Pruebas en el simulador y compilar la app de iPhone
+        run: ./gradlew :shared:iosSimulatorArm64Test :iosui:linkDebugFrameworkIosSimulatorArm64
       - name: Resultados de las pruebas
         if: always()
         uses: actions/upload-artifact@v4

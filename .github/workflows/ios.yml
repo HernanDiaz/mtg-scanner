@@ -1,0 +1,152 @@
+# Compila la app para iPhone en un Mac de GitHub y la sube a TestFlight.
+# Se lanza a mano: GitHub → Actions → "iOS (TestFlight)" → Run workflow.
+#
+# Secretos necesarios (Settings → Secrets and variables → Actions), los mismos que en
+# las otras apps:
+#   APPLE_TEAM_ID   ID de equipo de Apple Developer (10 caracteres)
+#   ASC_KEY_ID      ID de la clave de API de App Store Connect
+#   ASC_ISSUER_ID   ID del emisor (Issuer ID) de App Store Connect
+#   ASC_KEY_P8      Contenido completo del archivo AuthKey_XXXX.p8
+#
+# La firma es automática: Xcode crea el certificado de distribución y el perfil con la
+# clave de API, así que no hace falta un Mac propio ni tener iPhones registrados.
+# Se compila sin firmar y se firma al exportar para App Store Connect.
+#
+# El catálogo de cartas (catalog.sqlite, ~43 MB) no está en el repositorio: se descarga
+# de la release "catalog" (se sube con tools/publish_catalog.sh).
+#
+# El repositorio es privado: los minutos de Mac cuentan x10.
+
+name: iOS (TestFlight)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  APP_NAME: MtgScanner
+
+jobs:
+  testflight:
+    runs-on: macos-15
+    timeout-minutes: 75
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Comprobar secretos
+        run: |
+          missing=0
+          for name in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Falta el secreto $name"
+              missing=1
+            fi
+          done
+          exit $missing
+
+      # Apple exige el SDK de iOS 26 para subir apps: hace falta Xcode 26 o posterior.
+      - name: Elegir Xcode
+        run: |
+          echo "Versiones de Xcode instaladas:"; ls -d /Applications/Xcode*.app
+          xcode=$(ls -d /Applications/Xcode_2[6-9]*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$xcode" ]; then
+            echo "::error::Esta máquina no tiene Xcode 26 o posterior (ver la lista de arriba)"
+            exit 1
+          fi
+          sudo xcode-select -s "$xcode/Contents/Developer"
+          xcodebuild -version
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Compilador de Kotlin/Native y sus bibliotecas (~1 GB): en caché para no descargarlos cada vez
+      - name: Caché de Kotlin/Native
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+
+      # Gradle también configura el módulo de Android, que necesita su SDK
+      - name: SDK de Android
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" > /dev/null || true
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Catálogo de cartas
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download catalog -p catalog.sqlite -D iosApp/Resources --clobber
+          ls -l iosApp/Resources/catalog.sqlite
+
+      - name: Generar el proyecto de Xcode
+        run: |
+          chmod +x gradlew
+          brew install xcodegen
+          cd iosApp && xcodegen generate
+
+      - name: Clave de App Store Connect
+        run: |
+          mkdir -p ~/private_keys
+          printf '%s\n' "$ASC_KEY_P8" > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          echo "ASC_KEY_PATH=$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
+
+      # Sin firmar: firmar aquí exigiría un perfil de desarrollo y un iPhone registrado.
+      # La firma de distribución se hace en el paso siguiente, al exportar.
+      # Cada subida a Apple necesita un número distinto: se usa el número de ejecución del workflow.
+      - name: Compilar
+        run: |
+          xcodebuild archive \
+            -project "iosApp/${APP_NAME}.xcodeproj" \
+            -scheme "${APP_NAME}" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "build/ios/${APP_NAME}.xcarchive" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER=""
+
+      - name: Firmar y subir a TestFlight
+        run: |
+          cat > ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath "build/ios/${APP_NAME}.xcarchive" \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath build/ios/export \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "Subido. En unos minutos aparecerá en App Store Connect → TestFlight (compilación ${{ github.run_number }})."
+
+      - name: Borrar la clave
+        if: always()
+        run: rm -rf ~/private_keys
