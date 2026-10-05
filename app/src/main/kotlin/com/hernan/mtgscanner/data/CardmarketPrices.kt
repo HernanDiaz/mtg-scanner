@@ -15,17 +15,11 @@ import java.net.URL
 class CardmarketPrices(private val cacheDir: File) {
 
     /** Precios de un producto, en euros. */
-    data class Guide(
-        val trend: Double? = null, val trendFoil: Double? = null,
-        val low: Double? = null, val lowFoil: Double? = null,
-        val avg30: Double? = null, val avg30Foil: Double? = null,
-    )
-
     private val file get() = File(cacheDir, "cardmarket_price_guide.json")
     private val etagFile get() = File(cacheDir, "cardmarket_price_guide.etag")
 
     /** Precios de los productos pedidos. Descarga la guía si ha cambiado desde la última vez. */
-    fun pricesFor(ids: Set<Int>): Map<Int, Guide> {
+    fun pricesFor(ids: Set<Int>): Map<Int, CardmarketGuide> {
         if (ids.isEmpty()) return emptyMap()
         download()
         return file.inputStream().buffered().use { parse(it, ids) }
@@ -61,8 +55,8 @@ class CardmarketPrices(private val cacheDir: File) {
          * Formato: {"priceGuides": [{"idProduct": 1, "trend": 0.07, "low": 0.02, "avg30": 0.09,
          * "trend-foil": ..., "low-foil": ..., "avg30-foil": ..., ...}, ...]}
          */
-        fun parse(input: InputStream, ids: Set<Int>): Map<Int, Guide> {
-            val result = HashMap<Int, Guide>()
+        fun parse(input: InputStream, ids: Set<Int>): Map<Int, CardmarketGuide> {
+            val result = HashMap<Int, CardmarketGuide>()
             JsonReader(input.reader()).use { r ->
                 r.beginObject()
                 while (r.hasNext()) {
@@ -82,7 +76,7 @@ class CardmarketPrices(private val cacheDir: File) {
                         }
                         r.endObject()
                         if (id in ids) {
-                            result[id] = Guide(
+                            result[id] = CardmarketGuide(
                                 trend = v["trend"], trendFoil = v["trend-foil"],
                                 low = v["low"], lowFoil = v["low-foil"],
                                 avg30 = v["avg30"], avg30Foil = v["avg30-foil"],
@@ -99,7 +93,7 @@ class CardmarketPrices(private val cacheDir: File) {
         private val FIELDS = setOf("trend", "trend-foil", "low", "low-foil", "avg30", "avg30-foil")
 
         /** Cardmarket pone 0 cuando no hay datos: mejor sin precio que gratis. */
-        private fun Guide.positive() = Guide(
+        private fun CardmarketGuide.positive() = CardmarketGuide(
             trend?.takeIf { it > 0 }, trendFoil?.takeIf { it > 0 }, low?.takeIf { it > 0 },
             lowFoil?.takeIf { it > 0 }, avg30?.takeIf { it > 0 }, avg30Foil?.takeIf { it > 0 },
         )

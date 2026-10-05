@@ -1,10 +1,6 @@
 package com.hernan.mtgscanner.data
 
-import android.content.ContentValues
-import android.content.Context
-import android.database.DatabaseUtils
-import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteOpenHelper
+import kotlin.concurrent.Volatile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -25,8 +21,18 @@ data class CollectionFilter(
  * física); los precios se guardan aparte (uno por impresión) para actualizarlos.
  * Cada carta física puede estar en un mazo (`decks`) o en ninguno.
  */
-class CollectionStore(context: Context, dbName: String = "collection.db") :
-    SQLiteOpenHelper(context, dbName, null, 8) {
+class CollectionStore(private val db: Db) : AutoCloseable {
+
+    init {
+        db.migrate(VERSION, ::onCreate, ::onUpgrade)
+    }
+
+    // Los mismos nombres que en SQLiteOpenHelper: es una única conexión.
+    /** Como en SQLiteOpenHelper (las pruebas lo usan para preparar datos); es una única conexión. */
+    val writableDatabase get() = db
+    private val readableDatabase get() = db
+
+    override fun close() = db.close()
 
     /**
      * Porcentaje del precio según el estado ("EX" -> 85); null = el precio tal cual.
@@ -49,7 +55,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
 
     enum class Sort { RECENT, VALUE, NAME }
 
-    override fun onCreate(db: SQLiteDatabase) {
+    private fun onCreate(db: Db) {
         db.execSQL(
             """
             CREATE TABLE entries (
@@ -87,7 +93,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         createHistoryTables(db)
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+    private fun onUpgrade(db: Db, oldVersion: Int, @Suppress("UNUSED_PARAMETER") newVersion: Int) {
         // v2: idioma de cada carta; las ya escaneadas quedan en inglés.
         if (oldVersion < 2) db.execSQL("ALTER TABLE entries ADD COLUMN lang TEXT NOT NULL DEFAULT 'en'")
         // v3: miniatura de la ilustración fotografiada.
@@ -116,7 +122,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
      * Cartas que se quieren: por nombre (cualquier edición vale). [card_id] es la
      * impresión con que se muestra y se calcula el precio (la más común).
      */
-    private fun createWishlistTable(db: SQLiteDatabase) {
+    private fun createWishlistTable(db: Db) {
         db.execSQL(
             """
             CREATE TABLE wishlist (
@@ -135,7 +141,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
      * Un registro por día: el valor de toda la colección con cada precio, y los
      * precios de cada carta (para ver qué ha subido o bajado).
      */
-    private fun createHistoryTables(db: SQLiteDatabase) {
+    private fun createHistoryTables(db: Db) {
         db.execSQL(
             """
             CREATE TABLE value_history (
@@ -158,7 +164,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         )
     }
 
-    private fun createDecksTable(db: SQLiteDatabase) {
+    private fun createDecksTable(db: Db) {
         db.execSQL("CREATE TABLE decks (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)")
     }
 
@@ -182,7 +188,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
     }
 
     private fun insertEntry(
-        db: SQLiteDatabase, card: CardPrinting, foil: Boolean, condition: String, needsReview: Boolean,
+        db: Db, card: CardPrinting, foil: Boolean, condition: String, needsReview: Boolean,
         lang: String, art: ByteArray?, deckId: Long?,
     ): Long = db.insertOrThrow("entries", null, ContentValues().apply {
         put("card_id", card.id)
@@ -193,7 +199,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         put("condition", condition)
         put("lang", lang)
         put("needs_review", if (needsReview) 1 else 0)
-        put("added_at", System.currentTimeMillis())
+        put("added_at", nowMillis())
         put("art", art)
         put("deck_id", deckId)
         put("colors", card.colors)
@@ -216,7 +222,10 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
             }
             val deckIds = HashMap<String, Long>()
             db.rawQuery("SELECT id, name FROM decks", null).use { c ->
-                while (c.moveToNext()) deckIds.putIfAbsent(c.getString(1).trim().lowercase(), c.getLong(0))
+                while (c.moveToNext()) {
+                    val key = c.getString(1).trim().lowercase()
+                    if (key !in deckIds) deckIds[key] = c.getLong(0)
+                }
             }
             var count = 0
             for (item in items) {
@@ -270,7 +279,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         try {
             for (g in groups) {
                 db.query("entries", null, GROUP_WHERE, g.whereArgs(), null, null, null).use { c ->
-                    while (c.moveToNext()) deleted.add(ContentValues().also { DatabaseUtils.cursorRowToContentValues(c, it) })
+                    while (c.moveToNext()) deleted.add(c.rowValues())
                 }
                 db.delete("entries", GROUP_WHERE, g.whereArgs())
             }
@@ -287,7 +296,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         val db = writableDatabase
         db.beginTransaction()
         try {
-            rows.forEach { db.insertWithOnConflict("entries", null, it, SQLiteDatabase.CONFLICT_IGNORE) }
+            rows.forEach { db.insertWithOnConflict("entries", null, it, Db.CONFLICT_IGNORE) }
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
@@ -545,9 +554,9 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         ).use { c -> buildSet { while (c.moveToNext()) add(c.getInt(0)) } }
 
     /** Guarda los precios de la guía de Cardmarket (por producto). */
-    fun updateCardmarketPrices(prices: Map<Int, CardmarketPrices.Guide>) {
+    fun updateCardmarketPrices(prices: Map<Int, CardmarketGuide>) {
         val db = writableDatabase
-        val now = System.currentTimeMillis()
+        val now = nowMillis()
         db.beginTransaction()
         try {
             for ((cm, g) in prices) {
@@ -586,7 +595,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
             put("eur_avg30", summary(Currency.EUR, kind = PriceKind.AVG30).total)
             put("usd", summary(Currency.USD).total)
         }
-        writableDatabase.insertWithOnConflict("value_history", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+        writableDatabase.insertWithOnConflict("value_history", null, values, Db.CONFLICT_REPLACE)
     }
 
     /** Copia los precios actuales de cada carta como los de [day]. */
@@ -709,8 +718,8 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
                 put("set_code", card.setCode)
                 put("collector_number", card.collectorNumber)
                 put("quantity", maxOf(current, quantity))
-                put("added_at", System.currentTimeMillis())
-            }, SQLiteDatabase.CONFLICT_REPLACE)
+                put("added_at", nowMillis())
+            }, Db.CONFLICT_REPLACE)
             seedPrice(db, card)
             db.setTransactionSuccessful()
         } finally {
@@ -754,7 +763,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
 
     fun updatePrices(prices: Map<String, Prices>) {
         val db = writableDatabase
-        val now = System.currentTimeMillis()
+        val now = nowMillis()
         db.beginTransaction()
         try {
             for ((id, p) in prices) {
@@ -868,10 +877,10 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
         return (parts.joinToString(" AND ").ifEmpty { "1" }) to args.toTypedArray()
     }
 
-    private fun seedPrice(db: SQLiteDatabase, card: CardPrinting) {
+    private fun seedPrice(db: Db, card: CardPrinting) {
         // Precio del catálogo como punto de partida; la actualización online lo sustituye.
         db.insertWithOnConflict("prices", null, card.prices.toValues(card.id, 0).apply { put("cm_id", card.cardmarketId) },
-            SQLiteDatabase.CONFLICT_IGNORE)
+            Db.CONFLICT_IGNORE)
     }
 
     private fun Prices.toValues(id: String, updatedAt: Long) = ContentValues().apply {
@@ -892,8 +901,10 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
 
     companion object {
         /** El día de hoy como se guarda en la evolución ("2026-09-27"). */
-        fun day(millis: Long = System.currentTimeMillis()): String =
-            java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT).format(java.util.Date(millis))
+        fun day(millis: Long = nowMillis()): String = localDay(millis)
+
+        /** Versión del esquema (PRAGMA user_version), como la de SQLiteOpenHelper. */
+        const val VERSION = 8
 
         /** Valor de [CollectionFilter.deckId] para "cartas que no están en ningún mazo". */
         const val NO_DECK = 0L

@@ -1,5 +1,6 @@
 package com.hernan.mtgscanner
 
+import com.hernan.mtgscanner.data.CardmarketGuide
 import com.hernan.mtgscanner.data.CollectionGroup
 import android.database.sqlite.SQLiteDatabase
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -231,8 +232,8 @@ class CollectionStoreTest {
             {"idProduct":3,"low":9.99}]}"""
         val prices = CardmarketPrices.parse(json.byteInputStream(), setOf(1, 2))
         assertEquals(setOf(1, 2), prices.keys)
-        assertEquals(CardmarketPrices.Guide(trend = 0.07, trendFoil = 0.38, low = 0.02, lowFoil = 0.05, avg30 = 0.09, avg30Foil = 0.36), prices[1])
-        assertEquals(CardmarketPrices.Guide(low = 0.5), prices[2]) // 0 y null = sin precio
+        assertEquals(CardmarketGuide(trend = 0.07, trendFoil = 0.38, low = 0.02, lowFoil = 0.05, avg30 = 0.09, avg30Foil = 0.36), prices[1])
+        assertEquals(CardmarketGuide(low = 0.5), prices[2]) // 0 y null = sin precio
     }
 
     /** El valor de la colección según el precio elegido; sin datos de la guía, el de tendencia. */
@@ -242,7 +243,7 @@ class CollectionStoreTest {
         store.add(bolt, false, "NM", needsReview = false)
         store.add(swamp, false, "NM", needsReview = false)
         store.updatePrices(mapOf(bolt.id to Prices(2.0, 3.0, null, null), swamp.id to Prices(0.2, null, null, null)))
-        store.updateCardmarketPrices(mapOf(bolt.cardmarketId!! to CardmarketPrices.Guide(trend = 2.5, low = 1.0, avg30 = 2.2)))
+        store.updateCardmarketPrices(mapOf(bolt.cardmarketId!! to CardmarketGuide(trend = 2.5, low = 1.0, avg30 = 2.2)))
 
         assertEquals(setOf(bolt.cardmarketId, swamp.cardmarketId), store.cardmarketIds())
         assertEquals(2.7, store.summary(Currency.EUR).total, 1e-9)                       // 2.5 (tendencia de hoy) + 0.2
@@ -301,7 +302,7 @@ class CollectionStoreTest {
         assertTrue(store.groups(Currency.EUR).single { it.cardId == bolts[0].id }.foil)
 
         store.updatePrices(mapOf(bolts[0].id to Prices(1.0, 2.0, 3.0, 4.0)))
-        store.updateCardmarketPrices(mapOf(bolts[0].cardmarketId!! to CardmarketPrices.Guide(trend = 1.1, low = 0.5, avg30Foil = 2.5)))
+        store.updateCardmarketPrices(mapOf(bolts[0].cardmarketId!! to CardmarketGuide(trend = 1.1, low = 0.5, avg30Foil = 2.5)))
         val p = store.storedPrices(bolts[0].id)!!
         assertEquals(1.1, p.eur!!, 1e-9)
         assertEquals(0.5, p.eurLow!!, 1e-9)

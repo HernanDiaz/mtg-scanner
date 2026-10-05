@@ -29,8 +29,20 @@ actual class ConcurrentCache<K : Any, V : Any> actual constructor() {
     }
 }
 
-actual class CatalogLock actual constructor() {
+actual fun nowMillis(): Long = (platform.Foundation.NSDate().timeIntervalSince1970 * 1000).toLong()
+
+actual fun localDay(millis: Long): String {
+    val formatter = platform.Foundation.NSDateFormatter().apply {
+        dateFormat = "yyyy-MM-dd"
+        locale = platform.Foundation.NSLocale(localeIdentifier = "en_US_POSIX")
+    }
+    return formatter.stringFromDate(platform.Foundation.NSDate.dateWithTimeIntervalSince1970(millis / 1000.0))
+}
+
+actual class DbLock actual constructor() {
     private val lock = platform.Foundation.NSRecursiveLock()
+    actual fun lock() = lock.lock()
+    actual fun unlock() = lock.unlock()
     actual fun <T> withLock(block: () -> T): T {
         lock.lock()
         try {

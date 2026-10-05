@@ -10,8 +10,15 @@ actual class ConcurrentCache<K : Any, V : Any> actual constructor() {
     actual fun getOrPut(key: K, compute: () -> V): V = map.getOrPut(key, compute)
 }
 
-actual class CatalogLock actual constructor() {
+actual fun nowMillis(): Long = System.currentTimeMillis()
+
+actual fun localDay(millis: Long): String =
+    java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT).format(java.util.Date(millis))
+
+actual class DbLock actual constructor() {
     private val lock = java.util.concurrent.locks.ReentrantLock()
+    actual fun lock() = lock.lock()
+    actual fun unlock() = lock.unlock()
     actual fun <T> withLock(block: () -> T): T {
         lock.lock()
         try {

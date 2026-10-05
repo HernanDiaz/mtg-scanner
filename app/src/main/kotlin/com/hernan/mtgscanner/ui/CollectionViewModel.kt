@@ -1,9 +1,10 @@
 package com.hernan.mtgscanner.ui
 
+import com.hernan.mtgscanner.data.CardmarketGuide
 import com.hernan.mtgscanner.data.CollectionGroup
 import android.app.Application
 import android.content.res.Resources
-import android.content.ContentValues
+import com.hernan.mtgscanner.data.ContentValues
 import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns

@@ -41,7 +41,15 @@ private val CP1252_HIGH = charArrayOf(
     '\u02DC', '\u2122', '\u0161', '\u203A', '\u0153', '\uFFFD', '\u017E', '\u0178',
 )
 
-/** Cerrojo reentrante: una sola consulta a la vez en la conexión del catálogo. */
-expect class CatalogLock() {
+/** Cerrojo reentrante: una sola operación a la vez en una conexión de SQLite. */
+expect class DbLock() {
+    fun lock()
+    fun unlock()
     fun <T> withLock(block: () -> T): T
 }
+
+/** Hora actual en milisegundos desde 1970. */
+expect fun nowMillis(): Long
+
+/** El día (yyyy-MM-dd) de [millis] en la zona horaria del móvil. */
+expect fun localDay(millis: Long): String

@@ -32,6 +32,7 @@ kotlin {
         commonMain.dependencies {
             api(libs.sqlite)
             implementation(libs.sqlite.framework)
+            api(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

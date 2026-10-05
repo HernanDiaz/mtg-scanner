@@ -16,7 +16,7 @@ import com.hernan.mtgscanner.scan.SymbolRef
  */
 class Catalog(private val db: SQLiteConnection) {
 
-    private val lock = CatalogLock()
+    private val lock = DbLock()
     val names: NameMatcher
     val setCodes: Set<String>
     private val sets: Map<String, SetInfo>
