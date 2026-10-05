@@ -2,14 +2,20 @@
 agp = "9.4.1"
 kotlin = "2.4.20"
 composeMultiplatform = "1.12.1"
-composeBom = "2024.12.01"
-coreKtx = "1.15.0"
-activityCompose = "1.9.3"
-lifecycle = "2.8.7"
+composeBom = "2026.09.00"
+coreKtx = "1.19.1"
+activityCompose = "1.13.0"
+lifecycle = "2.11.0"
 cameraX = "1.4.1"
 mlkitTextRecognition = "16.0.1"
-coil = "2.7.0"
-coroutines = "1.9.0"
+coil = "3.6.3"
+ktor = "3.6.0"
+serialization = "1.11.0"
+okio = "3.18.2"
+iconsCore = "1.7.8"
+jbIcons = "1.7.3"
+jbLifecycle = "2.11.0"
+coroutines = "1.11.0"
 work = "2.10.0"
 sqlite = "2.7.1"
 junit = "4.13.2"
@@ -26,13 +32,22 @@ compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeB
 compose-ui = { module = "androidx.compose.ui:ui" }
 compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
 compose-material3 = { module = "androidx.compose.material3:material3" }
-compose-material-icons-core = { module = "androidx.compose.material:material-icons-core" }
+compose-material-icons-core = { module = "androidx.compose.material:material-icons-core", version.ref = "iconsCore" }
 camera-core = { module = "androidx.camera:camera-core", version.ref = "cameraX" }
 camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraX" }
 camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "cameraX" }
 camera-view = { module = "androidx.camera:camera-view", version.ref = "cameraX" }
 mlkit-text-recognition = { module = "com.google.mlkit:text-recognition", version.ref = "mlkitTextRecognition" }
-coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-network-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
+jb-icons-core = { module = "org.jetbrains.compose.material:material-icons-core", version.ref = "jbIcons" }
+jb-lifecycle-viewmodel-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "jbLifecycle" }
+jb-lifecycle-runtime-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "jbLifecycle" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }

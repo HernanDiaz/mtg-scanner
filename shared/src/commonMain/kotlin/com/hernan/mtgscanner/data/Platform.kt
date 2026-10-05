@@ -9,6 +9,7 @@ expect fun nfkd(s: String): String
 /** Caché que pueden usar varios hilos a la vez. */
 expect class ConcurrentCache<K : Any, V : Any>() {
     fun getOrPut(key: K, compute: () -> V): V
+    fun getIfPresent(key: K): V?
 }
 
 /** "1.50": número con [decimals] decimales y punto, sin depender del idioma del móvil. */
@@ -53,3 +54,12 @@ expect fun nowMillis(): Long
 
 /** El día (yyyy-MM-dd) de [millis] en la zona horaria del móvil. */
 expect fun localDay(millis: Long): String
+
+/** Fecha y hora en el formato del móvil ("5 oct 2026, 10:30"). */
+expect fun formatDateTime(millis: Long): String
+
+/** Un día "yyyy-MM-dd" en el formato del móvil: largo ("5 oct 2026") o corto ("5/10/26"). */
+expect fun formatDay(day: String, long: Boolean): String
+
+/** Número con [decimals] decimales en el formato del móvil ("1,5" en español). */
+expect fun formatNumber(value: Double, decimals: Int): String

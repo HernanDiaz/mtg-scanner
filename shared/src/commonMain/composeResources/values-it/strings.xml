@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Italiano -->
+<resources>
+    <!-- Pestañas -->
+    <string name="tab_scan">Scansiona</string>
+    <string name="tab_collection">Collezione</string>
+
+    <!-- Comunes -->
+    <string name="cancel">Annulla</string>
+    <string name="close">Chiudi</string>
+    <string name="save">Salva</string>
+    <string name="create">Crea</string>
+    <string name="clear">Cancella</string>
+    <string name="more_options">Altre opzioni</string>
+    <string name="no_deck">Nessun mazzo</string>
+    <string name="deck_named">Mazzo: %1$s</string>
+    <string name="deck_with_count">%1$s (%2$d)</string>
+    <plurals name="cards">
+        <item quantity="one">%1$d carta</item>
+        <item quantity="other">%1$d carte</item>
+    </plurals>
+    <plurals name="decks">
+        <item quantity="one">%1$d mazzo</item>
+        <item quantity="other">%1$d mazzi</item>
+    </plurals>
+
+    <!-- Escáner -->
+    <string name="camera_needed">L’app ha bisogno della fotocamera per scansionare le carte.</string>
+    <string name="grant_permission">Concedi il permesso</string>
+    <string name="loading_catalog">Caricamento del catalogo…</string>
+    <string name="point_at_card">Inquadra una carta</string>
+    <string name="foil">Foil</string>
+    <string name="torch">Torcia</string>
+    <string name="scan_deck_question">In quale mazzo vanno le carte?</string>
+    <string name="or_new_deck">Oppure un nuovo mazzo</string>
+    <string name="doubtful_edition">Edizione incerta: controllala in Collezione</string>
+    <string name="undo">Annulla</string>
+
+    <!-- Colección: cabecera y filtros -->
+    <string name="export_share">Esporta e condividi ciò che vedi</string>
+    <string name="add_manually">Aggiungi a mano</string>
+    <string name="update_prices">Aggiorna i prezzi</string>
+    <string name="backup_import">Backup e importazione</string>
+    <string name="save_backup">Salva backup</string>
+    <string name="import_cards">Importa carte o backup…</string>
+    <string name="review_editions">Controlla le edizioni (%1$d in sospeso)</string>
+    <string name="all_cards">Tutte</string>
+    <string name="deck_add">Mazzo</string>
+    <string name="rename_deck">Rinomina mazzo</string>
+    <string name="delete_deck">Elimina mazzo</string>
+    <string name="search_collection">Cerca nella collezione</string>
+    <string name="pending_review">Da controllare</string>
+    <string name="sort_recent">Recenti</string>
+    <string name="sort_value">Valore</string>
+    <string name="sort_name">Nome</string>
+    <string name="price_label">Prezzo: %1$s</string>
+    <string name="empty_deck">Mazzo vuoto. Sposta qui le carte dal menu di ogni carta, oppure scansiona con questo mazzo come destinazione.</string>
+    <string name="empty_collection">Ancora nessuna carta. Vai a Scansiona.</string>
+    <string name="no_match">Nessuna carta corrisponde.</string>
+    <string name="whole_collection">Tutta la collezione</string>
+    <string name="scope_deck">Mazzo %1$s</string>
+    <string name="colors_or">" o "</string>
+    <string name="color_selected">%1$s, selezionato</string>
+    <string name="color_white">Bianco</string>
+    <string name="color_blue">Blu</string>
+    <string name="color_black">Nero</string>
+    <string name="color_red">Rosso</string>
+    <string name="color_green">Verde</string>
+    <string name="color_colorless">Incolore</string>
+
+    <!-- Precios -->
+    <string name="price_trend">Tendenza</string>
+    <string name="price_trend_desc">Il prezzo di tendenza di Cardmarket (quello abituale).</string>
+    <string name="price_low">Più basso</string>
+    <string name="price_low_desc">L’offerta più economica su Cardmarket: quanto costerebbe comprarla oggi.</string>
+    <string name="price_avg30">Media di 30 giorni</string>
+    <string name="price_avg30_desc">Media delle vendite dell’ultimo mese: cambia meno da un giorno all’altro.</string>
+    <string name="prices_updated">Prezzi aggiornati (%1$d carte)</string>
+    <string name="prices_failed">Impossibile aggiornare i prezzi: %1$s</string>
+
+    <!-- Mazos -->
+    <string name="delete_deck_question">Eliminare il mazzo %1$s?</string>
+    <string name="delete_deck_explain">Le sue carte (%1$s) non vengono eliminate: tornano nella collezione, senza mazzo.</string>
+    <string name="new_deck">Nuovo mazzo</string>
+    <string name="deck_name">Nome del mazzo</string>
+    <string name="move_title">Sposta %1$s</string>
+    <string name="copies">Copie:</string>
+    <string name="n_of_m">%1$d di %2$d</string>
+    <string name="take_out_of_deck">Togli dal mazzo (nessun mazzo)</string>
+    <string name="or_to_new_deck">Oppure in un nuovo mazzo</string>
+    <string name="create_and_move">Crea e sposta</string>
+
+    <!-- Fila de la colección -->
+    <string name="move_to_deck">Sposta in un mazzo…</string>
+    <string name="change_edition">Cambia edizione o lingua</string>
+    <string name="remove_one">Togli una copia</string>
+
+    <!-- Selector de edición -->
+    <string name="reviewing_left">Controllo: ne restano %1$d</string>
+    <string name="suggested_edition">Edizione suggerita</string>
+    <string name="current_edition">Edizione attuale</string>
+    <string name="is_correct">È corretta</string>
+    <string name="language">Lingua</string>
+    <string name="lang_en">Inglese</string>
+    <string name="lang_es">Spagnolo</string>
+    <string name="search_edition">Cerca edizione: nome, codice, numero o anno</string>
+    <string name="editions_count">%1$d di %2$d edizioni</string>
+    <string name="sorted_by_photo">ordinate per somiglianza con la tua foto</string>
+    <string name="sorted_by_date">dalla più recente alla più vecchia</string>
+    <string name="similarity">Somiglianza con la tua foto: %1$d %</string>
+    <string name="choose_edition_to_add">Scegli l’edizione per aggiungerla</string>
+    <string name="add_card">Aggiungi carta</string>
+    <string name="card_name_hint">Nome della carta (in inglese o in un’altra lingua)</string>
+
+    <!-- Exportar -->
+    <string name="export_title">Esporta: %1$s (%2$s)</string>
+    <string name="format_csv">Foglio di calcolo (CSV)</string>
+    <string name="format_csv_desc">Tutto, con i prezzi. Per Excel, Google Sheets o altre app (include l’ID di Scryfall).</string>
+    <string name="format_moxfield">Moxfield (CSV)</string>
+    <string name="format_moxfield_desc">Per importare le carte in Moxfield.</string>
+    <string name="format_text">Elenco di testo</string>
+    <string name="format_text_desc">"2 Lightning Bolt (M11) 149": da incollare in un messaggio o in un forum.</string>
+    <string name="share_subject">Carte MTG: %1$s (%2$s)</string>
+    <string name="share_title">Condividi: %1$s</string>
+
+    <!-- Copia de seguridad e importar -->
+    <string name="backup_file_prefix">mtg-scanner-backup</string>
+    <string name="backup_saved">Backup salvato (%1$s)</string>
+    <string name="backup_failed">Impossibile salvare il backup: %1$s</string>
+    <string name="read_failed">Impossibile leggere il file: %1$s</string>
+    <string name="file_too_big">il file è troppo grande</string>
+    <string name="file_default_name">file</string>
+    <string name="import_title">Importa %1$s</string>
+    <string name="import_none">Nessuna carta riconosciuta. Sono supportati file CSV (di questa app, Moxfield, ManaBox, Deckbox, TCGplayer…) ed elenchi di testo come "4 Lightning Bolt (M11) 149".</string>
+    <string name="import_recognised">%1$s riconosciute</string>
+    <string name="import_in_decks">In %1$s: %2$s</string>
+    <string name="import_pending">%1$s con l’edizione da controllare</string>
+    <string name="import_target_deck">Aggiungendo, quelle senza mazzo andranno in %1$s.</string>
+    <plurals name="lines_not_recognised">
+        <item quantity="one">%1$d riga non riconosciuta:</item>
+        <item quantity="other">%1$d righe non riconosciute:</item>
+    </plurals>
+    <string name="import_line">Riga %1$d: %2$s</string>
+    <string name="and_n_more">… e altre %1$d</string>
+    <string name="replace">Sostituisci</string>
+    <string name="add">Aggiungi</string>
+    <string name="import_action">Importa</string>
+    <string name="replace_question">Sostituire la collezione?</string>
+    <string name="replace_explain">Le attuali %1$s%2$s verranno eliminate e resteranno solo le %3$s del file. Non si può annullare.</string>
+    <string name="replace_explain_decks">" e %1$s"</string>
+    <string name="collection_replaced">Collezione sostituita: %1$s</string>
+    <string name="cards_added">Aggiunte: %1$s</string>
+    <string name="import_failed">Impossibile importare: %1$s</string>
+
+    <!-- Ficha de carta -->
+    <string name="in_your_collection">Nella tua collezione</string>
+    <string name="copies_of_edition">%1$d di questa edizione</string>
+    <string name="copies_of_card">%1$d della carta in totale</string>
+    <string name="prices">Prezzi</string>
+    <string name="normal">Normale</string>
+    <string name="prices_from_catalog">Prezzi del catalogo: aggiorna i prezzi per quelli di oggi.</string>
+    <string name="prices_updated_at">Aggiornati %1$s</string>
+    <string name="cardmarket_guide_hint">Il prezzo più basso e la media di 30 giorni compaiono dopo averne scelto uno come prezzo e aggiornato.</string>
+    <string name="card_text">Testo della carta</string>
+    <string name="details_offline">Serve una connessione (Scryfall).</string>
+    <string name="legality">Legalità</string>
+    <string name="legal">Legale</string>
+    <string name="not_legal">Non legale</string>
+    <string name="banned">Bandita</string>
+    <string name="restricted">Ristretta</string>
+    <string name="flip_card">Gira</string>
+    <string name="loyalty">Fedeltà %1$s</string>
+    <string name="artist">Illustrata da %1$s</string>
+    <string name="rarity_common">Comune</string>
+    <string name="rarity_uncommon">Non comune</string>
+    <string name="rarity_rare">Rara</string>
+    <string name="rarity_mythic">Mitica</string>
+
+    <!-- Lista de deseos -->
+    <string name="tab_wishlist">Desideri</string>
+    <string name="wishlist_summary">%1$s nella tua lista dei desideri</string>
+    <string name="wishlist_empty">La tua lista dei desideri è vuota. Controlla un mazzo per vedere cosa ti manca, o aggiungi carte dalla loro scheda.</string>
+    <string name="check_deck">Cosa mi manca per un mazzo?</string>
+    <string name="check_deck_help">Incolla la lista del mazzo (Moxfield, Arena, MTGO, un forum…) o apri un file. Le carte si contano per nome, in qualsiasi edizione.</string>
+    <string name="open_file">Apri file…</string>
+    <string name="check">Controlla</string>
+    <string name="deck_have">Hai %1$d carte su %2$d</string>
+    <string name="deck_missing">Mancano %1$s · %2$s</string>
+    <string name="deck_complete">Hai tutto il mazzo.</string>
+    <string name="have_n_of_m">Ne hai %1$d su %2$d</string>
+    <string name="add_missing_to_wishlist">Aggiungi le mancanti ai desideri</string>
+    <string name="added_missing">Aggiunte ai desideri</string>
+    <string name="copy_missing">Copia l’elenco delle mancanti</string>
+    <string name="copied">Copiato (incollalo su Cardmarket)</string>
+    <string name="another_list">Un’altra lista</string>
+    <string name="add_to_wishlist">Aggiungi ai desideri</string>
+    <string name="added_to_wishlist_short">Nei tuoi desideri</string>
+    <string name="added_to_wishlist">%1$s aggiunta alla lista dei desideri</string>
+    <string name="wish_fulfilled">%1$s era nella tua lista dei desideri</string>
+    <string name="was_on_wishlist">★ Era nella tua lista dei desideri</string>
+
+    <!-- Evolución del valor -->
+    <string name="value_history">Andamento del valore</string>
+    <string name="range_week">7 giorni</string>
+    <string name="range_month">30 giorni</string>
+    <string name="range_year">1 anno</string>
+    <string name="range_all">Tutto</string>
+    <string name="history_empty">Ancora nessuno storico: l’app salva il valore della collezione ogni giorno in cui la apri o aggiorni i prezzi. Torna tra qualche giorno.</string>
+    <string name="history_note">Il valore include le carte che aggiungi o togli. Per vedere solo le variazioni di prezzo, guarda le carte qui sotto.</string>
+    <string name="biggest_rises">Maggiori rialzi</string>
+    <string name="biggest_drops">Maggiori ribassi</string>
+    <string name="no_price_changes">Nessuna variazione di prezzo salvata in questo periodo (si salvano quando si aggiornano i prezzi).</string>
+
+    <!-- Valor según el estado -->
+    <string name="condition_pricing_menu">Valore secondo le condizioni…</string>
+    <string name="condition_pricing">Valore secondo le condizioni</string>
+    <string name="condition_pricing_explain">Cardmarket e Scryfall danno un solo prezzo per carta, senza distinguere le condizioni: è il prezzo delle carte in buone condizioni (NM). Con questa opzione, ogni carta vale il suo prezzo moltiplicato per la percentuale della sua condizione. Per esempio, una carta da 10 € in EX (85 %) vale 8,50 €.</string>
+    <string name="condition_pricing_switch">Adatta il valore alle condizioni</string>
+    <string name="condition_pricing_note">Le percentuali sono una stima, in linea con quanto si paga di solito per le carte usate; adattale al tuo mercato. Valgono per il totale della collezione, ogni riga e le esportazioni. I prezzi delle carte (e le loro variazioni) sono sempre quelli di mercato.</string>
+    <string name="reset">Ripristina</string>
+    <string name="your_copy_value">La tua copia in %1$s (%2$d %): %3$s</string>
+    <string name="cond_m">Mint</string>
+    <string name="cond_nm">Near Mint</string>
+    <string name="cond_ex">Excellent</string>
+    <string name="cond_gd">Good</string>
+    <string name="cond_lp">Light Played</string>
+    <string name="cond_pl">Played</string>
+    <string name="cond_po">Poor</string>
+
+    <!-- Legalidad -->
+    <string name="format_label">Formato: %1$s</string>
+    <string name="all_formats">Tutti</string>
+    <string name="deck_legal_in">Legale in: %1$s</string>
+    <string name="deck_legal_none">Non legale in nessuno dei formati principali</string>
+    <string name="deck_not_legal_in">Non legale in (carte che lo impediscono): %1$s</string>
+    <string name="lang_fr">Francese</string>
+    <string name="lang_de">Tedesco</string>
+    <string name="lang_it">Italiano</string>
+    <string name="lang_pt">Portoghese</string>
+    <string name="auto_backup">Backup automatico</string>
+    <string name="auto_backup_menu">Backup automatico…</string>
+    <string name="auto_backup_explain">Ogni giorno, se la tua collezione è cambiata, l’app salva una copia in un file che scegli una volta: su Google Drive, Dropbox o sul telefono. Google Drive conserva anche le versioni precedenti del file.</string>
+    <string name="auto_backup_choose">Scegli dove salvarlo</string>
+    <string name="auto_backup_file">File: %1$s</string>
+    <string name="auto_backup_last">Ultimo backup: %1$s (%2$s)</string>
+    <string name="auto_backup_never">Ancora nessun backup salvato.</string>
+    <string name="auto_backup_checked">Controllato %1$s: nessuna modifica da allora.</string>
+    <string name="auto_backup_error">L’ultimo backup non è riuscito: %1$s. Se hai eliminato o spostato il file, sceglilo di nuovo.</string>
+    <string name="auto_backup_now">Esegui backup ora</string>
+    <string name="auto_backup_change">Scegli un altro file</string>
+    <string name="auto_backup_disable">Disattiva</string>
+    <string name="auto_backup_restore">Per ripristinarlo: ⋮ → Importa carte o backup → scegli il file → Sostituisci.</string>
+    <string name="auto_backup_android">Android salva anche i dati dell’app (collezione, mazzi, desideri, storico) nel tuo account Google e li ripristina quando reinstalli l’app o cambi telefono, se il backup di Android è attivo.</string>
+    <string name="auto_backup_explain_ios">Mentre usi l’app, se la tua collezione è cambiata, salva una copia in un file che scegli una volta: su iCloud Drive, un altro servizio di archiviazione o sull’iPhone.</string>
+    <string name="auto_backup_ios">Il backup iCloud del tuo iPhone include anche i dati dell’app (collezione, mazzi, desideri, storico), se è attivo.</string>
+    <string name="test_photos">Foto di prova</string>
+    <string name="test_photos_menu">Foto di prova…</string>
+    <string name="test_photos_explain">Per misurare quanto bene l’app riconosce le carte con il tuo telefono. Finché è attivo, ogni carta scansionata salva anche la foto della fotocamera da cui è stata riconosciuta. Poi correggi le carte sbagliate nella collezione (edizione, lingua, o eliminale): ciò che resta nella collezione è considerato la risposta giusta per ogni foto.</string>
+    <string name="test_photos_switch">Salva foto di prova</string>
+    <string name="test_photos_saved">Salvate: %1$d foto (%2$s MB)</string>
+    <string name="test_photos_export">Esporta e condividi (Drive…)</string>
+    <string name="test_photos_exporting">Preparazione del file…</string>
+    <string name="test_photos_share">Condividi foto di prova</string>
+    <string name="test_photos_export_failed">Impossibile esportare le foto: %1$s</string>
+    <string name="test_photos_clear">Elimina foto</string>
+    <string name="test_photos_clear_confirm">Eliminare le %1$d foto? Esportale prima, se non l’hai fatto.</string>
+    <string name="test_photos_delete">Elimina</string>
+    <string name="test_photos_how">Quando una carta non viene riconosciuta, tocca «Salva foto» nello scanner: viene salvata anche lei, da etichettare dopo. Il file contiene le foto e un elenco con la carta giusta per ognuna.</string>
+    <plurals name="test_photos_count">
+        <item quantity="one">Prova · %1$d foto</item>
+        <item quantity="other">Prova · %1$d foto</item>
+    </plurals>
+    <string name="test_photos_capture">Salva foto</string>
+    <string name="selected_count">%1$d selezionate · %2$s</string>
+    <string name="select_all">Tutte</string>
+    <string name="move">Sposta</string>
+    <string name="delete">Elimina</string>
+    <string name="delete_all_menu">Elimina tutte…</string>
+    <string name="delete_question">Eliminare %1$s?</string>
+    <string name="delete_explain">Tutte le copie delle righe selezionate vengono tolte da %1$s. Puoi annullare subito dopo.</string>
+    <string name="deleted_cards">Eliminate: %1$s</string>
+    <string name="restored_cards">Ripristinate: %1$s</string>
+    <string name="move_many_title">Sposta %1$s</string>
+    <string name="select_several">Seleziona più carte</string>
+    <string name="card_photos">Foto delle carte</string>
+    <string name="card_photos_menu">Foto delle carte…</string>
+    <string name="card_photos_explain">Salva la foto della fotocamera di ogni carta che scansioni. La vedi nella scheda della carta e puoi includerla nell’esportazione o nel backup automatico. Ogni foto occupa circa 150 KB.</string>
+    <string name="card_photos_switch">Salva la foto di ogni carta</string>
+    <string name="card_photos_clear_confirm">Eliminare le %1$d foto? Le carte restano nella collezione.</string>
+    <string name="card_photos_how">Quando togli una carta dalla collezione, la sua foto viene eliminata alla successiva apertura dell’app.</string>
+    <string name="your_photo">La tua foto</string>
+    <plurals name="your_photos">
+        <item quantity="one">La tua foto</item>
+        <item quantity="other">Le tue foto (%1$d)</item>
+    </plurals>
+    <string name="format_csv_photos">CSV con foto (zip)</string>
+    <string name="format_csv_photos_desc">Come il CSV, più le foto delle carte in una cartella «fotos». Una colonna indica le foto di ogni riga.</string>
+    <string name="auto_backup_photos">Includi foto</string>
+    <string name="auto_backup_photos_explain">Le foto delle carte vanno in un secondo file (uno zip con l’elenco e le foto), salvato solo quando cambiano le carte o le foto. Può occupare decine di MB.</string>
+    <string name="auto_backup_photos_file">Foto: %1$s</string>
+    <string name="auto_backup_photos_last">Ultima copia: %1$s (%2$d foto)</string>
+</resources>

@@ -13,6 +13,7 @@ import com.hernan.mtgscanner.data.CollectionBackup
 import com.hernan.mtgscanner.data.Currency
 import com.hernan.mtgscanner.scan.ArtSampler
 import com.hernan.mtgscanner.scan.FrameRecognizer
+import com.hernan.mtgscanner.scan.BitmapFrame
 import com.hernan.mtgscanner.scan.OcrLine
 import com.hernan.mtgscanner.ui.ScannerViewModel
 import kotlinx.coroutines.runBlocking
@@ -22,6 +23,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 import java.util.zip.ZipFile
+import okio.buffer
+import okio.sink
 
 /**
  * Fotos de las cartas de principio a fin, sin cámara: unas cartas de testset/ingles pasan
@@ -64,8 +67,8 @@ class CardPhotosScanTest {
                 }
                 val art = ArtSampler { x, y -> bitmap.getPixel(x.coerceIn(0, bitmap.width - 1), y.coerceIn(0, bitmap.height - 1)) and 0xFFFFFF }
                 val result = recognizer.recognize(lines, art)
-                repeat(6) { vm.onFrame(result, null) { bitmap.copy(Bitmap.Config.ARGB_8888, false) }; SystemClock.sleep(200) }
-                repeat(5) { vm.onFrame(null, null) { bitmap }; SystemClock.sleep(100) }
+                repeat(6) { vm.onFrame(result, null) { BitmapFrame(bitmap.copy(Bitmap.Config.ARGB_8888, false)) }; SystemClock.sleep(200) }
+                repeat(5) { vm.onFrame(null, null) { BitmapFrame(bitmap) }; SystemClock.sleep(100) }
             }
             SystemClock.sleep(2000) // se guardan en segundo plano
 
@@ -74,7 +77,7 @@ class CardPhotosScanTest {
             assertTrue("se añadieron pocas: ${added.size}", added.size >= CARDS - 1)
             assertEquals(added.size, app.cardPhotos.of(added).size)
             app.cardPhotos.of(added).forEach { f ->
-                val img = BitmapFactory.decodeFile(f.path)
+                val img = BitmapFactory.decodeFile(f)
                 assertTrue("foto demasiado pequeña o grande: ${img.width}x${img.height}", maxOf(img.width, img.height) in 400..1280)
             }
 
@@ -83,10 +86,12 @@ class CardPhotosScanTest {
             assertTrue(app.cardPhotos.of(app.collection.entryIds(group)).isNotEmpty())
 
             // El zip de la copia: el CSV con la columna de fotos y las fotos que nombra.
-            val content = runBlocking { CollectionBackup.build(app, photos = true) }
+            val content = runBlocking {
+                CollectionBackup.build(app.catalog.await(), app.collection, app.settings, app.englishExport, app.cardPhotos.ids())
+            }
             assertTrue(content.photoNames.keys.containsAll(added))
             val zip = File(instr.targetContext.cacheDir, "fotos-e2e.zip")
-            zip.outputStream().use { app.cardPhotos.zip(it, "coleccion.csv", content.csv, content.photoNames) }
+            app.cardPhotos.zip(zip.sink().buffer(), "coleccion.csv", content.csv, content.photoNames)
             ZipFile(zip).use { z ->
                 val names = z.entries().asSequence().map { it.name }.toSet()
                 val csv = z.getInputStream(z.getEntry("coleccion.csv")).reader().readText()

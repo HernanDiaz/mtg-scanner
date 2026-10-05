@@ -230,7 +230,7 @@ class CollectionStoreTest {
             {"idProduct":1,"idCategory":1,"avg":0.09,"low":0.02,"trend":0.07,"avg30":0.09,"low-foil":0.05,"trend-foil":0.38,"avg30-foil":0.36},
             {"idProduct":2,"low":0.5,"trend":0,"avg30":null},
             {"idProduct":3,"low":9.99}]}"""
-        val prices = CardmarketPrices.parse(json.byteInputStream(), setOf(1, 2))
+        val prices = CardmarketPrices.parse(okio.Buffer().writeUtf8(json), setOf(1, 2))
         assertEquals(setOf(1, 2), prices.keys)
         assertEquals(CardmarketGuide(trend = 0.07, trendFoil = 0.38, low = 0.02, lowFoil = 0.05, avg30 = 0.09, avg30Foil = 0.36), prices[1])
         assertEquals(CardmarketGuide(low = 0.5), prices[2]) // 0 y null = sin precio
@@ -395,7 +395,7 @@ class CollectionStoreTest {
     }
 
     @Test fun cardDetailsFromScryfallJson() {
-        val json = org.json.JSONObject("""{"name":"Delver of Secrets // Insectile Aberration",
+        val json = ("""{"name":"Delver of Secrets // Insectile Aberration",
             "legalities":{"modern":"legal","vintage":"restricted","standard":"not_legal"},
             "purchase_uris":{"cardmarket":"https://cardmarket.example/delver"},
             "scryfall_uri":"https://scryfall.example/delver","artist":"Nils Hamm",

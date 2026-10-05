@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Русский -->
+<resources>
+    <!-- Pestañas -->
+    <string name="tab_scan">Сканировать</string>
+    <string name="tab_collection">Коллекция</string>
+
+    <!-- Comunes -->
+    <string name="cancel">Отмена</string>
+    <string name="close">Закрыть</string>
+    <string name="save">Сохранить</string>
+    <string name="create">Создать</string>
+    <string name="clear">Очистить</string>
+    <string name="more_options">Ещё</string>
+    <string name="no_deck">Без колоды</string>
+    <string name="deck_named">Колода: %1$s</string>
+    <string name="deck_with_count">%1$s (%2$d)</string>
+    <plurals name="cards">
+        <item quantity="one">%1$d карта</item>
+        <item quantity="few">%1$d карты</item>
+        <item quantity="many">%1$d карт</item>
+        <item quantity="other">%1$d карты</item>
+    </plurals>
+    <plurals name="decks">
+        <item quantity="one">%1$d колода</item>
+        <item quantity="few">%1$d колоды</item>
+        <item quantity="many">%1$d колод</item>
+        <item quantity="other">%1$d колоды</item>
+    </plurals>
+
+    <!-- Escáner -->
+    <string name="camera_needed">Для сканирования карт нужна камера.</string>
+    <string name="grant_permission">Разрешить</string>
+    <string name="loading_catalog">Загрузка каталога…</string>
+    <string name="point_at_card">Наведите камеру на карту</string>
+    <string name="foil">Фойл</string>
+    <string name="torch">Фонарик</string>
+    <string name="scan_deck_question">В какую колоду добавлять карты?</string>
+    <string name="or_new_deck">или новая колода</string>
+    <string name="doubtful_edition">Выпуск под вопросом: проверьте в коллекции</string>
+    <string name="undo">Отменить</string>
+
+    <!-- Colección: cabecera y filtros -->
+    <string name="export_share">Экспортировать и поделиться показанным</string>
+    <string name="add_manually">Добавить вручную</string>
+    <string name="update_prices">Обновить цены</string>
+    <string name="backup_import">Резервная копия и импорт</string>
+    <string name="save_backup">Сохранить копию</string>
+    <string name="import_cards">Импорт карт или копии…</string>
+    <string name="review_editions">Проверить выпуски (осталось %1$d)</string>
+    <string name="all_cards">Все</string>
+    <string name="deck_add">Колода</string>
+    <string name="rename_deck">Переименовать колоду</string>
+    <string name="delete_deck">Удалить колоду</string>
+    <string name="search_collection">Поиск в коллекции</string>
+    <string name="pending_review">На проверку</string>
+    <string name="sort_recent">Новые</string>
+    <string name="sort_value">Стоимость</string>
+    <string name="sort_name">Название</string>
+    <string name="price_label">Цена: %1$s</string>
+    <string name="empty_deck">Колода пуста. Переносите сюда карты через меню каждой карты или сканируйте, выбрав эту колоду.</string>
+    <string name="empty_collection">Карт пока нет. Перейдите на вкладку «Сканировать».</string>
+    <string name="no_match">Нет подходящих карт.</string>
+    <string name="whole_collection">Вся коллекция</string>
+    <string name="scope_deck">Колода %1$s</string>
+    <string name="colors_or">" или "</string>
+    <string name="color_selected">%1$s (выбрано)</string>
+    <string name="color_white">Белый</string>
+    <string name="color_blue">Синий</string>
+    <string name="color_black">Чёрный</string>
+    <string name="color_red">Красный</string>
+    <string name="color_green">Зелёный</string>
+    <string name="color_colorless">Бесцветный</string>
+
+    <!-- Precios -->
+    <string name="price_trend">Тренд</string>
+    <string name="price_trend_desc">Трендовая цена Cardmarket (обычная цена).</string>
+    <string name="price_low">Минимум</string>
+    <string name="price_low_desc">Самое дешёвое предложение на Cardmarket: сколько стоит купить сегодня.</string>
+    <string name="price_avg30">Среднее за 30 дней</string>
+    <string name="price_avg30_desc">Средняя цена продаж за последний месяц: меньше колеблется изо дня в день.</string>
+    <string name="prices_updated">Цены обновлены (карт: %1$d)</string>
+    <string name="prices_failed">Не удалось обновить цены: %1$s</string>
+
+    <!-- Mazos -->
+    <string name="delete_deck_question">Удалить колоду %1$s?</string>
+    <string name="delete_deck_explain">Карты (%1$s) не удаляются: они возвращаются в коллекцию без колоды.</string>
+    <string name="new_deck">Новая колода</string>
+    <string name="deck_name">Название колоды</string>
+    <string name="move_title">Переместить %1$s</string>
+    <string name="copies">Копии:</string>
+    <string name="n_of_m">%1$d из %2$d</string>
+    <string name="take_out_of_deck">Убрать из колоды (без колоды)</string>
+    <string name="or_to_new_deck">или в новую колоду</string>
+    <string name="create_and_move">Создать и переместить</string>
+
+    <!-- Fila de la colección -->
+    <string name="move_to_deck">Переместить в колоду…</string>
+    <string name="change_edition">Изменить выпуск или язык</string>
+    <string name="remove_one">Убрать одну</string>
+
+    <!-- Selector de edición -->
+    <string name="reviewing_left">Проверка: осталось %1$d</string>
+    <string name="suggested_edition">Предлагаемый выпуск</string>
+    <string name="current_edition">Текущий выпуск</string>
+    <string name="is_correct">Верно</string>
+    <string name="language">Язык</string>
+    <string name="lang_en">Английский</string>
+    <string name="lang_es">Испанский</string>
+    <string name="search_edition">Поиск выпуска: название, код, номер, год</string>
+    <string name="editions_count">%1$d из %2$d выпусков</string>
+    <string name="sorted_by_photo">по сходству с фото</string>
+    <string name="sorted_by_date">сначала новые</string>
+    <string name="similarity">Сходство с фото: %1$d %</string>
+    <string name="choose_edition_to_add">Выберите выпуск для добавления</string>
+    <string name="add_card">Добавить карту</string>
+    <string name="card_name_hint">Название карты (на английском или другом языке)</string>
+
+    <!-- Exportar -->
+    <string name="export_title">Экспорт: %1$s (%2$s)</string>
+    <string name="format_csv">Таблица (CSV)</string>
+    <string name="format_csv_desc">Всё, включая цены. Для Excel, Google Таблиц и т. п. (с ID Scryfall).</string>
+    <string name="format_moxfield">Moxfield (CSV)</string>
+    <string name="format_moxfield_desc">Чтобы импортировать карты в Moxfield.</string>
+    <string name="format_text">Текстовый список</string>
+    <string name="format_text_desc">"2 Lightning Bolt (M11) 149": для сообщений или форумов.</string>
+    <string name="share_subject">Карты MTG: %1$s (%2$s)</string>
+    <string name="share_title">Поделиться: %1$s</string>
+
+    <!-- Copia de seguridad e importar -->
+    <string name="backup_file_prefix">mtg-scanner-backup</string>
+    <string name="backup_saved">Копия сохранена (%1$s)</string>
+    <string name="backup_failed">Не удалось сохранить копию: %1$s</string>
+    <string name="read_failed">Не удалось прочитать файл: %1$s</string>
+    <string name="file_too_big">Файл слишком большой</string>
+    <string name="file_default_name">файл</string>
+    <string name="import_title">Импорт %1$s</string>
+    <string name="import_none">Карты не распознаны. Поддерживаются файлы CSV (этого приложения, Moxfield, ManaBox, Deckbox, TCGplayer и др.) и текстовые списки вида "4 Lightning Bolt (M11) 149".</string>
+    <string name="import_recognised">Распознано: %1$s</string>
+    <string name="import_in_decks">%1$s: %2$s</string>
+    <string name="import_pending">Проверить выпуск: %1$s</string>
+    <string name="import_target_deck">При добавлении карты без колоды попадут в %1$s.</string>
+    <plurals name="lines_not_recognised">
+        <item quantity="one">%1$d строка не распознана:</item>
+        <item quantity="few">%1$d строки не распознаны:</item>
+        <item quantity="many">%1$d строк не распознано:</item>
+        <item quantity="other">%1$d строки не распознаны:</item>
+    </plurals>
+    <string name="import_line">Строка %1$d: %2$s</string>
+    <string name="and_n_more">… и ещё %1$d</string>
+    <string name="replace">Заменить</string>
+    <string name="add">Добавить</string>
+    <string name="import_action">Импортировать</string>
+    <string name="replace_question">Заменить коллекцию?</string>
+    <string name="replace_explain">Будут удалены текущие %1$s%2$s, останутся только %3$s из файла. Это нельзя отменить.</string>
+    <string name="replace_explain_decks">" и %1$s"</string>
+    <string name="collection_replaced">Коллекция заменена: %1$s</string>
+    <string name="cards_added">Добавлено: %1$s</string>
+    <string name="import_failed">Не удалось импортировать: %1$s</string>
+
+    <!-- Ficha de carta -->
+    <string name="in_your_collection">В вашей коллекции</string>
+    <string name="copies_of_edition">Этого выпуска: %1$d</string>
+    <string name="copies_of_card">Всего этой карты: %1$d</string>
+    <string name="prices">Цены</string>
+    <string name="normal">Обычная</string>
+    <string name="prices_from_catalog">Цены из каталога: нажмите «Обновить цены», чтобы получить сегодняшние.</string>
+    <string name="prices_updated_at">Обновлено %1$s</string>
+    <string name="cardmarket_guide_hint">Минимум и среднее за 30 дней появятся после обновления, если выбрать одну из них в качестве цены.</string>
+    <string name="card_text">Текст карты</string>
+    <string name="details_offline">Нужно подключение (Scryfall).</string>
+    <string name="legality">Легальность</string>
+    <string name="legal">Легальна</string>
+    <string name="not_legal">Нелегальна</string>
+    <string name="banned">Запрещена</string>
+    <string name="restricted">Ограничена</string>
+    <string name="flip_card">Перевернуть карту</string>
+    <string name="loyalty">Верность %1$s</string>
+    <string name="artist">Художник: %1$s</string>
+    <string name="rarity_common">Обычная</string>
+    <string name="rarity_uncommon">Необычная</string>
+    <string name="rarity_rare">Редкая</string>
+    <string name="rarity_mythic">Мифическая</string>
+
+    <!-- Lista de deseos -->
+    <string name="tab_wishlist">Желаемое</string>
+    <string name="wishlist_summary">Желаемое: %1$s</string>
+    <string name="wishlist_empty">Список желаемого пуст. Проверьте колоду, чтобы узнать, чего не хватает, или добавляйте карты с их страницы.</string>
+    <string name="check_deck">Чего не хватает в колоде?</string>
+    <string name="check_deck_help">Вставьте список колоды (Moxfield, Arena, MTGO, форум…) или откройте файл. Карты считаются по названию, независимо от выпуска.</string>
+    <string name="open_file">Открыть файл…</string>
+    <string name="check">Проверить</string>
+    <string name="deck_have">Есть %1$d из %2$d</string>
+    <string name="deck_missing">Не хватает %1$s · %2$s</string>
+    <string name="deck_complete">У вас есть вся колода.</string>
+    <string name="have_n_of_m">есть %1$d из %2$d</string>
+    <string name="add_missing_to_wishlist">Добавить недостающие в желаемое</string>
+    <string name="added_missing">Добавлено в желаемое</string>
+    <string name="copy_missing">Скопировать список недостающих</string>
+    <string name="copied">Скопировано (вставьте в Cardmarket)</string>
+    <string name="another_list">Другой список</string>
+    <string name="add_to_wishlist">В желаемое</string>
+    <string name="added_to_wishlist_short">В желаемом</string>
+    <string name="added_to_wishlist">%1$s добавлена в желаемое</string>
+    <string name="wish_fulfilled">%1$s была в вашем списке желаемого</string>
+    <string name="was_on_wishlist">★ Была в желаемом</string>
+
+    <!-- Evolución del valor -->
+    <string name="value_history">Изменение стоимости</string>
+    <string name="range_week">7 дней</string>
+    <string name="range_month">30 дней</string>
+    <string name="range_year">1 год</string>
+    <string name="range_all">Всё</string>
+    <string name="history_empty">Истории пока нет. Каждый день, когда вы открываете приложение или обновляете цены, записывается стоимость коллекции. Загляните через несколько дней.</string>
+    <string name="history_note">Стоимость учитывает и добавленные или убранные карты. Изменения только цен смотрите в картах ниже.</string>
+    <string name="biggest_rises">Больше всего подорожали</string>
+    <string name="biggest_drops">Больше всего подешевели</string>
+    <string name="no_price_changes">За этот период изменения цен ещё не записаны (они записываются при обновлении цен).</string>
+
+    <!-- Valor según el estado -->
+    <string name="condition_pricing_menu">Стоимость по состоянию…</string>
+    <string name="condition_pricing">Стоимость по состоянию</string>
+    <string name="condition_pricing_explain">Cardmarket и Scryfall не различают состояние: у каждой карты одна цена — цена карты в хорошем состоянии (NM). С этой опцией стоимость каждой карты = цена × процент её состояния. Например, карта за 10 € в состоянии EX (85 %) стоит 8,50 €.</string>
+    <string name="condition_pricing_switch">Учитывать состояние в стоимости</string>
+    <string name="condition_pricing_note">Проценты ориентировочные, по обычным ценам на подержанные карты; подстройте их под свой рынок. Применяются к сумме коллекции, каждой строке и экспорту. Цена карты (и её изменение) всегда рыночная.</string>
+    <string name="reset">Сбросить</string>
+    <string name="your_copy_value">Ваша карта %1$s (%2$d %): %3$s</string>
+    <string name="cond_m">Mint</string>
+    <string name="cond_nm">Near Mint</string>
+    <string name="cond_ex">Excellent</string>
+    <string name="cond_gd">Good</string>
+    <string name="cond_lp">Light Played</string>
+    <string name="cond_pl">Played</string>
+    <string name="cond_po">Poor</string>
+
+    <!-- Legalidad -->
+    <string name="format_label">Формат: %1$s</string>
+    <string name="all_formats">Все</string>
+    <string name="deck_legal_in">Легальна в: %1$s</string>
+    <string name="deck_legal_none">Нелегальна ни в одном основном формате</string>
+    <string name="deck_not_legal_in">Нелегальна (карт, мешающих этому): %1$s</string>
+    <string name="lang_fr">Французский</string>
+    <string name="lang_de">Немецкий</string>
+    <string name="lang_it">Итальянский</string>
+    <string name="lang_pt">Португальский</string>
+    <string name="auto_backup">Автоматическое резервное копирование</string>
+    <string name="auto_backup_menu">Автокопия…</string>
+    <string name="auto_backup_explain">Каждый день, если коллекция изменилась, копия сохраняется в файл, выбранный один раз (Google Диск, Dropbox, телефон). Google Диск также хранит предыдущие версии файла.</string>
+    <string name="auto_backup_choose">Выбрать, куда сохранять</string>
+    <string name="auto_backup_file">Файл: %1$s</string>
+    <string name="auto_backup_last">Последняя копия: %1$s (%2$s)</string>
+    <string name="auto_backup_never">Копий ещё нет.</string>
+    <string name="auto_backup_checked">Проверено %1$s: с тех пор изменений нет.</string>
+    <string name="auto_backup_error">Последняя копия не удалась: %1$s. Если вы удалили или переместили файл, выберите его снова.</string>
+    <string name="auto_backup_now">Создать копию сейчас</string>
+    <string name="auto_backup_change">Выбрать другой файл</string>
+    <string name="auto_backup_disable">Отключить</string>
+    <string name="auto_backup_restore">Чтобы восстановить: ⋮ → Импорт карт или копии → выберите файл → Заменить.</string>
+    <string name="auto_backup_android">Если включено резервное копирование Android, данные приложения (коллекция, колоды, желаемое, история) также сохраняются в вашем аккаунте Google и восстанавливаются при переустановке или смене телефона.</string>
+    <string name="auto_backup_explain_ios">Пока вы пользуетесь приложением, при изменении коллекции копия сохраняется в файл, выбранный один раз (iCloud Drive, другое хранилище, iPhone).</string>
+    <string name="auto_backup_ios">Если на iPhone включено резервное копирование iCloud, данные приложения (коллекция, колоды, желаемое, история) тоже в него входят.</string>
+    <string name="test_photos">Тестовые фото</string>
+    <string name="test_photos_menu">Тестовые фото…</string>
+    <string name="test_photos_explain">Нужны, чтобы измерить, насколько точно приложение распознаёт карты на вашем телефоне. Пока опция включена, для каждой отсканированной карты сохраняется и фото с камеры, по которому она распознана. Затем исправьте в коллекции неверные карты (выпуск, язык или удаление): то, что останется в коллекции, и будет правильным ответом для каждого фото.</string>
+    <string name="test_photos_switch">Сохранять тестовые фото</string>
+    <string name="test_photos_saved">Сохранено: %1$d фото (%2$s МБ)</string>
+    <string name="test_photos_export">Экспортировать и поделиться (Диск и т. п.)</string>
+    <string name="test_photos_exporting">Подготовка файла…</string>
+    <string name="test_photos_share">Поделиться тестовыми фото</string>
+    <string name="test_photos_export_failed">Не удалось экспортировать фото: %1$s</string>
+    <string name="test_photos_clear">Удалить фото</string>
+    <string name="test_photos_clear_confirm">Удалить %1$d фото? Если ещё не экспортировали, сначала экспортируйте.</string>
+    <string name="test_photos_delete">Удалить</string>
+    <string name="test_photos_how">Если карта не распознаётся, нажмите «Сохранить фото» в сканере: оно сохранится, чтобы подписать его позже. Файл содержит фото и список правильных карт для каждого из них.</string>
+    <plurals name="test_photos_count">
+        <item quantity="one">Тест · %1$d фото</item>
+        <item quantity="few">Тест · %1$d фото</item>
+        <item quantity="many">Тест · %1$d фото</item>
+        <item quantity="other">Тест · %1$d фото</item>
+    </plurals>
+    <string name="test_photos_capture">Сохранить фото</string>
+    <string name="selected_count">Выбрано: %1$d · %2$s</string>
+    <string name="select_all">Все</string>
+    <string name="move">Переместить</string>
+    <string name="delete">Удалить</string>
+    <string name="delete_all_menu">Удалить всё…</string>
+    <string name="delete_question">Удалить %1$s?</string>
+    <string name="delete_explain">Все карты выбранных строк будут удалены из: %1$s. Сразу после этого можно отменить.</string>
+    <string name="deleted_cards">Удалено: %1$s</string>
+    <string name="restored_cards">Восстановлено: %1$s</string>
+    <string name="move_many_title">Переместить %1$s</string>
+    <string name="select_several">Выбрать несколько</string>
+    <string name="card_photos">Фото карт</string>
+    <string name="card_photos_menu">Фото карт…</string>
+    <string name="card_photos_explain">Сохраняет фото с камеры для каждой отсканированной карты. Его видно на странице карты, и его можно включить в экспорт и автокопию. Одно фото занимает около 150 КБ.</string>
+    <string name="card_photos_switch">Сохранять фото каждой карты</string>
+    <string name="card_photos_clear_confirm">Удалить %1$d фото? Карты останутся в коллекции.</string>
+    <string name="card_photos_how">Фото карт, убранных из коллекции, удаляются при следующем запуске приложения.</string>
+    <string name="your_photo">Ваше фото</string>
+    <plurals name="your_photos">
+        <item quantity="one">Ваши фото (%1$d)</item>
+        <item quantity="few">Ваши фото (%1$d)</item>
+        <item quantity="many">Ваши фото (%1$d)</item>
+        <item quantity="other">Ваши фото (%1$d)</item>
+    </plurals>
+    <string name="format_csv_photos">CSV с фото (zip)</string>
+    <string name="format_csv_photos_desc">То же, что CSV, плюс фото карт в папке «fotos». Отдельный столбец указывает фото каждой строки.</string>
+    <string name="auto_backup_photos">Включать фото</string>
+    <string name="auto_backup_photos_explain">Фото карт сохраняются во второй файл (zip со списком и фото) и только когда меняются карты или фото. Он может занимать десятки МБ.</string>
+    <string name="auto_backup_photos_file">Фото: %1$s</string>
+    <string name="auto_backup_photos_last">Последняя копия: %1$s (%2$d фото)</string>
+</resources>

@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 한국어 -->
+<resources>
+    <!-- Pestañas -->
+    <string name="tab_scan">스캔</string>
+    <string name="tab_collection">컬렉션</string>
+
+    <!-- Comunes -->
+    <string name="cancel">취소</string>
+    <string name="close">닫기</string>
+    <string name="save">저장</string>
+    <string name="create">만들기</string>
+    <string name="clear">지우기</string>
+    <string name="more_options">더 보기</string>
+    <string name="no_deck">덱 없음</string>
+    <string name="deck_named">덱: %1$s</string>
+    <string name="deck_with_count">%1$s (%2$d)</string>
+    <plurals name="cards">
+        <item quantity="other">카드 %1$d장</item>
+    </plurals>
+    <plurals name="decks">
+        <item quantity="other">덱 %1$d개</item>
+    </plurals>
+
+    <!-- Escáner -->
+    <string name="camera_needed">카드를 스캔하려면 카메라가 필요합니다.</string>
+    <string name="grant_permission">권한 허용</string>
+    <string name="loading_catalog">카탈로그 불러오는 중…</string>
+    <string name="point_at_card">카메라를 카드에 맞추세요</string>
+    <string name="foil">포일</string>
+    <string name="torch">손전등</string>
+    <string name="scan_deck_question">카드를 어느 덱에 넣을까요?</string>
+    <string name="or_new_deck">또는 새 덱</string>
+    <string name="doubtful_edition">확장판이 불확실함: 컬렉션에서 확인하세요</string>
+    <string name="undo">실행 취소</string>
+
+    <!-- Colección: cabecera y filtros -->
+    <string name="export_share">보이는 항목 내보내기 및 공유</string>
+    <string name="add_manually">직접 추가</string>
+    <string name="update_prices">가격 업데이트</string>
+    <string name="backup_import">백업 및 가져오기</string>
+    <string name="save_backup">백업 저장</string>
+    <string name="import_cards">카드 또는 백업 가져오기…</string>
+    <string name="review_editions">확장판 확인 (%1$d개 남음)</string>
+    <string name="all_cards">전체</string>
+    <string name="deck_add">덱</string>
+    <string name="rename_deck">덱 이름 변경</string>
+    <string name="delete_deck">덱 삭제</string>
+    <string name="search_collection">컬렉션 검색</string>
+    <string name="pending_review">확인 필요</string>
+    <string name="sort_recent">최근</string>
+    <string name="sort_value">가치</string>
+    <string name="sort_name">이름</string>
+    <string name="price_label">가격: %1$s</string>
+    <string name="empty_deck">빈 덱입니다. 각 카드의 메뉴에서 이곳으로 옮기거나, 이 덱을 대상으로 지정해 스캔하세요.</string>
+    <string name="empty_collection">아직 카드가 없습니다. 스캔 탭으로 가세요.</string>
+    <string name="no_match">일치하는 카드가 없습니다.</string>
+    <string name="whole_collection">전체 컬렉션</string>
+    <string name="scope_deck">덱 %1$s</string>
+    <string name="colors_or">" 또는 "</string>
+    <string name="color_selected">%1$s (선택됨)</string>
+    <string name="color_white">백색</string>
+    <string name="color_blue">청색</string>
+    <string name="color_black">흑색</string>
+    <string name="color_red">적색</string>
+    <string name="color_green">녹색</string>
+    <string name="color_colorless">무색</string>
+
+    <!-- Precios -->
+    <string name="price_trend">추세</string>
+    <string name="price_trend_desc">Cardmarket 추세 가격 (일반적인 가격).</string>
+    <string name="price_low">최저가</string>
+    <string name="price_low_desc">Cardmarket의 가장 저렴한 판매가: 오늘 사면 드는 비용.</string>
+    <string name="price_avg30">30일 평균</string>
+    <string name="price_avg30_desc">지난달 거래 평균: 하루하루의 변동이 적습니다.</string>
+    <string name="prices_updated">가격 업데이트 완료 (카드 %1$d장)</string>
+    <string name="prices_failed">가격을 업데이트하지 못했습니다: %1$s</string>
+
+    <!-- Mazos -->
+    <string name="delete_deck_question">덱 “%1$s”을(를) 삭제할까요?</string>
+    <string name="delete_deck_explain">카드(%1$s)는 삭제되지 않고 덱 없이 컬렉션으로 돌아갑니다.</string>
+    <string name="new_deck">새 덱</string>
+    <string name="deck_name">덱 이름</string>
+    <string name="move_title">%1$s 이동</string>
+    <string name="copies">장수:</string>
+    <string name="n_of_m">%1$d / %2$d</string>
+    <string name="take_out_of_deck">덱에서 빼기 (덱 없음)</string>
+    <string name="or_to_new_deck">또는 새 덱으로</string>
+    <string name="create_and_move">만들고 이동</string>
+
+    <!-- Fila de la colección -->
+    <string name="move_to_deck">덱으로 이동…</string>
+    <string name="change_edition">확장판 또는 언어 변경</string>
+    <string name="remove_one">한 장 빼기</string>
+
+    <!-- Selector de edición -->
+    <string name="reviewing_left">확인 중: %1$d개 남음</string>
+    <string name="suggested_edition">추천 확장판</string>
+    <string name="current_edition">현재 확장판</string>
+    <string name="is_correct">맞음</string>
+    <string name="language">언어</string>
+    <string name="lang_en">영어</string>
+    <string name="lang_es">스페인어</string>
+    <string name="search_edition">확장판 검색: 이름, 코드, 번호, 연도</string>
+    <string name="editions_count">확장판 %2$d개 중 %1$d개</string>
+    <string name="sorted_by_photo">사진과 비슷한 순</string>
+    <string name="sorted_by_date">최신순</string>
+    <string name="similarity">사진과 유사도: %1$d %</string>
+    <string name="choose_edition_to_add">추가할 확장판을 고르세요</string>
+    <string name="add_card">카드 추가</string>
+    <string name="card_name_hint">카드 이름 (영어 또는 다른 언어)</string>
+
+    <!-- Exportar -->
+    <string name="export_title">내보내기: %1$s (%2$s)</string>
+    <string name="format_csv">스프레드시트 (CSV)</string>
+    <string name="format_csv_desc">가격을 포함한 모든 정보. Excel, Google 스프레드시트 등용 (Scryfall ID 포함).</string>
+    <string name="format_moxfield">Moxfield (CSV)</string>
+    <string name="format_moxfield_desc">Moxfield로 카드를 가져올 때.</string>
+    <string name="format_text">텍스트 목록</string>
+    <string name="format_text_desc">"2 Lightning Bolt (M11) 149": 메시지나 포럼에 붙여넣기용.</string>
+    <string name="share_subject">MTG 카드: %1$s (%2$s)</string>
+    <string name="share_title">공유: %1$s</string>
+
+    <!-- Copia de seguridad e importar -->
+    <string name="backup_file_prefix">mtg-scanner-backup</string>
+    <string name="backup_saved">백업 저장 완료 (%1$s)</string>
+    <string name="backup_failed">백업을 저장하지 못했습니다: %1$s</string>
+    <string name="read_failed">파일을 읽지 못했습니다: %1$s</string>
+    <string name="file_too_big">파일이 너무 큽니다</string>
+    <string name="file_default_name">파일</string>
+    <string name="import_title">%1$s 가져오기</string>
+    <string name="import_none">카드를 인식하지 못했습니다. 지원 형식: CSV 파일 (이 앱, Moxfield, ManaBox, Deckbox, TCGplayer 등)과 "4 Lightning Bolt (M11) 149" 같은 텍스트 목록.</string>
+    <string name="import_recognised">%1$s 인식됨</string>
+    <string name="import_in_decks">%1$s: %2$s</string>
+    <string name="import_pending">확장판 확인 필요: %1$s</string>
+    <string name="import_target_deck">추가하면 덱이 없는 카드는 %1$s(으)로 들어갑니다.</string>
+    <plurals name="lines_not_recognised">
+        <item quantity="other">인식하지 못한 줄 %1$d개:</item>
+    </plurals>
+    <string name="import_line">%1$d번째 줄: %2$s</string>
+    <string name="and_n_more">… 외 %1$d개</string>
+    <string name="replace">바꾸기</string>
+    <string name="add">추가</string>
+    <string name="import_action">가져오기</string>
+    <string name="replace_question">컬렉션을 바꿀까요?</string>
+    <string name="replace_explain">현재 %1$s%2$s이(가) 삭제되고 파일의 %3$s만 남습니다. 되돌릴 수 없습니다.</string>
+    <string name="replace_explain_decks">" 및 %1$s"</string>
+    <string name="collection_replaced">컬렉션을 바꿨습니다: %1$s</string>
+    <string name="cards_added">추가됨: %1$s</string>
+    <string name="import_failed">가져오지 못했습니다: %1$s</string>
+
+    <!-- Ficha de carta -->
+    <string name="in_your_collection">내 컬렉션</string>
+    <string name="copies_of_edition">이 확장판: %1$d장</string>
+    <string name="copies_of_card">이 카드 전체: %1$d장</string>
+    <string name="prices">가격</string>
+    <string name="normal">일반</string>
+    <string name="prices_from_catalog">카탈로그 가격입니다. 오늘 가격은 “가격 업데이트”로 받을 수 있습니다.</string>
+    <string name="prices_updated_at">업데이트: %1$s</string>
+    <string name="cardmarket_guide_hint">최저가와 30일 평균은 둘 중 하나를 가격으로 선택하고 업데이트하면 표시됩니다.</string>
+    <string name="card_text">카드 텍스트</string>
+    <string name="details_offline">연결이 필요합니다 (Scryfall).</string>
+    <string name="legality">사용 가능 포맷</string>
+    <string name="legal">사용 가능</string>
+    <string name="not_legal">사용 불가</string>
+    <string name="banned">금지</string>
+    <string name="restricted">제한</string>
+    <string name="flip_card">카드 뒤집기</string>
+    <string name="loyalty">충성도 %1$s</string>
+    <string name="artist">일러스트: %1$s</string>
+    <string name="rarity_common">커먼</string>
+    <string name="rarity_uncommon">언커먼</string>
+    <string name="rarity_rare">레어</string>
+    <string name="rarity_mythic">신화 레어</string>
+
+    <!-- Lista de deseos -->
+    <string name="tab_wishlist">위시리스트</string>
+    <string name="wishlist_summary">위시리스트: %1$s</string>
+    <string name="wishlist_empty">위시리스트가 비어 있습니다. 덱을 확인해 부족한 카드를 알아보거나 카드 페이지에서 추가하세요.</string>
+    <string name="check_deck">덱에 부족한 카드는?</string>
+    <string name="check_deck_help">덱 목록 (Moxfield, Arena, MTGO, 포럼 등)을 붙여넣거나 파일을 여세요. 카드는 확장판과 관계없이 이름으로 셉니다.</string>
+    <string name="open_file">파일 열기…</string>
+    <string name="check">확인</string>
+    <string name="deck_have">%2$d장 중 %1$d장 보유</string>
+    <string name="deck_missing">부족 %1$s · %2$s</string>
+    <string name="deck_complete">덱을 모두 갖추고 있습니다.</string>
+    <string name="have_n_of_m">%2$d장 중 %1$d장 보유</string>
+    <string name="add_missing_to_wishlist">부족한 카드를 위시리스트에 추가</string>
+    <string name="added_missing">위시리스트에 추가됨</string>
+    <string name="copy_missing">부족한 카드 목록 복사</string>
+    <string name="copied">복사됨 (Cardmarket에 붙여넣기)</string>
+    <string name="another_list">다른 목록</string>
+    <string name="add_to_wishlist">위시리스트에 추가</string>
+    <string name="added_to_wishlist_short">위시리스트에 있음</string>
+    <string name="added_to_wishlist">%1$s을(를) 위시리스트에 추가했습니다</string>
+    <string name="wish_fulfilled">%1$s은(는) 위시리스트에 있던 카드입니다</string>
+    <string name="was_on_wishlist">★ 위시리스트에 있었음</string>
+
+    <!-- Evolución del valor -->
+    <string name="value_history">가치 변화</string>
+    <string name="range_week">7일</string>
+    <string name="range_month">30일</string>
+    <string name="range_year">1년</string>
+    <string name="range_all">전체</string>
+    <string name="history_empty">아직 기록이 없습니다. 앱을 열거나 가격을 업데이트한 날마다 컬렉션 가치가 기록됩니다. 며칠 뒤에 다시 확인하세요.</string>
+    <string name="history_note">가치에는 추가하거나 뺀 카드도 반영됩니다. 가격 변동만 보려면 아래 카드를 보세요.</string>
+    <string name="biggest_rises">가장 많이 오른 카드</string>
+    <string name="biggest_drops">가장 많이 내린 카드</string>
+    <string name="no_price_changes">이 기간에는 아직 가격 변동 기록이 없습니다 (가격을 업데이트할 때 기록됩니다).</string>
+
+    <!-- Valor según el estado -->
+    <string name="condition_pricing_menu">상태별 가치…</string>
+    <string name="condition_pricing">상태별 가치</string>
+    <string name="condition_pricing_explain">Cardmarket과 Scryfall은 상태를 구분하지 않고 카드마다 하나의 가격만 제공하며, 이는 상태가 좋은 카드(NM)의 가격입니다. 이 옵션을 켜면 각 카드의 가치를 가격 × 상태 비율로 계산합니다. 예: EX(85 %)인 10 € 카드는 8.50 €가 됩니다.</string>
+    <string name="condition_pricing_switch">상태에 따라 가치 조정</string>
+    <string name="condition_pricing_note">비율은 중고 카드에 보통 지불하는 금액을 바탕으로 한 참고값입니다. 시장에 맞게 조정하세요. 컬렉션 합계, 각 줄, 내보내기에 적용됩니다. 카드 가격(과 그 변동)은 항상 시장 가격입니다.</string>
+    <string name="reset">초기화</string>
+    <string name="your_copy_value">내 카드 %1$s (%2$d %): %3$s</string>
+    <string name="cond_m">Mint</string>
+    <string name="cond_nm">Near Mint</string>
+    <string name="cond_ex">Excellent</string>
+    <string name="cond_gd">Good</string>
+    <string name="cond_lp">Light Played</string>
+    <string name="cond_pl">Played</string>
+    <string name="cond_po">Poor</string>
+
+    <!-- Legalidad -->
+    <string name="format_label">포맷: %1$s</string>
+    <string name="all_formats">전체</string>
+    <string name="deck_legal_in">사용 가능: %1$s</string>
+    <string name="deck_legal_none">주요 포맷 어디에서도 사용 불가</string>
+    <string name="deck_not_legal_in">사용 불가 (원인 카드 수): %1$s</string>
+    <string name="lang_fr">프랑스어</string>
+    <string name="lang_de">독일어</string>
+    <string name="lang_it">이탈리아어</string>
+    <string name="lang_pt">포르투갈어</string>
+    <string name="auto_backup">자동 백업</string>
+    <string name="auto_backup_menu">자동 백업…</string>
+    <string name="auto_backup_explain">매일 컬렉션이 바뀌었으면, 한 번 선택한 파일 (Google 드라이브, Dropbox, 휴대폰)에 사본을 저장합니다. Google 드라이브는 파일의 이전 버전도 보관합니다.</string>
+    <string name="auto_backup_choose">저장할 위치 선택</string>
+    <string name="auto_backup_file">파일: %1$s</string>
+    <string name="auto_backup_last">마지막 백업: %1$s (%2$s)</string>
+    <string name="auto_backup_never">아직 백업이 없습니다.</string>
+    <string name="auto_backup_checked">%1$s에 확인: 그 이후 변경 사항이 없습니다.</string>
+    <string name="auto_backup_error">마지막 백업 실패: %1$s. 파일을 지우거나 옮겼다면 다시 선택하세요.</string>
+    <string name="auto_backup_now">지금 백업</string>
+    <string name="auto_backup_change">다른 파일 선택</string>
+    <string name="auto_backup_disable">끄기</string>
+    <string name="auto_backup_restore">복원하려면: ⋮ → 카드 또는 백업 가져오기 → 파일 선택 → 바꾸기.</string>
+    <string name="auto_backup_android">Android 백업이 켜져 있으면 앱 데이터 (컬렉션, 덱, 위시리스트, 기록)도 Google 계정에 저장되어, 다시 설치하거나 휴대폰을 바꿀 때 복원됩니다.</string>
+    <string name="auto_backup_explain_ios">앱을 사용하는 동안 컬렉션이 바뀌면, 한 번 선택한 파일 (iCloud Drive, 다른 저장 서비스, iPhone)에 사본을 저장합니다.</string>
+    <string name="auto_backup_ios">iPhone의 iCloud 백업이 켜져 있으면 앱 데이터 (컬렉션, 덱, 위시리스트, 기록)도 포함됩니다.</string>
+    <string name="test_photos">테스트 사진</string>
+    <string name="test_photos_menu">테스트 사진…</string>
+    <string name="test_photos_explain">앱이 내 휴대폰에서 카드를 얼마나 정확히 인식하는지 측정하기 위한 기능입니다. 켜 두면 스캔한 카드마다 인식에 사용한 카메라 사진도 저장됩니다. 그런 다음 컬렉션에서 잘못된 카드를 고치세요 (확장판, 언어, 또는 삭제). 컬렉션에 남은 내용이 각 사진의 정답이 됩니다.</string>
+    <string name="test_photos_switch">테스트 사진 저장</string>
+    <string name="test_photos_saved">저장됨: 사진 %1$d장 (%2$s MB)</string>
+    <string name="test_photos_export">내보내기 및 공유 (드라이브 등)</string>
+    <string name="test_photos_exporting">파일 준비 중…</string>
+    <string name="test_photos_share">테스트 사진 공유</string>
+    <string name="test_photos_export_failed">사진을 내보내지 못했습니다: %1$s</string>
+    <string name="test_photos_clear">사진 삭제</string>
+    <string name="test_photos_clear_confirm">사진 %1$d장을 삭제할까요? 아직 내보내지 않았다면 먼저 내보내세요.</string>
+    <string name="test_photos_delete">삭제</string>
+    <string name="test_photos_how">카드가 인식되지 않으면 스캐너에서 “사진 저장”을 누르세요. 나중에 라벨을 붙이도록 저장됩니다. 파일에는 사진과 각 사진의 올바른 카드 목록이 들어 있습니다.</string>
+    <plurals name="test_photos_count">
+        <item quantity="other">테스트 · 사진 %1$d장</item>
+    </plurals>
+    <string name="test_photos_capture">사진 저장</string>
+    <string name="selected_count">%1$d개 선택 · %2$s</string>
+    <string name="select_all">전체</string>
+    <string name="move">이동</string>
+    <string name="delete">삭제</string>
+    <string name="delete_all_menu">모두 삭제…</string>
+    <string name="delete_question">%1$s을(를) 삭제할까요?</string>
+    <string name="delete_explain">선택한 줄의 카드가 모두 %1$s에서 삭제됩니다. 바로 다음에는 되돌릴 수 있습니다.</string>
+    <string name="deleted_cards">삭제됨: %1$s</string>
+    <string name="restored_cards">복원됨: %1$s</string>
+    <string name="move_many_title">%1$s 이동</string>
+    <string name="select_several">여러 개 선택</string>
+    <string name="card_photos">카드 사진</string>
+    <string name="card_photos_menu">카드 사진…</string>
+    <string name="card_photos_explain">스캔한 각 카드의 카메라 사진을 저장합니다. 카드 페이지에서 볼 수 있고 내보내기와 자동 백업에 포함할 수 있습니다. 사진 한 장은 약 150 KB입니다.</string>
+    <string name="card_photos_switch">각 카드의 사진 저장</string>
+    <string name="card_photos_clear_confirm">사진 %1$d장을 삭제할까요? 카드는 컬렉션에 남습니다.</string>
+    <string name="card_photos_how">컬렉션에서 카드를 빼면 다음에 앱을 열 때 그 사진도 삭제됩니다.</string>
+    <string name="your_photo">내 사진</string>
+    <plurals name="your_photos">
+        <item quantity="other">내 사진 (%1$d)</item>
+    </plurals>
+    <string name="format_csv_photos">사진 포함 CSV (zip)</string>
+    <string name="format_csv_photos_desc">CSV와 같은 내용에 카드 사진을 “fotos” 폴더에 더합니다. 각 줄의 사진 이름을 담은 열이 있습니다.</string>
+    <string name="auto_backup_photos">사진 포함</string>
+    <string name="auto_backup_photos_explain">카드 사진은 두 번째 파일 (목록과 사진을 담은 zip)에 넣고, 카드나 사진이 바뀔 때만 저장합니다. 수십 MB가 될 수 있습니다.</string>
+    <string name="auto_backup_photos_file">사진: %1$s</string>
+    <string name="auto_backup_photos_last">마지막 사본: %1$s (사진 %2$d장)</string>
+</resources>

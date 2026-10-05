@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Textos en inglés (idioma por defecto). Las traducciones están en values-xx/strings.xml (las mismas claves). -->
+<resources>
+    <string name="app_name">MTG Scanner</string>
+
+    <!-- Pestañas -->
+    <string name="tab_scan">Scan</string>
+    <string name="tab_collection">Collection</string>
+
+    <!-- Comunes -->
+    <string name="cancel">Cancel</string>
+    <string name="close">Close</string>
+    <string name="save">Save</string>
+    <string name="create">Create</string>
+    <string name="clear">Clear</string>
+    <string name="more_options">More options</string>
+    <string name="no_deck">No deck</string>
+    <string name="deck_named">Deck: %1$s</string>
+    <string name="deck_with_count">%1$s (%2$d)</string>
+    <plurals name="cards">
+        <item quantity="one">%1$d card</item>
+        <item quantity="other">%1$d cards</item>
+    </plurals>
+    <plurals name="decks">
+        <item quantity="one">%1$d deck</item>
+        <item quantity="other">%1$d decks</item>
+    </plurals>
+
+    <!-- Escáner -->
+    <string name="camera_needed">The app needs the camera to scan cards.</string>
+    <string name="grant_permission">Grant permission</string>
+    <string name="loading_catalog">Loading catalog…</string>
+    <string name="point_at_card">Point at a card</string>
+    <string name="foil">Foil</string>
+    <string name="torch">Flashlight</string>
+    <string name="scan_deck_question">Which deck do the cards go to?</string>
+    <string name="or_new_deck">Or a new deck</string>
+    <string name="doubtful_edition">Unsure edition: review it in Collection</string>
+    <string name="undo">Undo</string>
+
+    <!-- Colección: cabecera y filtros -->
+    <string name="export_share">Export and share what is shown</string>
+    <string name="add_manually">Add manually</string>
+    <string name="update_prices">Update prices</string>
+    <string name="backup_import">Backup and import</string>
+    <string name="save_backup">Save backup</string>
+    <string name="import_cards">Import cards or backup…</string>
+    <string name="review_editions">Review editions (%1$d pending)</string>
+    <string name="all_cards">All</string>
+    <string name="deck_add">Deck</string>
+    <string name="rename_deck">Rename deck</string>
+    <string name="delete_deck">Delete deck</string>
+    <string name="search_collection">Search the collection</string>
+    <string name="pending_review">To review</string>
+    <string name="sort_recent">Recent</string>
+    <string name="sort_value">Value</string>
+    <string name="sort_name">Name</string>
+    <string name="price_label">Price: %1$s</string>
+    <string name="empty_deck">Empty deck. Move cards here from each card's menu, or scan with this deck as the destination.</string>
+    <string name="empty_collection">No cards yet. Go to Scan.</string>
+    <string name="no_match">No cards match.</string>
+    <string name="whole_collection">Whole collection</string>
+    <string name="scope_deck">Deck %1$s</string>
+    <string name="colors_or">" or "</string>
+    <string name="color_selected">%1$s, selected</string>
+    <string name="color_white">White</string>
+    <string name="color_blue">Blue</string>
+    <string name="color_black">Black</string>
+    <string name="color_red">Red</string>
+    <string name="color_green">Green</string>
+    <string name="color_colorless">Colorless</string>
+
+    <!-- Precios -->
+    <string name="price_trend">Trend</string>
+    <string name="price_trend_desc">Cardmarket's trend price (the usual one).</string>
+    <string name="price_low">Lowest</string>
+    <string name="price_low_desc">The cheapest offer on Cardmarket: what it would cost to buy it today.</string>
+    <string name="price_avg30">30-day average</string>
+    <string name="price_avg30_desc">Average of last month's sales: changes less from one day to the next.</string>
+    <string name="prices_updated">Prices updated (%1$d cards)</string>
+    <string name="prices_failed">Could not update prices: %1$s</string>
+
+    <!-- Mazos -->
+    <string name="delete_deck_question">Delete the deck %1$s?</string>
+    <string name="delete_deck_explain">Its cards (%1$s) are not deleted: they go back to the collection, without a deck.</string>
+    <string name="new_deck">New deck</string>
+    <string name="deck_name">Deck name</string>
+    <string name="move_title">Move %1$s</string>
+    <string name="copies">Copies:</string>
+    <string name="n_of_m">%1$d of %2$d</string>
+    <string name="take_out_of_deck">Take out of the deck (no deck)</string>
+    <string name="or_to_new_deck">Or to a new deck</string>
+    <string name="create_and_move">Create and move</string>
+
+    <!-- Fila de la colección -->
+    <string name="move_to_deck">Move to a deck…</string>
+    <string name="change_edition">Change edition or language</string>
+    <string name="remove_one">Remove one copy</string>
+
+    <!-- Selector de edición -->
+    <string name="reviewing_left">Reviewing: %1$d left</string>
+    <string name="suggested_edition">Suggested edition</string>
+    <string name="current_edition">Current edition</string>
+    <string name="is_correct">It's correct</string>
+    <string name="language">Language</string>
+    <string name="lang_en">English</string>
+    <string name="lang_es">Spanish</string>
+    <string name="search_edition">Search edition: name, code, number or year</string>
+    <string name="editions_count">%1$d of %2$d editions</string>
+    <string name="sorted_by_photo">sorted by similarity to your photo</string>
+    <string name="sorted_by_date">newest to oldest</string>
+    <string name="similarity">Similarity to your photo: %1$d %</string>
+    <string name="choose_edition_to_add">Choose the edition to add it</string>
+    <string name="add_card">Add card</string>
+    <string name="card_name_hint">Card name (in English or another language)</string>
+
+    <!-- Exportar -->
+    <string name="export_title">Export: %1$s (%2$s)</string>
+    <string name="format_csv">Spreadsheet (CSV)</string>
+    <string name="format_csv_desc">Everything, with prices. For Excel, Google Sheets or other apps (includes the Scryfall ID).</string>
+    <string name="format_moxfield">Moxfield (CSV)</string>
+    <string name="format_moxfield_desc">To import the cards into Moxfield.</string>
+    <string name="format_text">Text list</string>
+    <string name="format_text_desc">"2 Lightning Bolt (M11) 149": to paste in a message or a forum.</string>
+    <string name="share_subject">MTG cards: %1$s (%2$s)</string>
+    <string name="share_title">Share: %1$s</string>
+
+    <!-- Copia de seguridad e importar -->
+    <string name="backup_file_prefix">mtg-scanner-backup</string>
+    <string name="backup_saved">Backup saved (%1$s)</string>
+    <string name="backup_failed">Could not save the backup: %1$s</string>
+    <string name="read_failed">Could not read the file: %1$s</string>
+    <string name="file_too_big">the file is too large</string>
+    <string name="file_default_name">file</string>
+    <string name="import_title">Import %1$s</string>
+    <string name="import_none">No cards were recognised. Supported: CSV files (from this app, Moxfield, ManaBox, Deckbox, TCGplayer…) and text lists like "4 Lightning Bolt (M11) 149".</string>
+    <string name="import_recognised">%1$s recognised</string>
+    <string name="import_in_decks">In %1$s: %2$s</string>
+    <string name="import_pending">%1$s with the edition to review</string>
+    <string name="import_target_deck">When adding, those without a deck will go to %1$s.</string>
+    <plurals name="lines_not_recognised">
+        <item quantity="one">%1$d line not recognised:</item>
+        <item quantity="other">%1$d lines not recognised:</item>
+    </plurals>
+    <string name="import_line">Line %1$d: %2$s</string>
+    <string name="and_n_more">… and %1$d more</string>
+    <string name="replace">Replace</string>
+    <string name="add">Add</string>
+    <string name="import_action">Import</string>
+    <string name="replace_question">Replace the collection?</string>
+    <string name="replace_explain">The current %1$s%2$s will be deleted, and only the %3$s from the file will remain. This cannot be undone.</string>
+    <string name="replace_explain_decks">" and %1$s"</string>
+    <string name="collection_replaced">Collection replaced: %1$s</string>
+    <string name="cards_added">Added: %1$s</string>
+    <string name="import_failed">Could not import: %1$s</string>
+
+    <!-- Ficha de carta -->
+    <string name="in_your_collection">In your collection</string>
+    <string name="copies_of_edition">%1$d of this edition</string>
+    <string name="copies_of_card">%1$d of the card in total</string>
+    <string name="prices">Prices</string>
+    <string name="normal">Normal</string>
+    <string name="prices_from_catalog">Catalog prices: press update prices for today's.</string>
+    <string name="prices_updated_at">Updated %1$s</string>
+    <string name="cardmarket_guide_hint">Lowest and 30-day average appear after choosing one of them as the price and updating.</string>
+    <string name="card_text">Card text</string>
+    <string name="details_offline">Needs a connection (Scryfall).</string>
+    <string name="legality">Legality</string>
+    <string name="legal">Legal</string>
+    <string name="not_legal">Not legal</string>
+    <string name="banned">Banned</string>
+    <string name="restricted">Restricted</string>
+    <string name="flip_card">Flip</string>
+    <string name="loyalty">Loyalty %1$s</string>
+    <string name="artist">Illustrated by %1$s</string>
+    <string name="rarity_common">Common</string>
+    <string name="rarity_uncommon">Uncommon</string>
+    <string name="rarity_rare">Rare</string>
+    <string name="rarity_mythic">Mythic</string>
+
+    <!-- Lista de deseos -->
+    <string name="tab_wishlist">Wishlist</string>
+    <string name="wishlist_summary">%1$s on your wishlist</string>
+    <string name="wishlist_empty">Your wishlist is empty. Check a deck to see what you are missing, or add cards from their page.</string>
+    <string name="check_deck">What am I missing for a deck?</string>
+    <string name="check_deck_help">Paste the decklist (Moxfield, Arena, MTGO, a forum…) or open a file. Cards are counted by name, in any edition.</string>
+    <string name="open_file">Open file…</string>
+    <string name="check">Check</string>
+    <string name="deck_have">You have %1$d of %2$d cards</string>
+    <string name="deck_missing">Missing %1$s · %2$s</string>
+    <string name="deck_complete">You have the whole deck.</string>
+    <string name="have_n_of_m">You have %1$d of %2$d</string>
+    <string name="add_missing_to_wishlist">Add missing to wishlist</string>
+    <string name="added_missing">Added to wishlist</string>
+    <string name="copy_missing">Copy missing list</string>
+    <string name="copied">Copied (paste it into Cardmarket)</string>
+    <string name="another_list">Another list</string>
+    <string name="add_to_wishlist">Add to wishlist</string>
+    <string name="added_to_wishlist_short">On your wishlist</string>
+    <string name="added_to_wishlist">%1$s added to the wishlist</string>
+    <string name="wish_fulfilled">%1$s was on your wishlist</string>
+    <string name="was_on_wishlist">★ It was on your wishlist</string>
+
+    <!-- Evolución del valor -->
+    <string name="value_history">Value over time</string>
+    <string name="range_week">7 days</string>
+    <string name="range_month">30 days</string>
+    <string name="range_year">1 year</string>
+    <string name="range_all">All</string>
+    <string name="history_empty">No history yet: the app saves the collection value every day you open it or update prices. Come back in a few days.</string>
+    <string name="history_note">The value includes the cards you add or remove. To see only price changes, look at the cards below.</string>
+    <string name="biggest_rises">Biggest rises</string>
+    <string name="biggest_drops">Biggest drops</string>
+    <string name="no_price_changes">No price changes saved in this period yet (they are saved when prices are updated).</string>
+
+    <!-- Valor según el estado -->
+    <string name="condition_pricing_menu">Value by condition…</string>
+    <string name="condition_pricing">Value by condition</string>
+    <string name="condition_pricing_explain">Cardmarket and Scryfall give a single price per card, without telling conditions apart: it is the price of cards in good condition (NM). With this option, each card is worth its price multiplied by the percentage of its condition. For example, a €10 card in EX (85%) counts as €8.50.</string>
+    <string name="condition_pricing_switch">Adjust value by condition</string>
+    <string name="condition_pricing_note">The percentages are an estimate, in line with what is usually paid for used cards; adjust them to your market. They apply to the collection total, each row and exports. Card prices (and their changes) are always market prices.</string>
+    <string name="reset">Reset</string>
+    <string name="your_copy_value">Your copy in %1$s (%2$d %): %3$s</string>
+    <string name="cond_m">Mint</string>
+    <string name="cond_nm">Near Mint</string>
+    <string name="cond_ex">Excellent</string>
+    <string name="cond_gd">Good</string>
+    <string name="cond_lp">Light Played</string>
+    <string name="cond_pl">Played</string>
+    <string name="cond_po">Poor</string>
+
+    <!-- Legalidad -->
+    <string name="format_label">Format: %1$s</string>
+    <string name="all_formats">All</string>
+    <string name="deck_legal_in">Legal in: %1$s</string>
+    <string name="deck_legal_none">Not legal in any of the main formats</string>
+    <string name="deck_not_legal_in">Not legal in (cards that prevent it): %1$s</string>
+    <string name="lang_fr">French</string>
+    <string name="lang_de">German</string>
+    <string name="lang_it">Italian</string>
+    <string name="lang_pt">Portuguese</string>
+    <string name="auto_backup">Automatic backup</string>
+    <string name="auto_backup_menu">Automatic backup…</string>
+    <string name="auto_backup_explain">Every day, if your collection changed, the app saves a copy to a file you choose once: in Google Drive, Dropbox or on the phone. Google Drive also keeps the previous versions of the file.</string>
+    <string name="auto_backup_choose">Choose where to save it</string>
+    <string name="auto_backup_file">File: %1$s</string>
+    <string name="auto_backup_last">Last backup: %1$s (%2$s)</string>
+    <string name="auto_backup_never">No backup saved yet.</string>
+    <string name="auto_backup_checked">Checked %1$s: no changes since then.</string>
+    <string name="auto_backup_error">The last backup failed: %1$s. If you deleted or moved the file, choose it again.</string>
+    <string name="auto_backup_now">Back up now</string>
+    <string name="auto_backup_change">Choose another file</string>
+    <string name="auto_backup_disable">Turn off</string>
+    <string name="auto_backup_restore">To restore it: ⋮ → Import cards or backup → choose the file → Replace.</string>
+    <string name="auto_backup_android">Android also saves the app data (collection, decks, wishlist, history) to your Google account and restores it when you reinstall the app or change phones, if Android backup is on.</string>
+    <string name="auto_backup_explain_ios">While you use the app, if your collection changed, it saves a copy to a file you choose once: in iCloud Drive, another storage service or on the iPhone.</string>
+    <string name="auto_backup_ios">Your iPhone's iCloud backup also includes the app data (collection, decks, wishlist, history) if it is turned on.</string>
+    <string name="test_photos">Test photos</string>
+    <string name="test_photos_menu">Test photos…</string>
+    <string name="test_photos_explain">To measure how well the app recognises cards with your phone. While it is on, every scanned card also saves the camera photo it was recognised from. Afterwards, fix any wrong cards in the collection (edition, language, or delete them): what is left in the collection is taken as the right answer for each photo.</string>
+    <string name="test_photos_switch">Save test photos</string>
+    <string name="test_photos_saved">Saved: %1$d photos (%2$s MB)</string>
+    <string name="test_photos_export">Export and share (Drive…)</string>
+    <string name="test_photos_exporting">Preparing the file…</string>
+    <string name="test_photos_share">Share test photos</string>
+    <string name="test_photos_export_failed">Could not export the photos: %1$s</string>
+    <string name="test_photos_clear">Delete photos</string>
+    <string name="test_photos_clear_confirm">Delete the %1$d photos? Export them first if you have not.</string>
+    <string name="test_photos_delete">Delete</string>
+    <string name="test_photos_how">When a card is not recognised, tap “Save photo” on the scanner: it is saved too, to be labelled later. The file includes the photos and a list with the right card for each one.</string>
+    <plurals name="test_photos_count">
+        <item quantity="one">Test · %1$d photo</item>
+        <item quantity="other">Test · %1$d photos</item>
+    </plurals>
+    <string name="test_photos_capture">Save photo</string>
+    <string name="selected_count">%1$d selected · %2$s</string>
+    <string name="select_all">All</string>
+    <string name="move">Move</string>
+    <string name="delete">Delete</string>
+    <string name="delete_all_menu">Delete all…</string>
+    <string name="delete_question">Delete %1$s?</string>
+    <string name="delete_explain">All copies of the selected rows are removed from %1$s. You can undo it right after.</string>
+    <string name="deleted_cards">Deleted: %1$s</string>
+    <string name="restored_cards">Restored: %1$s</string>
+    <string name="move_many_title">Move %1$s</string>
+    <string name="select_several">Select several</string>
+    <string name="card_photos">Card photos</string>
+    <string name="card_photos_menu">Card photos…</string>
+    <string name="card_photos_explain">Saves the camera photo of each card you scan. You can see it on the card's page and include it when you export or in the automatic backup. Each photo takes about 150 KB.</string>
+    <string name="card_photos_switch">Save the photo of each card</string>
+    <string name="card_photos_clear_confirm">Delete the %1$d photos? The cards stay in the collection.</string>
+    <string name="card_photos_how">When you remove a card from the collection, its photo is deleted the next time you open the app.</string>
+    <string name="your_photo">Your photo</string>
+    <plurals name="your_photos">
+        <item quantity="one">Your photo</item>
+        <item quantity="other">Your photos (%1$d)</item>
+    </plurals>
+    <string name="format_csv_photos">CSV with photos (zip)</string>
+    <string name="format_csv_photos_desc">Same as CSV, plus the photos of the cards in a “fotos” folder. A column names the photos of each row.</string>
+    <string name="auto_backup_photos">Include photos</string>
+    <string name="auto_backup_photos_explain">Card photos go in a second file (a zip with the list and the photos), saved only when cards or photos change. It can take tens of MB.</string>
+    <string name="auto_backup_photos_file">Photos: %1$s</string>
+    <string name="auto_backup_photos_last">Last copy: %1$s (%2$d photos)</string>
+</resources>

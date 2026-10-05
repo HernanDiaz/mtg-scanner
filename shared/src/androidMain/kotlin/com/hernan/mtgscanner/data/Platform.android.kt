@@ -8,6 +8,7 @@ actual fun nfkd(s: String): String = Normalizer.normalize(s, Normalizer.Form.NFK
 actual class ConcurrentCache<K : Any, V : Any> actual constructor() {
     private val map = ConcurrentHashMap<K, V>()
     actual fun getOrPut(key: K, compute: () -> V): V = map.getOrPut(key, compute)
+    actual fun getIfPresent(key: K): V? = map[key]
 }
 
 actual fun nowMillis(): Long = System.currentTimeMillis()
@@ -28,3 +29,13 @@ actual class DbLock actual constructor() {
         }
     }
 }
+
+actual fun formatDateTime(millis: Long): String =
+    java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(java.util.Date(millis))
+
+actual fun formatDay(day: String, long: Boolean): String {
+    val date = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT).parse(day) ?: return day
+    return java.text.DateFormat.getDateInstance(if (long) java.text.DateFormat.MEDIUM else java.text.DateFormat.SHORT).format(date)
+}
+
+actual fun formatNumber(value: Double, decimals: Int): String = String.format("%.${decimals}f", value)

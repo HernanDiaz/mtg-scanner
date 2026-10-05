@@ -1,5 +1,6 @@
 package com.hernan.mtgscanner
 
+import com.hernan.mtgscanner.scan.BitmapFrame
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -21,14 +22,14 @@ class TestPhotosExportTest {
 
     @Test fun saveAndExport() {
         val dir = File(context.cacheDir, "test_photos_test").apply { deleteRecursively() }
-        val photos = TestPhotos(dir)
+        val photos = TestPhotos(dir.path)
         val bmp = Bitmap.createBitmap(960, 1280, Bitmap.Config.ARGB_8888)
-        photos.save(bmp, TestPhotos.Photo("a.jpg", 7, "Lightning Bolt", "m11", "149", true, "en", 1080, 2200, 1))
-        photos.save(bmp, TestPhotos.Photo("b.jpg", null, null, null, null, false, null, 1080, 2200, 2))
+        photos.save(BitmapFrame(bmp), TestPhotos.Photo("a.jpg", 7, "Lightning Bolt", "m11", "149", true, "en", 1080, 2200, 1))
+        photos.save(BitmapFrame(bmp), TestPhotos.Photo("b.jpg", null, null, null, null, false, null, 1080, 2200, 2))
         assertEquals(2, photos.count())
 
         val zip = File(context.cacheDir, "test_photos_test.zip")
-        val n = photos.export(zip) { ids ->
+        val n = photos.export(zip.path) { ids ->
             ids.associateWith { CollectionStore.EntryNow("id-a25", "Lightning Bolt", "a25", "141", "es", false) }
         }
         assertEquals(2, n)

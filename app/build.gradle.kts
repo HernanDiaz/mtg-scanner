@@ -75,6 +75,8 @@ dependencies {
 
     // Imágenes de cartas (bajo demanda, con caché)
     implementation(libs.coil.compose)
+    implementation(libs.coil.network.ktor)
+    implementation(libs.ktor.client.okhttp)
 
     implementation(libs.kotlinx.coroutines.android)
 

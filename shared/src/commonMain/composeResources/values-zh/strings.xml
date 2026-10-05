@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 简体中文 -->
+<resources>
+    <!-- Pestañas -->
+    <string name="tab_scan">扫描</string>
+    <string name="tab_collection">收藏</string>
+
+    <!-- Comunes -->
+    <string name="cancel">取消</string>
+    <string name="close">关闭</string>
+    <string name="save">保存</string>
+    <string name="create">创建</string>
+    <string name="clear">清除</string>
+    <string name="more_options">更多选项</string>
+    <string name="no_deck">无套牌</string>
+    <string name="deck_named">套牌：%1$s</string>
+    <string name="deck_with_count">%1$s (%2$d)</string>
+    <plurals name="cards">
+        <item quantity="other">%1$d 张牌</item>
+    </plurals>
+    <plurals name="decks">
+        <item quantity="other">%1$d 副套牌</item>
+    </plurals>
+
+    <!-- Escáner -->
+    <string name="camera_needed">扫描卡牌需要使用相机。</string>
+    <string name="grant_permission">授予权限</string>
+    <string name="loading_catalog">正在加载目录…</string>
+    <string name="point_at_card">将相机对准一张牌</string>
+    <string name="foil">闪卡</string>
+    <string name="torch">手电筒</string>
+    <string name="scan_deck_question">把牌放进哪副套牌？</string>
+    <string name="or_new_deck">或新建套牌</string>
+    <string name="doubtful_edition">系列不确定：请在收藏中检查</string>
+    <string name="undo">撤销</string>
+
+    <!-- Colección: cabecera y filtros -->
+    <string name="export_share">导出并分享所显示的内容</string>
+    <string name="add_manually">手动添加</string>
+    <string name="update_prices">更新价格</string>
+    <string name="backup_import">备份与导入</string>
+    <string name="save_backup">保存备份</string>
+    <string name="import_cards">导入卡牌或备份…</string>
+    <string name="review_editions">检查系列（剩余 %1$d）</string>
+    <string name="all_cards">全部</string>
+    <string name="deck_add">套牌</string>
+    <string name="rename_deck">重命名套牌</string>
+    <string name="delete_deck">删除套牌</string>
+    <string name="search_collection">搜索收藏</string>
+    <string name="pending_review">待检查</string>
+    <string name="sort_recent">最近</string>
+    <string name="sort_value">价值</string>
+    <string name="sort_name">名称</string>
+    <string name="price_label">价格：%1$s</string>
+    <string name="empty_deck">套牌为空。可从每张牌的菜单移到这里，或将此套牌设为目标后扫描。</string>
+    <string name="empty_collection">还没有卡牌。去“扫描”页吧。</string>
+    <string name="no_match">没有符合条件的卡牌。</string>
+    <string name="whole_collection">整个收藏</string>
+    <string name="scope_deck">套牌 %1$s</string>
+    <string name="colors_or">" 或 "</string>
+    <string name="color_selected">%1$s（已选）</string>
+    <string name="color_white">白</string>
+    <string name="color_blue">蓝</string>
+    <string name="color_black">黑</string>
+    <string name="color_red">红</string>
+    <string name="color_green">绿</string>
+    <string name="color_colorless">无色</string>
+
+    <!-- Precios -->
+    <string name="price_trend">趋势</string>
+    <string name="price_trend_desc">Cardmarket 趋势价（常用价格）。</string>
+    <string name="price_low">最低价</string>
+    <string name="price_low_desc">Cardmarket 上最便宜的报价：今天购买的花费。</string>
+    <string name="price_avg30">30 天平均</string>
+    <string name="price_avg30_desc">上个月成交的平均价：日常波动更小。</string>
+    <string name="prices_updated">价格已更新（%1$d 张牌）</string>
+    <string name="prices_failed">无法更新价格：%1$s</string>
+
+    <!-- Mazos -->
+    <string name="delete_deck_question">删除套牌 %1$s？</string>
+    <string name="delete_deck_explain">卡牌（%1$s）不会被删除，会回到收藏中且不属于任何套牌。</string>
+    <string name="new_deck">新建套牌</string>
+    <string name="deck_name">套牌名称</string>
+    <string name="move_title">移动 %1$s</string>
+    <string name="copies">数量：</string>
+    <string name="n_of_m">%1$d / %2$d</string>
+    <string name="take_out_of_deck">移出套牌（无套牌）</string>
+    <string name="or_to_new_deck">或移到新套牌</string>
+    <string name="create_and_move">创建并移动</string>
+
+    <!-- Fila de la colección -->
+    <string name="move_to_deck">移到套牌…</string>
+    <string name="change_edition">更改系列或语言</string>
+    <string name="remove_one">移除一张</string>
+
+    <!-- Selector de edición -->
+    <string name="reviewing_left">检查中：剩余 %1$d</string>
+    <string name="suggested_edition">建议的系列</string>
+    <string name="current_edition">当前系列</string>
+    <string name="is_correct">正确</string>
+    <string name="language">语言</string>
+    <string name="lang_en">英语</string>
+    <string name="lang_es">西班牙语</string>
+    <string name="search_edition">搜索系列：名称、代码、编号、年份</string>
+    <string name="editions_count">%1$d / %2$d 个系列</string>
+    <string name="sorted_by_photo">按与照片的相似度排序</string>
+    <string name="sorted_by_date">最新在前</string>
+    <string name="similarity">与照片相似度：%1$d %</string>
+    <string name="choose_edition_to_add">选择要添加的系列</string>
+    <string name="add_card">添加卡牌</string>
+    <string name="card_name_hint">卡牌名称（英语或其他语言）</string>
+
+    <!-- Exportar -->
+    <string name="export_title">导出：%1$s (%2$s)</string>
+    <string name="format_csv">电子表格 (CSV)</string>
+    <string name="format_csv_desc">包含价格在内的全部信息。适用于 Excel、Google 表格等（含 Scryfall ID）。</string>
+    <string name="format_moxfield">Moxfield (CSV)</string>
+    <string name="format_moxfield_desc">用于把卡牌导入 Moxfield。</string>
+    <string name="format_text">文本列表</string>
+    <string name="format_text_desc">"2 Lightning Bolt (M11) 149"：可粘贴到消息或论坛。</string>
+    <string name="share_subject">MTG 卡牌：%1$s (%2$s)</string>
+    <string name="share_title">分享：%1$s</string>
+
+    <!-- Copia de seguridad e importar -->
+    <string name="backup_file_prefix">mtg-scanner-backup</string>
+    <string name="backup_saved">备份已保存（%1$s）</string>
+    <string name="backup_failed">无法保存备份：%1$s</string>
+    <string name="read_failed">无法读取文件：%1$s</string>
+    <string name="file_too_big">文件太大</string>
+    <string name="file_default_name">文件</string>
+    <string name="import_title">导入 %1$s</string>
+    <string name="import_none">未识别到卡牌。支持的格式：CSV 文件（本应用、Moxfield、ManaBox、Deckbox、TCGplayer 等）以及类似 "4 Lightning Bolt (M11) 149" 的文本列表。</string>
+    <string name="import_recognised">已识别 %1$s</string>
+    <string name="import_in_decks">%1$s：%2$s</string>
+    <string name="import_pending">需检查系列：%1$s</string>
+    <string name="import_target_deck">添加时，没有套牌的卡牌将放入 %1$s。</string>
+    <plurals name="lines_not_recognised">
+        <item quantity="other">%1$d 行未识别：</item>
+    </plurals>
+    <string name="import_line">第 %1$d 行：%2$s</string>
+    <string name="and_n_more">… 还有 %1$d 项</string>
+    <string name="replace">替换</string>
+    <string name="add">添加</string>
+    <string name="import_action">导入</string>
+    <string name="replace_question">替换收藏？</string>
+    <string name="replace_explain">将删除当前的 %1$s%2$s，只保留文件中的 %3$s。此操作无法撤销。</string>
+    <string name="replace_explain_decks">" 和 %1$s"</string>
+    <string name="collection_replaced">收藏已替换：%1$s</string>
+    <string name="cards_added">已添加：%1$s</string>
+    <string name="import_failed">无法导入：%1$s</string>
+
+    <!-- Ficha de carta -->
+    <string name="in_your_collection">你的收藏</string>
+    <string name="copies_of_edition">此系列：%1$d 张</string>
+    <string name="copies_of_card">此牌合计：%1$d 张</string>
+    <string name="prices">价格</string>
+    <string name="normal">普通</string>
+    <string name="prices_from_catalog">目录价格：点“更新价格”获取今天的价格。</string>
+    <string name="prices_updated_at">更新于 %1$s</string>
+    <string name="cardmarket_guide_hint">最低价和 30 天平均价会在你选择其中之一作为价格并更新后显示。</string>
+    <string name="card_text">卡牌文字</string>
+    <string name="details_offline">需要联网（Scryfall）。</string>
+    <string name="legality">赛制合法性</string>
+    <string name="legal">合法</string>
+    <string name="not_legal">不合法</string>
+    <string name="banned">禁用</string>
+    <string name="restricted">限用</string>
+    <string name="flip_card">翻转卡牌</string>
+    <string name="loyalty">忠诚 %1$s</string>
+    <string name="artist">画师：%1$s</string>
+    <string name="rarity_common">普通</string>
+    <string name="rarity_uncommon">非普通</string>
+    <string name="rarity_rare">稀有</string>
+    <string name="rarity_mythic">秘稀</string>
+
+    <!-- Lista de deseos -->
+    <string name="tab_wishlist">愿望单</string>
+    <string name="wishlist_summary">愿望单：%1$s</string>
+    <string name="wishlist_empty">愿望单是空的。检查一副套牌看缺哪些牌，或从卡牌页面添加。</string>
+    <string name="check_deck">套牌还缺什么？</string>
+    <string name="check_deck_help">粘贴套牌列表（Moxfield、Arena、MTGO、论坛等）或打开文件。按牌名计数，不区分系列。</string>
+    <string name="open_file">打开文件…</string>
+    <string name="check">检查</string>
+    <string name="deck_have">已有 %1$d / %2$d 张</string>
+    <string name="deck_missing">缺少 %1$s · %2$s</string>
+    <string name="deck_complete">这副套牌你已全部拥有。</string>
+    <string name="have_n_of_m">拥有 %1$d / %2$d</string>
+    <string name="add_missing_to_wishlist">将缺少的牌加入愿望单</string>
+    <string name="added_missing">已加入愿望单</string>
+    <string name="copy_missing">复制缺牌列表</string>
+    <string name="copied">已复制（可粘贴到 Cardmarket）</string>
+    <string name="another_list">其他列表</string>
+    <string name="add_to_wishlist">加入愿望单</string>
+    <string name="added_to_wishlist_short">已在愿望单中</string>
+    <string name="added_to_wishlist">%1$s 已加入愿望单</string>
+    <string name="wish_fulfilled">%1$s 在你的愿望单中</string>
+    <string name="was_on_wishlist">★ 曾在愿望单中</string>
+
+    <!-- Evolución del valor -->
+    <string name="value_history">价值变化</string>
+    <string name="range_week">7 天</string>
+    <string name="range_month">30 天</string>
+    <string name="range_year">1 年</string>
+    <string name="range_all">全部</string>
+    <string name="history_empty">还没有历史记录。每天打开应用或更新价格时都会记录收藏的价值。过几天再来看看。</string>
+    <string name="history_note">价值也包括你添加或移除的卡牌。若只看价格变化，请看下面的卡牌。</string>
+    <string name="biggest_rises">涨幅最大</string>
+    <string name="biggest_drops">跌幅最大</string>
+    <string name="no_price_changes">此期间尚无价格变化记录（更新价格时会记录）。</string>
+
+    <!-- Valor según el estado -->
+    <string name="condition_pricing_menu">按品相计算价值…</string>
+    <string name="condition_pricing">按品相计算价值</string>
+    <string name="condition_pricing_explain">Cardmarket 和 Scryfall 不区分品相：每张牌只给出一个价格，即品相良好 (NM) 的价格。启用此选项后，每张牌的价值 = 价格 × 其品相的百分比。例如：10 € 的牌品相为 EX (85 %) 时价值 8.50 €。</string>
+    <string name="condition_pricing_switch">按品相调整价值</string>
+    <string name="condition_pricing_note">这些百分比参考二手卡通常的成交价，可按市场情况调整。适用于收藏总值、每一行和导出。卡牌价格（及其变化）始终是市场价。</string>
+    <string name="reset">重置</string>
+    <string name="your_copy_value">你的牌 %1$s (%2$d %)：%3$s</string>
+    <string name="cond_m">Mint</string>
+    <string name="cond_nm">Near Mint</string>
+    <string name="cond_ex">Excellent</string>
+    <string name="cond_gd">Good</string>
+    <string name="cond_lp">Light Played</string>
+    <string name="cond_pl">Played</string>
+    <string name="cond_po">Poor</string>
+
+    <!-- Legalidad -->
+    <string name="format_label">赛制：%1$s</string>
+    <string name="all_formats">全部</string>
+    <string name="deck_legal_in">合法赛制：%1$s</string>
+    <string name="deck_legal_none">在任何主要赛制中都不合法</string>
+    <string name="deck_not_legal_in">不合法（导致不合法的牌数）：%1$s</string>
+    <string name="lang_fr">法语</string>
+    <string name="lang_de">德语</string>
+    <string name="lang_it">意大利语</string>
+    <string name="lang_pt">葡萄牙语</string>
+    <string name="auto_backup">自动备份</string>
+    <string name="auto_backup_menu">自动备份…</string>
+    <string name="auto_backup_explain">每天如果收藏有变化，就把副本保存到你选过一次的文件中（Google 云端硬盘、Dropbox、手机）。Google 云端硬盘还会保留文件的旧版本。</string>
+    <string name="auto_backup_choose">选择保存位置</string>
+    <string name="auto_backup_file">文件：%1$s</string>
+    <string name="auto_backup_last">上次备份：%1$s（%2$s）</string>
+    <string name="auto_backup_never">尚未备份。</string>
+    <string name="auto_backup_checked">已于 %1$s 检查：此后没有变化。</string>
+    <string name="auto_backup_error">上次备份失败：%1$s。如果你删除或移动了文件，请重新选择。</string>
+    <string name="auto_backup_now">立即备份</string>
+    <string name="auto_backup_change">选择其他文件</string>
+    <string name="auto_backup_disable">关闭</string>
+    <string name="auto_backup_restore">恢复方法：⋮ → 导入卡牌或备份 → 选择文件 → 替换。</string>
+    <string name="auto_backup_android">如果开启了 Android 备份，应用数据（收藏、套牌、愿望单、历史）也会保存到你的 Google 帐号，在重新安装或更换手机时恢复。</string>
+    <string name="auto_backup_explain_ios">在你使用应用时，如果收藏有变化，就把副本保存到你选过一次的文件中（iCloud 云盘、其他存储服务、iPhone）。</string>
+    <string name="auto_backup_ios">如果 iPhone 开启了 iCloud 备份，其中也包含应用数据（收藏、套牌、愿望单、历史）。</string>
+    <string name="test_photos">测试照片</string>
+    <string name="test_photos_menu">测试照片…</string>
+    <string name="test_photos_explain">用于衡量应用在你的手机上识别卡牌的准确度。开启后，每扫描一张牌都会同时保存用于识别的相机照片。之后在收藏中修正识别错的牌（系列、语言或删除）：收藏中最终的结果就是每张照片的正确答案。</string>
+    <string name="test_photos_switch">保存测试照片</string>
+    <string name="test_photos_saved">已保存：%1$d 张照片（%2$s MB）</string>
+    <string name="test_photos_export">导出并分享（云端硬盘等）</string>
+    <string name="test_photos_exporting">正在准备文件…</string>
+    <string name="test_photos_share">分享测试照片</string>
+    <string name="test_photos_export_failed">无法导出照片：%1$s</string>
+    <string name="test_photos_clear">删除照片</string>
+    <string name="test_photos_clear_confirm">删除 %1$d 张照片？如果还没导出，请先导出。</string>
+    <string name="test_photos_delete">删除</string>
+    <string name="test_photos_how">如果某张牌无法识别，请在扫描器中点“保存照片”：照片会保存下来以便之后标注。文件包含照片以及每张照片对应的正确卡牌列表。</string>
+    <plurals name="test_photos_count">
+        <item quantity="other">测试 · %1$d 张照片</item>
+    </plurals>
+    <string name="test_photos_capture">保存照片</string>
+    <string name="selected_count">已选 %1$d · %2$s</string>
+    <string name="select_all">全部</string>
+    <string name="move">移动</string>
+    <string name="delete">删除</string>
+    <string name="delete_all_menu">全部删除…</string>
+    <string name="delete_question">删除 %1$s？</string>
+    <string name="delete_explain">所选行中的所有牌都将从 %1$s 中删除。删除后可立即撤销。</string>
+    <string name="deleted_cards">已删除：%1$s</string>
+    <string name="restored_cards">已恢复：%1$s</string>
+    <string name="move_many_title">移动 %1$s</string>
+    <string name="select_several">选择多项</string>
+    <string name="card_photos">卡牌照片</string>
+    <string name="card_photos_menu">卡牌照片…</string>
+    <string name="card_photos_explain">保存每张扫描卡牌的相机照片。可在卡牌页面查看，并可包含在导出和自动备份中。每张照片约 150 KB。</string>
+    <string name="card_photos_switch">保存每张牌的照片</string>
+    <string name="card_photos_clear_confirm">删除 %1$d 张照片？卡牌仍保留在收藏中。</string>
+    <string name="card_photos_how">从收藏中移除的牌，其照片会在下次打开应用时删除。</string>
+    <string name="your_photo">你的照片</string>
+    <plurals name="your_photos">
+        <item quantity="other">你的照片（%1$d）</item>
+    </plurals>
+    <string name="format_csv_photos">带照片的 CSV (zip)</string>
+    <string name="format_csv_photos_desc">与 CSV 相同，另外把卡牌照片放在“fotos”文件夹中。有一列注明每一行对应的照片。</string>
+    <string name="auto_backup_photos">包含照片</string>
+    <string name="auto_backup_photos_explain">卡牌照片放在第二个文件（包含列表和照片的 zip）中，仅在卡牌或照片变化时保存。可能有几十 MB。</string>
+    <string name="auto_backup_photos_file">照片：%1$s</string>
+    <string name="auto_backup_photos_last">上次副本：%1$s（%2$d 张照片）</string>
+</resources>

@@ -13,6 +13,7 @@ import com.hernan.mtgscanner.data.Currency
 import com.hernan.mtgscanner.data.TestPhotos
 import com.hernan.mtgscanner.scan.ArtSampler
 import com.hernan.mtgscanner.scan.FrameRecognizer
+import com.hernan.mtgscanner.scan.BitmapFrame
 import com.hernan.mtgscanner.scan.OcrLine
 import com.hernan.mtgscanner.ui.ScannerViewModel
 import org.junit.Assert.assertEquals
@@ -65,8 +66,8 @@ class TestPhotosScanTest {
                 }
                 val art = ArtSampler { x, y -> bitmap.getPixel(x.coerceIn(0, bitmap.width - 1), y.coerceIn(0, bitmap.height - 1)) and 0xFFFFFF }
                 val result = recognizer.recognize(lines, art)
-                repeat(6) { vm.onFrame(result, null) { bitmap.copy(Bitmap.Config.ARGB_8888, false) }; SystemClock.sleep(200) }
-                repeat(5) { vm.onFrame(null, null) { bitmap }; SystemClock.sleep(100) }
+                repeat(6) { vm.onFrame(result, null) { BitmapFrame(bitmap.copy(Bitmap.Config.ARGB_8888, false)) }; SystemClock.sleep(200) }
+                repeat(5) { vm.onFrame(null, null) { BitmapFrame(bitmap) }; SystemClock.sleep(100) }
             }
             // Las fotos se guardan en segundo plano.
             val deadline = SystemClock.elapsedRealtime() + 10_000
@@ -91,7 +92,7 @@ class TestPhotosScanTest {
             store.delete(removed.entryId!!)
 
             val zip = File(instr.targetContext.cacheDir, "e2e.zip")
-            app.testPhotos.export(zip, store::entriesNow)
+            app.testPhotos.export(zip.path, store::entriesNow)
             val out = File(files, "testset/movil_e2e").apply { deleteRecursively(); mkdirs() }
             ZipFile(zip).use { z ->
                 z.entries().asSequence().forEach { e -> z.getInputStream(e).use { i -> File(out, e.name).outputStream().use { i.copyTo(it) } } }

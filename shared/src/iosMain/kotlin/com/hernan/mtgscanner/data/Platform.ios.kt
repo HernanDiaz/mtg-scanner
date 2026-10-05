@@ -11,6 +11,15 @@ actual class ConcurrentCache<K : Any, V : Any> actual constructor() {
     private val map = HashMap<K, V>()
     private val lock = NSLock()
 
+    actual fun getIfPresent(key: K): V? {
+        lock.lock()
+        try {
+            return map[key]
+        } finally {
+            lock.unlock()
+        }
+    }
+
     actual fun getOrPut(key: K, compute: () -> V): V {
         lock.lock()
         try {
@@ -51,4 +60,35 @@ actual class DbLock actual constructor() {
             lock.unlock()
         }
     }
+}
+
+actual fun formatDateTime(millis: Long): String {
+    val f = platform.Foundation.NSDateFormatter().apply {
+        dateStyle = platform.Foundation.NSDateFormatterMediumStyle
+        timeStyle = platform.Foundation.NSDateFormatterShortStyle
+    }
+    return f.stringFromDate(platform.Foundation.NSDate.dateWithTimeIntervalSince1970(millis / 1000.0))
+}
+
+actual fun formatDay(day: String, long: Boolean): String {
+    val parser = platform.Foundation.NSDateFormatter().apply {
+        dateFormat = "yyyy-MM-dd"
+        locale = platform.Foundation.NSLocale(localeIdentifier = "en_US_POSIX")
+    }
+    val date = parser.dateFromString(day) ?: return day
+    val f = platform.Foundation.NSDateFormatter().apply {
+        dateStyle = if (long) platform.Foundation.NSDateFormatterMediumStyle else platform.Foundation.NSDateFormatterShortStyle
+        timeStyle = platform.Foundation.NSDateFormatterNoStyle
+    }
+    return f.stringFromDate(date)
+}
+
+actual fun formatNumber(value: Double, decimals: Int): String {
+    val f = platform.Foundation.NSNumberFormatter().apply {
+        numberStyle = platform.Foundation.NSNumberFormatterDecimalStyle
+        minimumFractionDigits = decimals.toULong()
+        maximumFractionDigits = decimals.toULong()
+        usesGroupingSeparator = false
+    }
+    return f.stringFromNumber(platform.Foundation.NSNumber(value)) ?: value.fixed(decimals)
 }

@@ -37,7 +37,7 @@ targets:
       properties:
         CFBundleDisplayName: MTG Scanner
         CFBundleDevelopmentRegion: en
-        CFBundleLocalizations: [en, es]
+        CFBundleLocalizations: [en, es, de, fr, it, pt-BR, ja, ko, zh-Hans, ru]
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSRequiresIPhoneOS: true
