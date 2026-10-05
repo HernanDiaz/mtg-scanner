@@ -12,15 +12,13 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import okio.Buffer
 import okio.FileSystem
-import okio.ForwardingSink
 import okio.Path.Companion.toPath
 import okio.SYSTEM
 import okio.Sink
+import okio.Timeout
 import platform.Foundation.NSData
 import platform.Foundation.NSURL
 import platform.Foundation.NSURLBookmarkCreationMinimalBookmark
-import platform.Foundation.URLByResolvingBookmarkData
-import platform.Foundation.bookmarkDataWithOptions
 
 /**
  * El fichero de la copia automática en iPhone (creado con el selector de documentos en
@@ -51,11 +49,13 @@ class IosBackupTarget : BackupTarget {
         val scoped = url.startAccessingSecurityScopedResource()
         val path = url.path ?: error("dirección no válida")
         val sink = FileSystem.SYSTEM.sink(path.toPath())
-        return object : ForwardingSink(sink) {
-            override fun write(source: Buffer, byteCount: Long) = super.write(source, byteCount)
+        return object : Sink {
+            override fun write(source: Buffer, byteCount: Long) = sink.write(source, byteCount)
+            override fun flush() = sink.flush()
+            override fun timeout(): Timeout = sink.timeout()
             override fun close() {
                 try {
-                    super.close()
+                    sink.close()
                 } finally {
                     if (scoped) url.stopAccessingSecurityScopedResource()
                 }

@@ -19,8 +19,6 @@ import platform.AVFoundation.AVAuthorizationStatusNotDetermined
 import platform.AVFoundation.AVCaptureConnection
 import platform.AVFoundation.AVCaptureDevice
 import platform.AVFoundation.AVCaptureDeviceInput
-import platform.AVFoundation.AVCaptureDevicePositionBack
-import platform.AVFoundation.AVCaptureDeviceTypeBuiltInWideAngleCamera
 import platform.AVFoundation.AVCaptureFocusModeContinuousAutoFocus
 import platform.AVFoundation.AVCaptureOutput
 import platform.AVFoundation.AVCaptureSession
@@ -39,12 +37,11 @@ import platform.AVFoundation.isFocusModeSupported
 import platform.AVFoundation.requestAccessForMediaType
 import platform.AVFoundation.torchMode
 import platform.AVFoundation.videoZoomFactor
-import platform.AVFoundation.activeFormat
-import platform.AVFoundation.videoMaxZoomFactor
 import platform.CoreGraphics.CGImageRelease
-import platform.CoreGraphics.CGRectZero
 import platform.CoreImage.CIContext
+import platform.CoreGraphics.CGRectMake
 import platform.CoreImage.CIImage
+import platform.CoreImage.createCGImage
 import platform.CoreMedia.CMSampleBufferGetImageBuffer
 import platform.CoreMedia.CMSampleBufferRef
 import platform.Foundation.NSURL
@@ -87,7 +84,7 @@ actual fun CameraView(vm: ScannerViewModel, recognizer: FrameRecognizer, torch: 
 }
 
 /** Vista que mantiene la capa de la cámara del tamaño de la vista. */
-private class PreviewView(val layer0: AVCaptureVideoPreviewLayer) : UIView(frame = CGRectZero) {
+private class PreviewView(val layer0: AVCaptureVideoPreviewLayer) : UIView(frame = CGRectMake(0.0, 0.0, 0.0, 0.0)) {
     init {
         layer.addSublayer(layer0)
     }
@@ -106,9 +103,8 @@ private class PreviewView(val layer0: AVCaptureVideoPreviewLayer) : UIView(frame
 private class IosCamera(private val vm: ScannerViewModel, private val recognizer: FrameRecognizer) {
     private val session = AVCaptureSession().apply { sessionPreset = AVCaptureSessionPreset1920x1080 }
     private val queue = dispatch_queue_create("mtgscanner.scan", null)
-    private val device = AVCaptureDevice.defaultDeviceWithDeviceType(
-        AVCaptureDeviceTypeBuiltInWideAngleCamera, AVMediaTypeVideo, AVCaptureDevicePositionBack,
-    )
+    // La cámara de vídeo por defecto es la trasera gran angular
+    private val device: AVCaptureDevice? = AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeVideo)
     private val ciContext = CIContext.contextWithOptions(null)
     private val delegate = FrameDelegate()
     val preview: UIView = PreviewView(AVCaptureVideoPreviewLayer(session = session).apply {
@@ -122,7 +118,7 @@ private class IosCamera(private val vm: ScannerViewModel, private val recognizer
                 if (session.canAddInput(input)) session.addInput(input)
             }
             if (d.lockForConfiguration(null)) {
-                d.videoZoomFactor = SCAN_ZOOM.toDouble().coerceAtMost(d.activeFormat.videoMaxZoomFactor)
+                d.videoZoomFactor = SCAN_ZOOM.toDouble() // todas las cámaras traseras llegan a mucho más
                 if (d.isFocusModeSupported(AVCaptureFocusModeContinuousAutoFocus)) d.focusMode = AVCaptureFocusModeContinuousAutoFocus
                 d.unlockForConfiguration()
             }

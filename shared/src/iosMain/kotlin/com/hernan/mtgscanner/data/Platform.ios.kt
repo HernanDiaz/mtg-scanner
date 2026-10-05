@@ -1,8 +1,11 @@
 package com.hernan.mtgscanner.data
 
+import platform.Foundation.NSDate
 import platform.Foundation.NSLock
 import platform.Foundation.NSString
+import platform.Foundation.dateWithTimeIntervalSince1970
 import platform.Foundation.decomposedStringWithCompatibilityMapping
+import platform.Foundation.timeIntervalSince1970
 
 @Suppress("CAST_NEVER_SUCCEEDS")
 actual fun nfkd(s: String): String = (s as NSString).decomposedStringWithCompatibilityMapping
@@ -38,14 +41,14 @@ actual class ConcurrentCache<K : Any, V : Any> actual constructor() {
     }
 }
 
-actual fun nowMillis(): Long = (platform.Foundation.NSDate().timeIntervalSince1970 * 1000).toLong()
+actual fun nowMillis(): Long = (NSDate().timeIntervalSince1970 * 1000).toLong()
 
 actual fun localDay(millis: Long): String {
     val formatter = platform.Foundation.NSDateFormatter().apply {
         dateFormat = "yyyy-MM-dd"
         locale = platform.Foundation.NSLocale(localeIdentifier = "en_US_POSIX")
     }
-    return formatter.stringFromDate(platform.Foundation.NSDate.dateWithTimeIntervalSince1970(millis / 1000.0))
+    return formatter.stringFromDate(NSDate.dateWithTimeIntervalSince1970(millis / 1000.0))
 }
 
 actual class DbLock actual constructor() {
@@ -67,7 +70,7 @@ actual fun formatDateTime(millis: Long): String {
         dateStyle = platform.Foundation.NSDateFormatterMediumStyle
         timeStyle = platform.Foundation.NSDateFormatterShortStyle
     }
-    return f.stringFromDate(platform.Foundation.NSDate.dateWithTimeIntervalSince1970(millis / 1000.0))
+    return f.stringFromDate(NSDate.dateWithTimeIntervalSince1970(millis / 1000.0))
 }
 
 actual fun formatDay(day: String, long: Boolean): String {
