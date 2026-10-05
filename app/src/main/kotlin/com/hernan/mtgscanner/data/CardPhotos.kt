@@ -71,7 +71,7 @@ class CardPhotos(private val dir: File) {
             for ((id, name) in photoNames) {
                 val f = file(id).takeIf { it.exists() } ?: continue
                 // Las JPEG ya están comprimidas: guardarlas sin volver a comprimir es más rápido.
-                zip.putNextEntry(ZipEntry("$FOLDER/$name"))
+                zip.putNextEntry(ZipEntry("${CollectionExport.PHOTOS_FOLDER}/$name"))
                 f.inputStream().use { it.copyTo(zip) }
                 zip.closeEntry()
             }
@@ -81,7 +81,6 @@ class CardPhotos(private val dir: File) {
     private fun photoFiles(): List<File> = dir.listFiles { f -> f.name.endsWith(".jpg") }?.toList().orEmpty()
 
     companion object {
-        const val FOLDER = "fotos"
         /** Lado mayor de la foto guardada: se lee bien la carta y ocupa ~150 KB. */
         private const val MAX_SIDE = 1280
         private const val JPEG_QUALITY = 85
@@ -91,12 +90,6 @@ class CardPhotos(private val dir: File) {
             if (side <= MAX_SIDE) return b
             val k = MAX_SIDE.toFloat() / side
             return Bitmap.createScaledBitmap(b, (b.width * k).toInt(), (b.height * k).toInt(), true)
-        }
-
-        /** "Lightning Bolt (M11 149) 1234.jpg": se entiende qué es al abrir el zip. */
-        fun photoName(entryId: Long, line: CollectionExport.Line): String {
-            val safe = line.name.replace(Regex("[\\\\/:*?\"<>|]"), "").take(60)
-            return "$safe (${line.setCode.uppercase()} ${line.collectorNumber}) $entryId.jpg"
         }
     }
 }

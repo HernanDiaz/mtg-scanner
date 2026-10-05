@@ -1,5 +1,6 @@
 package com.hernan.mtgscanner
 
+import com.hernan.mtgscanner.data.CollectionGroup
 import android.database.sqlite.SQLiteDatabase
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -80,7 +81,7 @@ class CollectionStoreTest {
         assertTrue(store.groups(Currency.EUR).all { it.deckId == null })
     }
 
-    private fun CollectionStore.Group.sheetKeyForTest() = "$cardId|$quantity|$foil|$condition|$lang|$needsReview|$deckId"
+    private fun CollectionGroup.sheetKeyForTest() = "$cardId|$quantity|$foil|$condition|$lang|$needsReview|$deckId"
 
     @Test fun newPendingCopyDoesNotUnconfirmReviewedOnes() {
         val swamp = catalog.printingsOf("Swamp").first()

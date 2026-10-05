@@ -23,3 +23,4 @@ dependencyResolutionManagement {
 rootProject.name = "MtgScanner"
 
 include(":app")
+include(":shared")

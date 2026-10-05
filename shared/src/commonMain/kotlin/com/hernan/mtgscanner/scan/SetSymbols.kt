@@ -1,5 +1,6 @@
 package com.hernan.mtgscanner.scan
 
+import com.hernan.mtgscanner.data.ConcurrentCache
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -47,7 +48,7 @@ class SetSymbols(
 
     fun sameIcon(a: String, b: String): Boolean = a == b || (icons[a] != null && icons[a] == icons[b])
 
-    private val twinCache = java.util.concurrent.ConcurrentHashMap<Pair<SymbolRef, SymbolRef>, Double>()
+    private val twinCache = ConcurrentCache<Pair<SymbolRef, SymbolRef>, Double>()
 
     /** Parecido entre dos referencias: si es alto, la foto no puede distinguirlas. */
     fun similarity(a: SymbolRef, b: SymbolRef): Double = twinCache.getOrPut(a to b) {

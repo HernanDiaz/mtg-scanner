@@ -2,6 +2,7 @@ package com.hernan.mtgscanner.scan
 
 import com.hernan.mtgscanner.data.CardPrinting
 import com.hernan.mtgscanner.data.NameMatcher
+import com.hernan.mtgscanner.data.fixed
 
 /** Una línea de texto del OCR con su caja (coordenadas de la imagen ya girada). */
 data class OcrLine(val text: String, val left: Int, val top: Int, val right: Int, val bottom: Int) {
@@ -212,7 +213,7 @@ class FrameRecognizer(
         lastPhotoArt = photo
         val ranked = artIds.mapNotNull { id -> artOf(id)?.let { id to photo.similarity(it) } }.sortedByDescending { it.second }
         artDebug = "region=${region.left.toInt()},${region.top.toInt()},${region.right.toInt()},${region.bottom.toInt()} " +
-            ranked.joinToString(" ") { "${it.first}:${"%.2f".format(java.util.Locale.ROOT, it.second)}" }
+            ranked.joinToString(" ") { "${it.first}:${it.second.fixed(2)}" }
         val best = ranked.firstOrNull() ?: return null
         val second = ranked.getOrNull(1)?.second ?: -1.0
         if (best.second < ART_MIN_SIMILARITY || best.second - second < ART_MIN_MARGIN) return null
@@ -343,7 +344,7 @@ class FrameRecognizer(
         val scored = refs.map { (key, ref) -> Triple(key, ref, SetSymbols.scoreNear(window, ref, cx, cy)) }
             .sortedByDescending { it.third }
         symbolDebug = scored.joinToString(" ") {
-            "${it.first.first}/${it.first.second?.take(1)}${it.first.third}:${"%.2f".format(java.util.Locale.ROOT, it.third)}"
+            "${it.first.first}/${it.first.second?.take(1)}${it.first.third}:${it.third.fixed(2)}"
         }
         val best = scored.first()
         if (best.third < SYMBOL_MIN) return null
@@ -528,7 +529,7 @@ class FrameRecognizer(
             m to (ids.mapNotNull { id -> artOf(id)?.let(photo::similarity) }.maxOrNull() ?: -1.0)
         }.sortedByDescending { it.second }
         artDebug = "nombre_por_ilustracion " + scored.take(4).joinToString(" ") {
-            "${it.first.names.first()}:${"%.2f".format(java.util.Locale.ROOT, it.second)}"
+            "${it.first.names.first()}:${it.second.fixed(2)}"
         }
         val (best, sim) = scored.first()
         val second = scored.getOrNull(1)?.second ?: -1.0
@@ -564,7 +565,7 @@ class FrameRecognizer(
         val photo = art.signature(left + w * inset, top + (bottom - top) * inset, right - w * inset, bottom - (bottom - top) * inset)
             ?: return null
         val found = searchArt(photo, 3)
-        artDebug = "busqueda_ilustracion " + found.joinToString(" ") { "${it.first}:${"%.2f".format(java.util.Locale.ROOT, it.third)}" }
+        artDebug = "busqueda_ilustracion " + found.joinToString(" ") { "${it.first}:${it.third.fixed(2)}" }
         val (name, artId, sim) = found.firstOrNull() ?: return null
         val second = found.getOrNull(1)?.third ?: -1.0
         // Muy parecida (> 0,9) basta con algo de ventaja: los paisajes antiguos se parecen
@@ -1044,7 +1045,7 @@ class FrameRecognizer(
                     }
                     val score = 1 + (if (hasLanguage) 2 else 0) + (if (hasBullet) 1 else 0) +
                         (if (tokens.size <= 4) 1 else 0)
-                    setScores.merge(code, score, ::maxOf)
+                    setScores[code] = maxOf(setScores[code] ?: score, score)
                     printedLanguage(tokens, i)?.let { language = it }
                 }
             }

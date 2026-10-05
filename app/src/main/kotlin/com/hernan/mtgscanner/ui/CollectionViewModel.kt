@@ -1,5 +1,6 @@
 package com.hernan.mtgscanner.ui
 
+import com.hernan.mtgscanner.data.CollectionGroup
 import android.app.Application
 import android.content.res.Resources
 import android.content.ContentValues
@@ -38,7 +39,7 @@ import java.util.Date
 import java.util.Locale
 
 data class CollectionUi(
-    val groups: List<CollectionStore.Group> = emptyList(),
+    val groups: List<CollectionGroup> = emptyList(),
     /** Totales de lo que se está viendo (toda la colección, un mazo, un color...). */
     val summary: CollectionStore.Summary = CollectionStore.Summary(0, 0.0, 0),
     /** Pendientes de revisar en toda la colección (el botón de revisar no depende del filtro). */
@@ -164,7 +165,7 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     )
 
     private class Loaded(
-        val groups: List<CollectionStore.Group>,
+        val groups: List<CollectionGroup>,
         val summary: CollectionStore.Summary,
         val pendingTotal: Int,
         val decks: List<CollectionStore.Deck>,
@@ -206,7 +207,7 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun moveToDeck(group: CollectionStore.Group, deckId: Long?, count: Int) {
+    fun moveToDeck(group: CollectionGroup, deckId: Long?, count: Int) {
         viewModelScope.launch(Dispatchers.IO) { store.moveToDeck(group, deckId, count) }
     }
 
@@ -247,7 +248,7 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     private var lastDeleted: List<ContentValues>? = null
 
     /** Borra todas las copias de estas filas (varias seleccionadas o todo lo que se ve). */
-    fun deleteGroups(groups: List<CollectionStore.Group>) {
+    fun deleteGroups(groups: List<CollectionGroup>) {
         if (groups.isEmpty()) return
         viewModelScope.launch(Dispatchers.IO) {
             val rows = store.deleteGroups(groups)
@@ -267,32 +268,32 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     /** Mueve todas las copias de estas filas a un mazo; con [newDeckName], a uno nuevo. */
-    fun moveGroups(groups: List<CollectionStore.Group>, deckId: Long?, newDeckName: String? = null) {
+    fun moveGroups(groups: List<CollectionGroup>, deckId: Long?, newDeckName: String? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             val target = newDeckName?.takeIf { it.isNotBlank() }?.let { store.createDeck(it.trim()) } ?: deckId
             store.moveGroupsToDeck(groups, target)
         }
     }
 
-    fun removeOne(group: CollectionStore.Group) {
+    fun removeOne(group: CollectionGroup) {
         viewModelScope.launch(Dispatchers.IO) { store.delete(group.lastEntryId) }
     }
 
     private fun pendingFilter() = CollectionFilter(onlyPending = true)
 
     /** Primera fila pendiente de revisar (para el modo revisión), o null si no queda ninguna. */
-    suspend fun firstPending(): CollectionStore.Group? = withContext(Dispatchers.IO) {
+    suspend fun firstPending(): CollectionGroup? = withContext(Dispatchers.IO) {
         store.groups(_ui.value.currency, pendingFilter()).firstOrNull()
     }
 
     /** Asigna la edición (o confirma la sugerida) y devuelve la siguiente pendiente. */
-    suspend fun reassignAndNext(group: CollectionStore.Group, printing: CardPrinting): CollectionStore.Group? =
+    suspend fun reassignAndNext(group: CollectionGroup, printing: CardPrinting): CollectionGroup? =
         withContext(Dispatchers.IO) {
             store.reassign(group, printing)
             store.groups(_ui.value.currency, pendingFilter()).firstOrNull()
         }
 
-    suspend fun confirmAndNext(group: CollectionStore.Group): CollectionStore.Group? =
+    suspend fun confirmAndNext(group: CollectionGroup): CollectionGroup? =
         withContext(Dispatchers.IO) {
             store.confirm(group)
             store.groups(_ui.value.currency, pendingFilter()).firstOrNull()
@@ -308,15 +309,15 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun setLanguage(group: CollectionStore.Group, lang: String) {
+    fun setLanguage(group: CollectionGroup, lang: String) {
         viewModelScope.launch(Dispatchers.IO) { store.setLanguage(group, lang) }
     }
 
-    fun setCondition(group: CollectionStore.Group, condition: String) {
+    fun setCondition(group: CollectionGroup, condition: String) {
         viewModelScope.launch(Dispatchers.IO) { store.setCondition(group, condition) }
     }
 
-    fun setFoil(group: CollectionStore.Group, foil: Boolean) {
+    fun setFoil(group: CollectionGroup, foil: Boolean) {
         viewModelScope.launch(Dispatchers.IO) { store.setFoil(group, foil) }
     }
 
@@ -340,7 +341,7 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
 
     suspend fun printingOf(id: String): CardPrinting? = withContext(Dispatchers.IO) { app.catalog.await().byId(id) }
 
-    suspend fun cardSheet(id: String, name: String, group: CollectionStore.Group? = null): CardSheet =
+    suspend fun cardSheet(id: String, name: String, group: CollectionGroup? = null): CardSheet =
         withContext(Dispatchers.IO) {
             CardSheet(store.storedPrices(id), store.copiesOf(name), group?.let { app.cardPhotos.of(store.entryIds(it)) }.orEmpty())
         }

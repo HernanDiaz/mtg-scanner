@@ -1,5 +1,6 @@
 package com.hernan.mtgscanner.ui
 
+import com.hernan.mtgscanner.data.CollectionGroup
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -111,13 +112,13 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     /** Fila abierta en el selector de edición; [reviewing]: al terminar, pasar a la siguiente pendiente. */
-    var editing by remember { mutableStateOf<CollectionStore.Group?>(null) }
+    var editing by remember { mutableStateOf<CollectionGroup?>(null) }
     var reviewing by remember { mutableStateOf(false) }
     var searching by remember { mutableStateOf(false) }
     var exporting by remember { mutableStateOf(false) }
-    var moving by remember { mutableStateOf<CollectionStore.Group?>(null) }
+    var moving by remember { mutableStateOf<CollectionGroup?>(null) }
     /** Fila abierta en la ficha de carta (se sigue por su clave: cambia al tocar estado o foil). */
-    var viewing by remember { mutableStateOf<CollectionStore.Group?>(null) }
+    var viewing by remember { mutableStateOf<CollectionGroup?>(null) }
     /** Diálogo de nombre de mazo: crear (id null) o renombrar. */
     var deckDialog by remember { mutableStateOf<Pair<Long?, String>?>(null) }
     var deletingDeck by remember { mutableStateOf<CollectionStore.Deck?>(null) }
@@ -133,8 +134,8 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
     LaunchedEffect(exporting) { if (exporting) photoCount = vm.cardPhotosInfo().first }
     /** Filas seleccionadas (por su clave); vacío = sin modo selección. */
     var selected by remember { mutableStateOf(emptySet<String>()) }
-    var confirmDelete by remember { mutableStateOf<List<CollectionStore.Group>?>(null) }
-    var movingMany by remember { mutableStateOf<List<CollectionStore.Group>?>(null) }
+    var confirmDelete by remember { mutableStateOf<List<CollectionGroup>?>(null) }
+    var movingMany by remember { mutableStateOf<List<CollectionGroup>?>(null) }
     val autoBackup by vm.autoBackup.collectAsStateWithLifecycle()
     val autoBackupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         uri?.let(vm::enableAutoBackup)
@@ -161,7 +162,7 @@ fun CollectionScreen(vm: CollectionViewModel = viewModel()) {
     val currentDeck = ui.decks.firstOrNull { it.id == ui.filter.deckId }
     val scopeLabel = ui.scopeLabel(context.resources)
 
-    fun openNext(next: CollectionStore.Group?) {
+    fun openNext(next: CollectionGroup?) {
         editing = if (reviewing) next else null
         if (next == null) reviewing = false
     }
@@ -725,7 +726,7 @@ private fun ExportDialog(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun GroupRow(
-    g: CollectionStore.Group, currency: Currency, deckName: String?,
+    g: CollectionGroup, currency: Currency, deckName: String?,
     selecting: Boolean, isSelected: Boolean, onSelect: () -> Unit,
     onClick: () -> Unit, onEdit: () -> Unit, onMove: () -> Unit, onRemove: () -> Unit,
 ) {
@@ -818,7 +819,7 @@ private fun MoveManyDialog(
 /** Mover copias de una fila a un mazo (o sacarlas de su mazo). */
 @Composable
 private fun MoveToDeckDialog(
-    group: CollectionStore.Group,
+    group: CollectionGroup,
     decks: List<CollectionStore.Deck>,
     onMove: (deckId: Long?, count: Int) -> Unit,
     onCreateAndMove: (name: String, count: Int) -> Unit,
@@ -1007,7 +1008,7 @@ private fun PrintingRow(opt: PrintingOption, isCurrent: Boolean, currency: Curre
 }
 
 /** Identifica una fila de la colección (las mismas columnas que la agrupan). */
-private fun CollectionStore.Group.sheetKey() = "$cardId|$foil|$condition|$lang|$needsReview|$deckId"
+private fun CollectionGroup.sheetKey() = "$cardId|$foil|$condition|$lang|$needsReview|$deckId"
 
 /** El texto de búsqueda casa con nombre de la edición, código, número o año (sin tildes ni mayúsculas). */
 private fun matchesPrinting(p: CardPrinting, query: String): Boolean {

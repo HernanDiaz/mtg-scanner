@@ -1,5 +1,6 @@
 package com.hernan.mtgscanner
 
+import com.hernan.mtgscanner.data.CollectionGroup
 import com.hernan.mtgscanner.data.CardPrinting
 import com.hernan.mtgscanner.data.NameMatcher
 import com.hernan.mtgscanner.data.Prices
@@ -8,12 +9,12 @@ import com.hernan.mtgscanner.scan.FrameRecognizer
 import com.hernan.mtgscanner.scan.FrameResult
 import com.hernan.mtgscanner.scan.OcrLine
 import com.hernan.mtgscanner.scan.ScanSession
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 private fun card(
     name: String, set: String, number: String, released: String,
@@ -660,7 +661,7 @@ class ArtSignatureTest {
         val photo = com.hernan.mtgscanner.scan.ArtSignature.compute(8f, 6f, 192f, 144f, ::pattern)
         val hex = "870c81381772c62563684b74775576a16977477978a89369a81993484976b7837988bc7d381783c25486688b7a68c57dc72485677b7a68c586a6488747797aa2c378874c8637977ca8237788ac77382786c7848b672b8563758ba76883486a8a683589a7a882487989a74386876c88345887c8a386784c7938478ac77376699c86578678b85789559a8b98847b983b88495a8b974487985b88388887c8538a758c8a586688b88686785c8d577689b97787588a8498648496ab89389876c9b385996b83376884c95386783c87483686b75686587a83899483b87672579a6688847a979b81377885c78389788c8d467683c9837476cc75476667b7a579584a8888948a985a7a46697e89947697aa7936887bb8837b886c8839a787c9b578674b7c"
         val ref = com.hernan.mtgscanner.scan.ArtSignature.fromPacked(ByteArray(hex.length / 2) { hex.substring(it * 2, it * 2 + 2).toInt(16).toByte() })
-        assertTrue("similitud ${photo.similarity(ref)}", photo.similarity(ref) > 0.9)
+        assertTrue(photo.similarity(ref) > 0.9, "similitud ${photo.similarity(ref)}")
     }
 
     /** Imagen suave (como una ilustración, no ruido): degradados y manchas. */
@@ -678,8 +679,8 @@ class ArtSignatureTest {
             (((c shr 16) and 0xFF) * 7 / 10 shl 16) or (((c shr 8) and 0xFF) * 7 / 10 shl 8) or ((c and 0xFF) * 7 / 10)
         }
         val other = com.hernan.mtgscanner.scan.ArtSignature.compute(0f, 0f, 200f, 150f) { x, y -> smooth(y * 2 + 50, x / 2) }
-        assertTrue("oscurecida ${a.similarity(darker)}", a.similarity(darker) > 0.9)
-        assertTrue("otra ${a.similarity(other)}", a.similarity(darker) - a.similarity(other) > 0.15)
+        assertTrue(a.similarity(darker) > 0.9, "oscurecida ${a.similarity(darker)}")
+        assertTrue(a.similarity(darker) - a.similarity(other) > 0.15, "otra ${a.similarity(other)}")
     }
 
     /** Luz cálida y reflejo de funda (más rojo, menos azul, menos contraste): sigue siendo la misma ilustración. */
@@ -718,8 +719,8 @@ class ArtSignatureTest {
             (ch((c shr 16) and 0xFF, 0.6, 110) shl 16) or (ch((c shr 8) and 0xFF, 0.6, 80) shl 8) or ch(c and 0xFF, 0.5, 40)
         }
         val other = com.hernan.mtgscanner.scan.ArtSignature.compute(0f, 0f, 200f, 150f) { x, y -> smooth(y * 2 + 50, x / 2) }
-        assertTrue("con tinte ${a.similarity(warm)}", a.similarity(warm) > 0.9)
-        assertTrue("otra ${other.similarity(warm)}", a.similarity(warm) - other.similarity(warm) > 0.15)
+        assertTrue(a.similarity(warm) > 0.9, "con tinte ${a.similarity(warm)}")
+        assertTrue(a.similarity(warm) - other.similarity(warm) > 0.15, "otra ${other.similarity(warm)}")
     }
 }
 
@@ -741,7 +742,7 @@ class RotationTest {
             } }
             for (yy in 0 until uh) for (xx in 0 until uw) {
                 val (sx, sy) = com.hernan.mtgscanner.scan.uprightToSensor(xx, yy, rotation, w, h)
-                assertEquals("rotación $rotation en ($xx,$yy)", upright[yy][xx], sensor[sy][sx])
+                assertEquals(upright[yy][xx], sensor[sy][sx], "rotación $rotation en ($xx,$yy)")
             }
         }
     }
@@ -768,7 +769,7 @@ class ArtRegionTest {
 class CollectionExportTest {
     private fun group(name: String, set: String, num: String, qty: Int, review: Boolean = false,
                       foil: Boolean = false, lang: String = "en", price: Double? = 1.5) =
-        com.hernan.mtgscanner.data.CollectionStore.Group(
+        com.hernan.mtgscanner.data.CollectionGroup(
             cardId = "$set-$num", name = name, setCode = set, collectorNumber = num, foil = foil,
             condition = "NM", lang = lang, quantity = qty, needsReview = review, unitPrice = price, lastEntryId = 1,
         )
@@ -838,7 +839,7 @@ class CollectionImportTest {
     /** La copia de seguridad (nuestro CSV) vuelve a dar exactamente lo mismo, con mazos y revisión. */
     @Test fun ownCsvRoundTrip() {
         fun g(c: CardPrinting, qty: Int, deck: Long?, review: Boolean = false, foil: Boolean = false, lang: String = "en") =
-            com.hernan.mtgscanner.data.CollectionStore.Group(
+            com.hernan.mtgscanner.data.CollectionGroup(
                 cardId = c.id, name = c.name, setCode = c.setCode, collectorNumber = c.collectorNumber, foil = foil,
                 condition = "EX", lang = lang, quantity = qty, needsReview = review, unitPrice = 1.0, lastEntryId = 1, deckId = deck,
             )
@@ -865,7 +866,7 @@ class CollectionImportTest {
 
     /** La copia exportada con la app en inglés también se importa igual. */
     @Test fun englishBackupRoundTrip() {
-        val g = com.hernan.mtgscanner.data.CollectionStore.Group(
+        val g = com.hernan.mtgscanner.data.CollectionGroup(
             cardId = borborygmos.id, name = borborygmos.name, setCode = "gtc", collectorNumber = "143", foil = true,
             condition = "EX", lang = "es", quantity = 2, needsReview = true, unitPrice = 1.0, lastEntryId = 1, deckId = 3,
         )
@@ -1003,7 +1004,7 @@ class SetSymbolsTest {
     /** Ventana de 120×60 con [r] pegado en (x0, y0), a escala [scale], y algo de ruido. */
     private fun window(r: com.hernan.mtgscanner.scan.SymbolRef, x0: Int, y0: Int, scale: Float = 1f): com.hernan.mtgscanner.scan.SymbolWindow {
         val w = 120; val h = 60
-        val rnd = java.util.Random(1)
+        val rnd = kotlin.random.Random(1)
         val rgb = FloatArray(w * h * 3) { 0.85f + rnd.nextFloat() * 0.1f }
         val sw = (r.w * scale).toInt(); val sh = (r.h * scale).toInt()
         for (y in 0 until sh) for (x in 0 until sw) for (c in 0 until 3) {

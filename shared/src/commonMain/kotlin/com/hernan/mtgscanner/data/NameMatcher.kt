@@ -1,6 +1,5 @@
 package com.hernan.mtgscanner.data
 
-import java.text.Normalizer
 
 /**
  * Empareja texto leído por OCR con nombres de cartas, tolerando errores
@@ -129,7 +128,7 @@ class NameMatcher(entries: List<Pair<String, String>>) {
 
         /** Debe coincidir con norm_name() de tools/build_catalog.py. */
         fun normalize(s: String): String {
-            val nfkd = Normalizer.normalize(s, Normalizer.Form.NFKD)
+            val nfkd = nfkd(s)
             val sb = StringBuilder(nfkd.length)
             for (c in nfkd) {
                 val l = c.lowercaseChar()

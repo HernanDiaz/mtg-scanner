@@ -1,5 +1,6 @@
 package com.hernan.mtgscanner.ui
 
+import com.hernan.mtgscanner.data.CollectionGroup
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -78,7 +79,7 @@ class CardSheet(val prices: CollectionStore.StoredPrices?, val copiesOfCard: Int
 @Composable
 fun CardDetailDialog(
     printing: CardPrinting,
-    group: CollectionStore.Group?,
+    group: CollectionGroup?,
     deckName: String?,
     currency: Currency,
     loadSheet: suspend () -> CardSheet,

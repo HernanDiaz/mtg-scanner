@@ -49,27 +49,6 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
 
     enum class Sort { RECENT, VALUE, NAME }
 
-    data class Group(
-        val cardId: String,
-        val name: String,
-        val setCode: String,
-        val collectorNumber: String,
-        val foil: Boolean,
-        val condition: String,
-        /** Idioma de la carta física: "en", "es". */
-        val lang: String,
-        val quantity: Int,
-        val needsReview: Boolean,
-        val unitPrice: Double?,
-        val lastEntryId: Long,
-        /** Miniatura de la ilustración de la foto (la del último escaneo), para ordenar ediciones por parecido. */
-        val art: ByteArray? = null,
-        val deckId: Long? = null,
-        val colors: String = "",
-    ) {
-        val smallImageUrl get() = "https://cards.scryfall.io/small/front/${cardId[0]}/${cardId[1]}/$cardId.jpg"
-    }
-
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
             """
@@ -284,7 +263,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
      * Borra todas las copias de estas filas. Devuelve lo borrado, tal cual, para
      * poder deshacerlo con [restore].
      */
-    fun deleteGroups(groups: Collection<Group>): List<ContentValues> {
+    fun deleteGroups(groups: Collection<CollectionGroup>): List<ContentValues> {
         val db = writableDatabase
         val deleted = ArrayList<ContentValues>()
         db.beginTransaction()
@@ -317,7 +296,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
     }
 
     /** Mueve todas las copias de estas filas a un mazo (o las saca del suyo). */
-    fun moveGroupsToDeck(groups: Collection<Group>, deckId: Long?) {
+    fun moveGroupsToDeck(groups: Collection<CollectionGroup>, deckId: Long?) {
         val db = writableDatabase
         db.beginTransaction()
         try {
@@ -336,7 +315,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
     }
 
     /** Cambia la impresión de todas las entradas de un grupo y las da por revisadas. */
-    fun reassign(group: Group, card: CardPrinting) {
+    fun reassign(group: CollectionGroup, card: CardPrinting) {
         val db = writableDatabase
         db.beginTransaction()
         try {
@@ -358,19 +337,19 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
     }
 
     /** Da por buena la edición sugerida de un grupo. */
-    fun confirm(group: Group) {
+    fun confirm(group: CollectionGroup) {
         writableDatabase.update("entries", ContentValues().apply { put("needs_review", 0) }, GROUP_WHERE, group.whereArgs())
         changed()
     }
 
     /** Cambia el estado (NM, EX...) de todas las entradas de un grupo. */
-    fun setCondition(group: Group, condition: String) {
+    fun setCondition(group: CollectionGroup, condition: String) {
         writableDatabase.update("entries", ContentValues().apply { put("condition", condition) }, GROUP_WHERE, group.whereArgs())
         changed()
     }
 
     /** Marca o desmarca como foil todas las entradas de un grupo. */
-    fun setFoil(group: Group, foil: Boolean) {
+    fun setFoil(group: CollectionGroup, foil: Boolean) {
         writableDatabase.update("entries", ContentValues().apply { put("foil", if (foil) 1 else 0) }, GROUP_WHERE, group.whereArgs())
         changed()
     }
@@ -402,13 +381,13 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
     )
 
     /** Cambia el idioma de todas las entradas de un grupo. */
-    fun setLanguage(group: Group, lang: String) {
+    fun setLanguage(group: CollectionGroup, lang: String) {
         writableDatabase.update("entries", ContentValues().apply { put("lang", lang) }, GROUP_WHERE, group.whereArgs())
         changed()
     }
 
     /** Mueve [count] copias de un grupo (las últimas escaneadas) a un mazo, o a ninguno si [deckId] es null. */
-    fun moveToDeck(group: Group, deckId: Long?, count: Int) {
+    fun moveToDeck(group: CollectionGroup, deckId: Long?, count: Int) {
         writableDatabase.execSQL(
             "UPDATE entries SET deck_id = ? WHERE id IN (SELECT id FROM entries WHERE $GROUP_WHERE ORDER BY id DESC LIMIT ?)",
             arrayOf<Any?>(deckId, *group.whereArgs(), count),
@@ -417,7 +396,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
     }
 
     /** Las copias (entradas) de una fila. */
-    fun entryIds(group: Group): List<Long> =
+    fun entryIds(group: CollectionGroup): List<Long> =
         readableDatabase.rawQuery("SELECT id FROM entries WHERE $GROUP_WHERE", group.whereArgs()).use { c ->
             buildList { while (c.moveToNext()) add(c.getLong(0)) }
         }
@@ -428,11 +407,6 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
             buildSet { while (c.moveToNext()) add(c.getLong(0)) }
         }
 
-    /** Una copia y lo que la agrupa en una línea exportada ([CollectionExport.lines]). */
-    data class EntryKey(
-        val id: Long, val cardId: String, val foil: Boolean, val condition: String, val lang: String,
-        val deckId: Long?, val needsReview: Boolean,
-    )
 
     fun entryKeys(): List<EntryKey> =
         readableDatabase.rawQuery("SELECT id, card_id, foil, condition, lang, deck_id, needs_review FROM entries", null).use { c ->
@@ -442,7 +416,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
             }
         }
 
-    private fun Group.whereArgs() = arrayOf(
+    private fun CollectionGroup.whereArgs() = arrayOf(
         cardId, if (foil) "1" else "0", condition, lang, if (needsReview) "1" else "0", (deckId ?: NO_DECK).toString(),
     )
 
@@ -824,7 +798,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
     fun groups(
         currency: Currency, filter: CollectionFilter = CollectionFilter(), sort: Sort = Sort.RECENT,
         kind: PriceKind = PriceKind.TREND,
-    ): List<Group> {
+    ): List<CollectionGroup> {
         val price = valueExpr(currency, kind)
         val order = when (sort) {
             Sort.RECENT -> "e.needs_review DESC, MAX(e.id) DESC"
@@ -846,7 +820,7 @@ class CollectionStore(context: Context, dbName: String = "collection.db") :
             args,
         ).use { c ->
             buildList {
-                while (c.moveToNext()) add(Group(
+                while (c.moveToNext()) add(CollectionGroup(
                     cardId = c.getString(0),
                     name = c.getString(1),
                     setCode = c.getString(2),

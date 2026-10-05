@@ -1,19 +1,24 @@
 package com.hernan.mtgscanner.data
 
-import androidx.annotation.StringRes
-import com.hernan.mtgscanner.R
-import java.util.Locale
-
 /**
  * Exportar la colección. Las funciones son puras (texto de entrada, texto de
  * salida) para poder probarlas; compartir el resultado lo hace la interfaz.
  */
 object CollectionExport {
 
-    enum class Format(@StringRes val label: Int, val extension: String, val mime: String) {
-        CSV(R.string.format_csv, "csv", "text/csv"),
-        MOXFIELD(R.string.format_moxfield, "csv", "text/csv"),
-        TEXT(R.string.format_text, "txt", "text/plain"),
+    enum class Format(val extension: String, val mime: String) {
+        CSV("csv", "text/csv"),
+        MOXFIELD("csv", "text/csv"),
+        TEXT("txt", "text/plain"),
+    }
+
+    /** Carpeta de las fotos dentro del zip exportado. */
+    const val PHOTOS_FOLDER = "fotos"
+
+    /** "Lightning Bolt (M11 149) 1234.jpg": se entiende qué es al abrir el zip. */
+    fun photoName(entryId: Long, line: Line): String {
+        val safe = line.name.replace(Regex("[\\\\/:*?\"<>|]"), "").take(60)
+        return "$safe (${line.setCode.uppercase()} ${line.collectorNumber}) $entryId.jpg"
     }
 
     /** Una línea exportada: copias de la misma impresión, acabado, estado e idioma. */
@@ -40,7 +45,7 @@ object CollectionExport {
      */
     fun withPhotos(
         lines: List<Line>,
-        entries: List<CollectionStore.EntryKey>,
+        entries: List<EntryKey>,
         detailed: Boolean,
         deckName: (Long?) -> String?,
         hasPhoto: (Long) -> Boolean,
@@ -53,7 +58,7 @@ object CollectionExport {
         val names = LinkedHashMap<Long, String>()
         val out = lines.map { l ->
             val ids = byLine[key(l.cardId, l.foil, l.condition, l.lang, l.deck, l.needsReview)].orEmpty().map { it.id }.sorted()
-            if (ids.isEmpty()) l else l.copy(photos = ids.map { id -> CardPhotos.photoName(id, l).also { names[id] = it } })
+            if (ids.isEmpty()) l else l.copy(photos = ids.map { id -> photoName(id, l).also { names[id] = it } })
         }
         return out to names
     }
@@ -64,7 +69,7 @@ object CollectionExport {
      * o a una lista de texto no les importa.
      */
     fun lines(
-        groups: List<CollectionStore.Group>,
+        groups: List<CollectionGroup>,
         setName: (String) -> String,
         deckName: (Long?) -> String? = { null },
         detailed: Boolean = false,
@@ -103,7 +108,7 @@ object CollectionExport {
         }
         val yes = if (english) "yes" else "sí"
         for (l in lines) {
-            val photoCell = if (!photos) emptyArray() else arrayOf(l.photos.joinToString("; ") { "${CardPhotos.FOLDER}/$it" })
+            val photoCell = if (!photos) emptyArray() else arrayOf(l.photos.joinToString("; ") { "$PHOTOS_FOLDER/$it" })
             row(l.quantity.toString(), l.name, l.setName, l.setCode.uppercase(), l.collectorNumber,
                 l.lang.uppercase(), l.condition, if (l.foil) yes else "no", l.deck.orEmpty(), if (l.needsReview) yes else "",
                 l.unitPrice?.let(::money) ?: "", l.unitPrice?.let { money(it * l.quantity) } ?: "", l.cardId, *photoCell)
@@ -135,7 +140,7 @@ object CollectionExport {
     private fun quote(s: String) =
         if (s.any { it == ',' || it == '"' || it == '\n' || it == '\r' }) "\"" + s.replace("\"", "\"\"") + "\"" else s
 
-    private fun money(v: Double) = String.format(Locale.ROOT, "%.2f", v)
+    private fun money(v: Double) = v.fixed(2)
 
     /** Estados de Cardmarket -> nombres de Moxfield. */
     private val MOXFIELD_CONDITION = mapOf(

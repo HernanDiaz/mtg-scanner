@@ -1,7 +1,7 @@
 package com.hernan.mtgscanner
 
+import com.hernan.mtgscanner.data.EntryKey
 import com.hernan.mtgscanner.data.CollectionExport
-import com.hernan.mtgscanner.data.CollectionStore.EntryKey
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
