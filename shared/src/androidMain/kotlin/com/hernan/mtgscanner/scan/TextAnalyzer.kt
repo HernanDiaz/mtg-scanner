@@ -21,6 +21,8 @@ class TextAnalyzer(
     private val viewSize: () -> Pair<Int, Int>?,
     /** [frame]: el fotograma derecho; solo vale durante la llamada (luego se libera). */
     private val onResult: (result: FrameResult?, rawTopLine: String?, frame: () -> ScanFrame) -> Unit,
+    /** Lo que tardaron el OCR y el reconocimiento de cada fotograma, en ms. */
+    private val onTiming: (ocrMs: Long, recognizeMs: Long) -> Unit = { _, _ -> },
 ) : ImageAnalysis.Analyzer {
 
     private val ocr = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
@@ -32,8 +34,10 @@ class TextAnalyzer(
         // Las cajas del OCR vienen en la imagen ya girada.
         val (imageW, imageH) = if (rotation % 180 == 0) proxy.width to proxy.height else proxy.height to proxy.width
         val image = InputImage.fromMediaImage(media, rotation)
+        val started = android.os.SystemClock.elapsedRealtime()
         ocr.process(image)
             .addOnSuccessListener(executor) { text ->
+                val ocrDone = android.os.SystemClock.elapsedRealtime()
                 var lines = text.textBlocks.flatMap { it.lines }.mapNotNull { line ->
                     val box = line.boundingBox ?: return@mapNotNull null
                     OcrLine(line.text, box.left, box.top, box.right, box.bottom)
@@ -48,6 +52,7 @@ class TextAnalyzer(
                     bmp.getPixel(sx.coerceIn(0, bmp.width - 1), sy.coerceIn(0, bmp.height - 1)) and 0xFFFFFF
                 }
                 val result = recognizer.recognize(lines, art)
+                onTiming(ocrDone - started, android.os.SystemClock.elapsedRealtime() - ocrDone)
                 onResult(result, lines.minByOrNull { it.top }?.text) {
                     val bmp = bitmap
                     BitmapFrame(

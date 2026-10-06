@@ -176,12 +176,18 @@ def foreign_names(all_cards_path, languages):
         by_name = best.setdefault(norm, {}).setdefault(lang, {})
         by_name[name] = by_name.get(name, 0) + n
         langs.setdefault((norm, name), {})[lang] = n
+    # Pero dos cartas pueden llamarse igual de verdad ("Vínculo vital": Lifelink y la Creature
+    # Bond de 4ª edición, 2 impresiones cada una): se guardan también las que aparecen en al
+    # menos 2 impresiones y un 10 % de las de la mayoritaria; entonces la ilustración decide.
+    # Los errores de datos son pocos frente a la buena ("Isla": 415 Island, 4 Plains).
     result = set()
     for norm, by_lang in best.items():
         by_name = by_lang[min(by_lang, key=languages.index)]
-        name = max(by_name, key=by_name.get)
-        seen = langs[(norm, name)]
-        result.add((norm, name, ",".join(sorted(seen, key=seen.get, reverse=True))))
+        top = max(by_name, key=by_name.get)
+        for name, n in by_name.items():
+            if name == top or (n >= 2 and n * 10 >= by_name[top]):
+                seen = langs[(norm, name)]
+                result.add((norm, name, ",".join(sorted(seen, key=seen.get, reverse=True))))
     return result, set_langs
 
 

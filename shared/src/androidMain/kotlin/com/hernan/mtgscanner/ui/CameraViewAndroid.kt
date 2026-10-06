@@ -49,7 +49,7 @@ actual fun CameraView(vm: ScannerViewModel, recognizer: FrameRecognizer, torch: 
     var camera by remember { mutableStateOf<Camera?>(null) }
     // Un solo hilo: el OCR y la sesión de escaneo de un fotograma tras otro.
     val executor = remember { ClosableExecutor() }
-    val analyzer = remember(recognizer) { TextAnalyzer(recognizer, executor, { vm.viewSize }, vm::onFrame) }
+    val analyzer = remember(recognizer) { TextAnalyzer(recognizer, executor, { vm.viewSize }, vm::onFrame, vm::reportTiming) }
 
     DisposableEffect(analyzer, lifecycleOwner) {
         val future = ProcessCameraProvider.getInstance(context)

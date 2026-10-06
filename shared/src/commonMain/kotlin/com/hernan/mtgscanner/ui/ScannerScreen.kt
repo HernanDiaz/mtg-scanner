@@ -87,6 +87,11 @@ fun ScannerScreen(vm: ScannerViewModel = LocalServices.current.let { s -> viewMo
             Spacer(Modifier.size(8.dp))
             // Modo de prueba: cuántas fotos van y guardar la de una carta que no reconoce.
             if (testing) {
+                // Cuánto tarda cada fotograma (medida técnica, sin traducir).
+                ui.timing?.let {
+                    Text(it, style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.8f),
+                        modifier = Modifier.padding(bottom = 4.dp))
+                }
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
                     Text(
                         pluralStringResource(Res.plurals.test_photos_count, ui.testPhotoCount, ui.testPhotoCount),

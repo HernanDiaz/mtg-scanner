@@ -283,13 +283,17 @@ fun CollectionScreen(vm: CollectionViewModel = LocalServices.current.let { s -> 
                     }
                 }
 
+                // El texto vive aquí y el filtro lo sigue: si el campo mostrara el del estado (que
+                // llega un instante después), en iPhone el cursor volvería atrás al escribir
+                // ("sandra" -> "andras").
+                var query by remember { mutableStateOf(ui.filter.query) }
                 OutlinedTextField(
-                    value = ui.filter.query, onValueChange = vm::setQuery, singleLine = true,
+                    value = query, onValueChange = { query = it; vm.setQuery(it) }, singleLine = true,
                     placeholder = { Text(stringResource(Res.string.search_collection)) },
                     leadingIcon = { Icon(Icons.Default.Search, null) },
                     trailingIcon = {
-                        if (ui.filter.query.isNotEmpty()) {
-                            IconButton(onClick = { vm.setQuery("") }) { Icon(Icons.Default.Close, stringResource(Res.string.clear)) }
+                        if (query.isNotEmpty()) {
+                            IconButton(onClick = { query = ""; vm.setQuery("") }) { Icon(Icons.Default.Close, stringResource(Res.string.clear)) }
                         }
                     },
                     modifier = Modifier.fillMaxWidth().padding(top = 6.dp),

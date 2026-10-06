@@ -111,9 +111,33 @@ class FrameRecognizer(
         var nameIndex = -1
         var found: NameMatcher.Match? = null
         for (i in 0 until zone) {
+            // El nombre partido en dos líneas ("Víbora de" / "pantano": no es "Pantano", Swamp).
+            // No la misma línea leída dos veces ("Swamp" / "Swamp" no es "Swamp // Swamp"), ni
+            // las dos caras de una carta doble.
+            if (i + 1 < zone && NameMatcher.normalize(sorted[i].text) != NameMatcher.normalize(sorted[i + 1].text)) {
+                names.match(sorted[i].text + " " + sorted[i + 1].text)
+                    ?.takeIf { m -> m.distance == 0 && m.names.none { " // " in it } }?.let {
+                    found = it
+                    nameIndex = i + 1
+                }
+                if (found != null) break
+            }
             found = names.matchWords(sorted[i].words) ?: continue
             nameIndex = i
             break
+        }
+        // Por encima del nombre puede verse el de otra carta ("Hlí Babá" asomando sobre
+        // "Comerciante enano"): si lo encontrado no es exacto y más abajo, justo sobre la línea
+        // de tipo, hay un nombre exacto, es ese.
+        if (found != null && found!!.distance > 0) {
+            for (i in nameIndex + 1 until zone) {
+                if (sorted.getOrNull(i + 1)?.let { isTypeLine(it, TYPE_WORDS) } != true) continue
+                // La línea entera, no un prefijo: "Mountain Plains" (los tipos de Sacred Foundry) no es Mountain.
+                names.match(sorted[i].text)?.takeIf { it.distance == 0 }?.let {
+                    found = it
+                    nameIndex = i
+                }
+            }
         }
         if (found == null && zone > 0) {
             // Solo la línea superior: en el texto de reglas daría falsos positivos
@@ -133,6 +157,22 @@ class FrameRecognizer(
                 nameFromArtSearch = true
                 nameIndex = maxOf(typeIndex - 1, 0)
                 belowName = typeIndex
+            }
+        }
+        // Un nombre que solo explica el principio de la línea ("Atadura" -> Bandage en portugués,
+        // de "Atadura del caos", la Chaoslace de 4ª, que Scryfall llama "Atadura vital") se
+        // comprueba con la ilustración: si otra carta del catálogo se parece mucho más, es esa.
+        val partial = found
+        if (partial != null && art != null && artOnly == null && unexplainedLetters(sorted[nameIndex], partial) >= PARTIAL_NAME_LETTERS) {
+            val own = artSimilarity(partial, sorted, nameIndex, art) ?: -1.0
+            nameBySearchedArt(sorted, art)?.let { (m, artId, typeIndex) ->
+                if (m.names.none { it in partial.names } && own < searchedArtSimilarity - PARTIAL_NAME_ART_GAP) {
+                    found = m
+                    artOnly = artId
+                    nameFromArtSearch = true
+                    nameIndex = maxOf(typeIndex - 1, 0)
+                    belowName = typeIndex
+                }
             }
         }
         val match = found ?: return null
@@ -156,10 +196,19 @@ class FrameRecognizer(
         var decidedByArt = false
         var decidedBySymbol = false
         if (!exact && art != null) {
+            // El borde visto descarta las impresiones del otro color antes que nada: la
+            // ilustración y el símbolo no separan 4ª de la 4ª de borde negro, ni Revised de
+            // Foreign Black Border (mismo dibujo, sin símbolo).
+            // Igual el año máximo por la redacción antigua ("Invocar", "Hechizo instantáneo").
+            val bordered = byBorder(
+                collector.maxYear?.let { max -> printings.filter { p -> p.releaseYear?.let { it <= max } == true } }
+                    ?.ifEmpty { null } ?: printings,
+                border.takeIf { borderIsClear },
+            )
             // 1. La ilustración separa las impresiones con dibujos distintos.
-            var candidates = printings
-            byArt(printings, sorted, nameIndex, art)?.let { artId ->
-                candidates = printings.filter { it.artId == artId }
+            var candidates = bordered
+            byArt(bordered, sorted, nameIndex, art)?.let { artId ->
+                candidates = bordered.filter { it.artId == artId }
                 decidedByArt = true
                 val r = if (candidates.size == 1) candidates[0] to true else resolve(candidates, collector, foreign, border)
                 printing = r.first
@@ -227,39 +276,71 @@ class FrameRecognizer(
     /** El nombre salió de buscar la ilustración en todo el catálogo (no se leyó). */
     private var nameFromArtSearch = false
 
+    /** Similitud de la ganadora de la última [nameBySearchedArt] que encontró algo. */
+    private var searchedArtSimilarity = 0.0
+
+    /** Letras de la línea del nombre que el nombre encontrado no explica ("del caos"). */
+    private fun unexplainedLetters(line: OcrLine, match: NameMatcher.Match): Int =
+        NameMatcher.normalize(line.text).length - match.key.length
+
+    /** La mayor similitud entre la ilustración de la foto y las de la carta [match]. */
+    private fun artSimilarity(match: NameMatcher.Match, sorted: List<OcrLine>, nameIndex: Int, art: ArtSampler): Double? {
+        val region = artRegion(sorted, nameIndex) ?: return null
+        val photo = art.signature(region.left, region.top, region.right, region.bottom) ?: return null
+        return wholeCardNames(match).flatMap(printingsOf).mapNotNull { it.artId }.distinct()
+            .mapNotNull { id -> artOf(id)?.let(photo::similarity) }.maxOrNull()
+    }
+
     /**
      * Borde de la carta, mirando el lado izquierdo en tres franjas cortas a distintas alturas
      * (con la carta algo girada, el borde se desplaza a lo largo de una franja alta y se
-     * emborrona): 'w' si alguna franja muestra el borde blanco (una banda clara y sin color),
-     * 'k' si ninguna tiene nada claro en toda la zona del borde (borde negro), null si no se
-     * puede medir o no está claro. Medido con fotos del móvil y con fotos simuladas.
+     * emborrona). En cada una, de fuera adentro, el borde es la primera meseta (franjas casi
+     * iguales y sin color): negra si es oscura y más que lo de fuera; blanca si es más clara
+     * que lo de fuera y que el marco. Así no importa la luz ni el fondo (un mantel claro no es
+     * plano; un borde blanco con poca luz sigue siendo más claro que lo que lo rodea).
+     * 'w' o 'k' si alguna franja lo ve y ninguna ve el contrario; null si no se puede medir.
      */
     private fun detectBorder(sorted: List<OcrLine>, nameIndex: Int, art: ArtSampler): Char? {
+        borderIsClear = false
         val slices = leftBorderSlices(sorted, nameIndex, art) ?: return null
         borderDebug = slices.joinToString(" | ") { s -> s.joinToString(",") { "${it.first}/${it.second}" } }
-        // El blanco solo en la zona del borde (hasta un 4 % dentro): más adentro está el marco,
-        // que en las cartas blancas o de artefacto también es claro.
-        val white = slices.any { bins ->
-            var run = 0
-            bins.take(WHITE_BORDER_ZONE_BINS).any { (lum, sat) ->
-                run = if (lum >= WHITE_BORDER_LUM && sat <= WHITE_BORDER_SAT) run + 1 else 0
-                run >= WHITE_BORDER_RUN
-            }
-        }
-        if (white) return 'w'
-        // Un borde blanco algo más adentro de lo estimado (carta mal situada): ni blanco ni negro.
-        val whiteFurtherIn = slices.any { bins ->
-            var run = 0
-            bins.drop(WHITE_BORDER_ZONE_BINS - WHITE_BORDER_RUN).take(WHITE_BORDER_RUN + 3).any { (lum, sat) ->
-                run = if (lum >= WHITE_BORDER_LUM && sat <= WHITE_BORDER_SAT) run + 1 else 0
-                run >= WHITE_BORDER_RUN
-            }
-        }
-        if (whiteFurtherIn) return null
-        // Negro si en al menos dos franjas no hay nada claro en la zona del borde: un borde
-        // blanco mal medido (girado, con tinte) suele dejar algo claro.
-        val dark = slices.count { bins -> bins.take(BLACK_BORDER_ZONE_BINS).all { it.first < BLACK_BORDER_MAX_LUM } } >= 2
+        val votes = slices.mapNotNull(::borderInSlice)
+        if ('k' in votes && 'w' in votes) return null
+        if (votes.isNotEmpty()) return votes.first().also { borderIsClear = true }
+        // Sin meseta clara (mesa oscura y poca luz: el borde negro se confunde con la mesa):
+        // negro si en dos franjas no hay nada claro en toda la zona del borde. Es una pista
+        // débil: solo orienta la elección final, no descarta impresiones (ver [borderIsClear]).
+        val dark = slices.count { bins -> bins.take(WEAK_BLACK_ZONE_BINS).all { it.first < WEAK_BLACK_MAX_LUM } } >= 2
         return if (dark) 'k' else null
+    }
+
+    /** El último [detectBorder] vio el borde con claridad (una meseta), no solo una zona oscura. */
+    private var borderIsClear = false
+
+    /** El borde visto en una franja ([detectBorder]), o null si no hay meseta que lo sea. */
+    private fun borderInSlice(bins: List<Pair<Int, Int>>): Char? {
+        val lum = bins.map { it.first }
+        for (start in BORDER_FIRST_BIN until BORDER_LAST_BIN + 1) {
+            if (bins[start].second > BORDER_MAX_SAT) continue
+            var end = start
+            var lo = lum[start]
+            var hi = lum[start]
+            while (end + 1 < bins.size && bins[end + 1].second <= BORDER_MAX_SAT &&
+                maxOf(hi, lum[end + 1]) - minOf(lo, lum[end + 1]) <= BORDER_FLAT
+            ) {
+                end++
+                lo = minOf(lo, lum[end]); hi = maxOf(hi, lum[end])
+            }
+            if (end - start + 1 < BORDER_RUN) continue
+            val level = lum.subList(start, end + 1).average()
+            val outside = lum.subList(maxOf(0, start - 2), start).ifEmpty { listOf(level.toInt()) }
+            val inside = lum.subList(end + 1, minOf(lum.size, end + 3)).ifEmpty { listOf(level.toInt()) }
+            if (level <= BLACK_BORDER_MAX_LUM && outside.max() >= level + BLACK_BORDER_CONTRAST) return 'k'
+            if (level >= WHITE_BORDER_MIN_LUM && outside.min() <= level - WHITE_BORDER_CONTRAST &&
+                inside.min() <= level - WHITE_BORDER_CONTRAST
+            ) return 'w'
+        }
+        return null
     }
 
     /**
@@ -438,9 +519,29 @@ class FrameRecognizer(
             // portugués, pero "Encantar criatura" es español; y "Montafña" (mal leído) se parece
             // a "Montagna", pero "Tierra básica" es español.
             if (typeLangs?.size == 1) return typeLangs.first()
+            // Sin línea de tipo legible ("Iyocar alquimista"), el texto de reglas: "Alquimista
+            // samita" se escribe igual en portugués, pero "Previene hasta 4 puntos de daño" no.
+            bodyLanguage(belowName)?.takeIf { it in langs }?.let { return it }
             return langs.first()
         }
-        return typeLang ?: "en"
+        // Un nombre igual que en inglés ("Ali Baba", "Chandler"): el tipo, o si no se lee, el texto.
+        return typeLang ?: bodyLanguage(belowName) ?: "en"
+    }
+
+    /**
+     * Idioma del texto de reglas por sus palabras más comunes y propias de cada idioma
+     * ("hasta", "jugador" / "até", "jogador" / "fino", "giocatore"...), solo si uno destaca
+     * claramente: al menos [BODY_LANGUAGE_MIN] palabras y el doble que el siguiente.
+     */
+    private fun bodyLanguage(lines: List<OcrLine>): String? {
+        val counts = HashMap<String, Int>()
+        for (line in lines) for (word in line.words) {
+            BODY_WORD_LANGS[NameMatcher.normalize(word)]?.let { counts[it] = (counts[it] ?: 0) + 1 }
+        }
+        val ranked = counts.entries.sortedByDescending { it.value }
+        val best = ranked.firstOrNull() ?: return null
+        val second = ranked.getOrNull(1)?.value ?: 0
+        return best.key.takeIf { best.value >= BODY_LANGUAGE_MIN && best.value >= 2 * second }
     }
 
     /**
@@ -496,6 +597,9 @@ class FrameRecognizer(
         return when {
             first in SUMMON_WORDS || looksLikeSummon(first) -> 1999
             first in ENCHANT_WORDS && words.size >= 2 -> 2004
+            // "Hechizo instantáneo": las de marco moderno (8ª edición, 2003) dicen "Instantáneo".
+            // Así la "Niebla" de 4ª no se toma por la de 2010.
+            first == "hechizo" && words.getOrNull(1)?.startsWith("instant") == true -> 2003
             else -> null
         }
     }
@@ -524,10 +628,13 @@ class FrameRecognizer(
         if (candidates.isEmpty()) return null
         val region = artRegion(sorted, 0) ?: looseArtRegion(sorted) ?: return null
         val photo = art.signature(region.left, region.top, region.right, region.bottom) ?: return null
+        // Por carta, no por nombre leído: "Adarkar Unicorn" y "Unicornio de Adarkar" son la misma
+        // y no compiten entre sí (si no, la segunda empataría con la primera y no decidiría).
         val scored = candidates.map { m ->
             val ids = wholeCardNames(m).flatMap(printingsOf).mapNotNull { it.artId }.distinct()
             m to (ids.mapNotNull { id -> artOf(id)?.let(photo::similarity) }.maxOrNull() ?: -1.0)
-        }.sortedByDescending { it.second }
+        }.groupBy { wholeCardNames(it.first).sorted() }.map { (_, ms) -> ms.maxBy { it.second } }
+            .sortedByDescending { it.second }
         artDebug = "nombre_por_ilustracion " + scored.take(4).joinToString(" ") {
             "${it.first.names.first()}:${it.second.fixed(2)}"
         }
@@ -573,15 +680,27 @@ class FrameRecognizer(
         val clear = sim - second >= SEARCHED_ART_MARGIN || (sim >= SEARCHED_ART_HIGH && sim - second >= SEARCHED_ART_HIGH_MARGIN)
         if (sim < SEARCHED_ART_MIN || !clear) return null
         val m = names.match(name)?.takeIf { it.distance == 0 } ?: return null
+        searchedArtSimilarity = sim
         return Triple(m, artId, typeIndex ?: 0)
     }
 
-    /** Línea de tipo leída con algún error más de lo normal ("Laud", "Encanemiento"). */
+    /**
+     * Línea de tipo leída con algún error más de lo normal ("Laud", "Encanemiento"; en las
+     * cartas blancas, con el tipo claro sobre fondo claro: "Encharit", "Erncartar",
+     * "Encantarrniento", con "rn" por "m").
+     */
     private fun isLooseTypeLine(line: OcrLine): Boolean {
-        val first = NameMatcher.normalize(line.words.firstOrNull() ?: return false)
-        if (line.words.size == 1 && first.length == 4 && NameMatcher.boundedLevenshtein(first, "land", 1) <= 1) return true
-        return TYPE_WORDS.any { t ->
-            first == t || (t.length >= 6 && NameMatcher.boundedLevenshtein(first, t, if (t.length >= 10) 2 else 1) <= if (t.length >= 10) 2 else 1)
+        val raw = NameMatcher.normalize(line.words.firstOrNull() ?: return false)
+        if (line.words.size == 1 && raw.length == 4 && NameMatcher.boundedLevenshtein(raw, "land", 1) <= 1) return true
+        return listOf(raw, raw.replace("rn", "m")).distinct().any { first ->
+            TYPE_WORDS.any { t ->
+                val max = when {
+                    t.length >= 7 -> 2
+                    t.length >= 6 -> 1
+                    else -> 0
+                }
+                first == t || (max > 0 && NameMatcher.boundedLevenshtein(first, t, max) <= max)
+            }
         }
     }
 
@@ -644,7 +763,10 @@ class FrameRecognizer(
             // "Retira del juego..." no es "Retirar" (Withdraw), ni "Flying" es "Fling".
             if (i > 0 && isRulesLine(sorted[i])) return i
             // Una línea que empieza en minúscula sigue una frase: "either. Tap to add..." no es "Ether".
-            if (i > 0 && sorted[i].text.firstOrNull()?.isLowerCase() == true) return i
+            // Salvo justo encima de la línea de tipo: ahí está el nombre ("bill Gíant" / "Summon Giant").
+            if (i > 0 && sorted[i].text.firstOrNull()?.isLowerCase() == true &&
+                sorted.getOrNull(i + 1)?.let { isTypeLine(it, TYPE_WORDS) } != true
+            ) return i
         }
         return limit
     }
@@ -683,6 +805,13 @@ class FrameRecognizer(
         /** Del texto de reglas al pie de la ilustración, en alturas de línea (salta la de tipo). */
         private const val RULES_TO_ART_LINES = 4f
         private const val ART_MIN_MARGIN = 0.15
+        /**
+         * Un nombre que deja sin explicar tantas letras de la línea se comprueba con la
+         * ilustración (el coste de maná leído como letras suele dejar 1-3), y se cambia por la
+         * carta encontrada buscando la ilustración si esta se parece tanto más.
+         */
+        private const val PARTIAL_NAME_LETTERS = 5
+        private const val PARTIAL_NAME_ART_GAP = 0.3
 
         /**
          * Umbrales de la comparación de símbolos de edición (correlación). Medidos con
@@ -700,20 +829,32 @@ class FrameRecognizer(
         private const val SYMBOL_TWIN = 0.8
         /** Fracción del ancho de la carta que ocupa el texto de reglas. */
         private const val TEXT_WIDTH_FRACTION = 0.84f
-        /** Borde blanco: al menos 3 franjas seguidas (3 % del ancho) claras y sin color. */
-        private const val WHITE_BORDER_LUM = 195
-        private const val WHITE_BORDER_SAT = 45
-        private const val WHITE_BORDER_RUN = 3
-        /** El borde blanco se busca en las 14 primeras franjas (de 10 % fuera a 4 % dentro). */
-        private const val WHITE_BORDER_ZONE_BINS = 14
         /**
-         * Negro: en las 12 primeras franjas (de 10 % fuera a 2 % dentro) nada pasa de esta
-         * luminancia. Con las fotos del móvil (256 cartas): confirma 153 de 170 bordes negros
-         * y toma por negro 3 de 86 blancos; el blanco se detecta en 83 de 86 y se ve donde no
-         * está en 1 de 170.
+         * El borde es una meseta: al menos 3 franjas seguidas (3 % del ancho) que no varían más
+         * de [BORDER_FLAT] de luminancia, sin color, buscada entre las franjas 3 y 16 (de 7 %
+         * fuera a 6 % dentro). Medido con 546 cartas de las fotos del móvil (etiquetadas a mano):
+         * decide 454 y se equivoca en 4; con 1228 simuladas, decide 823 y se equivoca en 20.
+         * (La regla anterior, con umbrales fijos, fallaba en 28 de las del móvil: tomaba un
+         * mantel claro por borde blanco y un borde blanco con poca luz por negro.)
          */
-        private const val BLACK_BORDER_ZONE_BINS = 12
-        private const val BLACK_BORDER_MAX_LUM = 170
+        private const val BORDER_FIRST_BIN = 3
+        private const val BORDER_LAST_BIN = 16
+        private const val BORDER_RUN = 3
+        private const val BORDER_FLAT = 6
+        private const val BORDER_MAX_SAT = 60
+        /** Negra: así de oscura y al menos [BLACK_BORDER_CONTRAST] más que lo de fuera. */
+        private const val BLACK_BORDER_MAX_LUM = 90
+        private const val BLACK_BORDER_CONTRAST = 20
+        /** Blanca: así de clara y al menos [WHITE_BORDER_CONTRAST] más que lo de fuera y que el marco. */
+        private const val WHITE_BORDER_MIN_LUM = 120
+        private const val WHITE_BORDER_CONTRAST = 30
+        /**
+         * Pista débil de borde negro cuando no hay meseta: en las 12 primeras franjas (de 10 %
+         * fuera a 2 % dentro) nada pasa de esta luminancia. Con la meseta antes, en las fotos del
+         * móvil decide 515 de 546 y falla 17 (sin ella, 454 y 4).
+         */
+        private const val WEAK_BLACK_ZONE_BINS = 12
+        private const val WEAK_BLACK_MAX_LUM = 170
 
         /**
          * Dónde está la ilustración en la foto: entre el nombre y la línea de tipo,
@@ -832,6 +973,22 @@ class FrameRecognizer(
         private const val FUZZY_TYPE_WORD_MIN = 10
 
         /** Idiomas de cada palabra de tipo, el más común primero (inglés, español, francés...). */
+        /**
+         * Palabras frecuentes en el texto de reglas que son de un solo idioma (normalizadas: sin
+         * tildes). Se dejan fuera las compartidas: "de", "la", "que", "del", "con", "no", "se"...
+         */
+        private val BODY_WORD_LANGS: Map<String, String> = buildMap {
+            // Cada palabra, de un solo idioma: repetida, la segunda pisaría a la primera.
+            fun add(lang: String, words: String) = words.split(' ').forEach { check(put(it, lang) == null) { it } }
+            add("en", "the of and to target until end your you each player damage play creatures")
+            add("es", "el los las hasta jugador puntos juego mano puedes roba mientras cualquier sus otra")
+            add("pt", "do da dos nao ate uma um jogador voce seu alvo ao pontos mao jogo")
+            add("it", "il di della delle dello fino giocatore danni danno bersaglio gioco ogni alla nel puoi")
+            add("fr", "les des une et jusqu joueur cible vous degats votre chaque carte tour sur")
+            add("de", "der die und eine einen bis zum kreatur spieler schaden karte deine wenn ist")
+        }
+        private const val BODY_LANGUAGE_MIN = 3
+
         private val TYPE_WORD_LANGS: Map<String, List<String>> =
             TYPE_WORD_LANGUAGES.groupBy({ it.first }, { it.second }).mapValues { it.value.distinct() }
 
@@ -987,8 +1144,9 @@ class FrameRecognizer(
          * "Illus. © Douglas Shuler", leído "IIus. ODouglas", "Ius. O-Mark", "Iis, �-Ron", "Ilus, © Margaret":
          * una palabra tipo "Illus" seguida de ©, �, o una O pegada o suelta ante el nombre.
          */
-        // También sin la primera letra o con ella mal leída: "us. ODouglas", "flus. Brian".
-        private val ARTIST_COPYRIGHT = Regex("^\\W{0,2}(?:[IlLT1|f][a-zA-Z|]{0,4}|[a-z]{2,3}(?=\\.))[.,]?\\s*(?:[©�]|O(?=-|\\s*[A-Z]))")
+        // También sin la primera letra o con ella mal leída: "us. ODouglas", "flus. Brian"; y el ©
+        // leído como "O" más una letra pegada al nombre: "IIfus. OrAnson" (no "Omaha Perez").
+        private val ARTIST_COPYRIGHT = Regex("^\\W{0,2}(?:[IlLT1|f][a-zA-Z|]{0,4}|[a-z]{2,3}(?=\\.))[.,]?\\s*(?:[©�]|O(?=-|\\s*[A-Z])|O[a-z](?=[A-Z]))")
 
         private val SLASH_NUMBER = Regex("(\\d{1,4})\\s*/\\s*(\\d{1,4})")
         private val YEAR = Regex("(?<!\\d)(199[3-9]|20[0-4]\\d)(?!\\d)")

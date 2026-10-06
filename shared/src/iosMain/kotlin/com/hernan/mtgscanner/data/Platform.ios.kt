@@ -39,6 +39,23 @@ actual class ConcurrentCache<K : Any, V : Any> actual constructor() {
             lock.unlock()
         }
     }
+    actual fun size(): Int {
+        lock.lock()
+        try {
+            return map.size
+        } finally {
+            lock.unlock()
+        }
+    }
+
+    actual fun clear() {
+        lock.lock()
+        try {
+            map.clear()
+        } finally {
+            lock.unlock()
+        }
+    }
 }
 
 actual fun nowMillis(): Long = (NSDate().timeIntervalSince1970 * 1000).toLong()

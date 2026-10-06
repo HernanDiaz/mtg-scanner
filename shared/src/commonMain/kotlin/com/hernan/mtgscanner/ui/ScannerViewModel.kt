@@ -46,6 +46,8 @@ data class ScannerUi(
     val decks: List<CollectionStore.Deck> = emptyList(),
     /** Fotos de prueba guardadas (con el modo de prueba activado). */
     val testPhotoCount: Int = 0,
+    /** Con el modo de prueba: cuánto tarda cada fotograma, "OCR 420 ms · reconocer 180 ms". */
+    val timing: String? = null,
 )
 
 /**
@@ -111,6 +113,25 @@ class ScannerViewModel(private val app: AppServices) : ViewModel() {
         withContext(Dispatchers.IO) { runCatching { CardDetails.fetch(id) }.getOrNull() }
 
     // ------------------------------------------------------------------ fotos de prueba
+
+    private var ocrMsAvg = 0.0
+    private var recognizeMsAvg = 0.0
+
+    /**
+     * Lo que tardó el último fotograma: el OCR (con la preparación de la imagen) y el
+     * reconocimiento. Con el modo de prueba se muestra la media en el escáner, para ver
+     * en cada móvil qué parte es la lenta.
+     */
+    fun reportTiming(ocrMs: Long, recognizeMs: Long) {
+        if (!settings.testPhotos.value) {
+            if (_ui.value.timing != null) _ui.update { it.copy(timing = null) }
+            return
+        }
+        ocrMsAvg = if (ocrMsAvg == 0.0) ocrMs.toDouble() else 0.8 * ocrMsAvg + 0.2 * ocrMs
+        recognizeMsAvg = if (recognizeMsAvg == 0.0) recognizeMs.toDouble() else 0.8 * recognizeMsAvg + 0.2 * recognizeMs
+        val text = "OCR ${ocrMsAvg.toInt()} ms · reconocer ${recognizeMsAvg.toInt()} ms"
+        if (text != _ui.value.timing) _ui.update { it.copy(timing = text) }
+    }
 
     /** Guarda el próximo fotograma aunque no se reconozca la carta. */
     fun captureFrame() { captureNext = true }

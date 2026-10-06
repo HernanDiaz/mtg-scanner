@@ -52,6 +52,7 @@ import platform.darwin.NSObject
 import platform.darwin.dispatch_async
 import platform.darwin.dispatch_get_main_queue
 import platform.darwin.dispatch_queue_create
+import kotlin.time.TimeSource
 
 @Composable
 actual fun CameraView(vm: ScannerViewModel, recognizer: FrameRecognizer, torch: Boolean) {
@@ -143,6 +144,7 @@ private class IosCamera(private val vm: ScannerViewModel, private val recognizer
 
     private inner class FrameDelegate : NSObject(), AVCaptureVideoDataOutputSampleBufferDelegateProtocol {
         override fun captureOutput(output: AVCaptureOutput, didOutputSampleBuffer: CMSampleBufferRef?, fromConnection: AVCaptureConnection) {
+            val started = TimeSource.Monotonic.markNow()
             val pixels = CMSampleBufferGetImageBuffer(didOutputSampleBuffer) ?: return
             // El sensor da la imagen apaisada: se gira a vertical (kCGImagePropertyOrientationRight).
             val ci = CIImage.imageWithCVPixelBuffer(pixels).imageByApplyingOrientation(ORIENTATION_RIGHT)
@@ -150,8 +152,10 @@ private class IosCamera(private val vm: ScannerViewModel, private val recognizer
             try {
                 val image = PreparedImage.from(cg)
                 var lines = recognizeText(cg, image.width, image.height)
+                val ocrDone = TimeSource.Monotonic.markNow()
                 vm.viewSize?.let { (w, h) -> lines = GuideRegion.filter(lines, GuideRegion.inImage(w, h, image.width, image.height)) }
                 val result = recognizer.recognize(lines, image)
+                vm.reportTiming((ocrDone - started).inWholeMilliseconds, ocrDone.elapsedNow().inWholeMilliseconds)
                 vm.onFrame(result, lines.minByOrNull { it.top }?.text) { image.frame() }
             } finally {
                 CGImageRelease(cg)

@@ -68,6 +68,28 @@ private fun line(text: String, top: Int, left: Int = 10, right: Int = left + 200
 class NameMatcherTest {
     @Test fun exactMatch() = assertEquals(listOf("Lightning Bolt"), MATCHER.match("Lightning Bolt")!!.names)
 
+    /** La distancia por banda y con filas reutilizadas da lo mismo que la tabla entera. */
+    @Test fun bandedLevenshteinMatchesTheFullOne() {
+        fun full(a: String, b: String): Int {
+            val d = Array(a.length + 1) { i -> IntArray(b.length + 1) { j -> if (i == 0) j else if (j == 0) i else 0 } }
+            for (i in 1..a.length) for (j in 1..b.length) {
+                d[i][j] = minOf(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + if (a[i - 1] == b[j - 1]) 0 else 1)
+            }
+            return d[a.length][b.length]
+        }
+        val rnd = kotlin.random.Random(7)
+        val rowA = IntArray(40)
+        val rowB = IntArray(40)
+        repeat(5000) {
+            val a = String(CharArray(rnd.nextInt(0, 14)) { "abcde"[rnd.nextInt(5)] })
+            val b = String(CharArray(rnd.nextInt(0, 14)) { "abcde"[rnd.nextInt(5)] })
+            val max = rnd.nextInt(0, 6)
+            val expected = full(a, b).let { if (it > max) max + 1 else it }
+            assertEquals(expected, NameMatcher.boundedLevenshtein(a, b, max), "$a / $b / $max")
+            assertEquals(expected, NameMatcher.boundedLevenshtein(a, b, max, rowA, rowB), "$a / $b / $max (filas reutilizadas)")
+        }
+    }
+
     @Test fun toleratesOcrErrors() {
         val m = MATCHER.match("Lightnlng Bo1t")!!
         assertEquals(listOf("Lightning Bolt"), m.names)
@@ -306,6 +328,59 @@ class FrameRecognizerTest {
         assertEquals("it", r.recognize(listOf(line("Montagna", 50), line("Terra Base - Montagna", 500)))!!.lang)
     }
 
+    /**
+     * Un nombre que es igual en portugués y en español, con la línea de tipo mal leída
+     * ("Iyocar"): decide el texto de reglas. Y un nombre igual que en inglés, también.
+     */
+    @Test fun languageFromRulesTextWhenNameAndTypeDoNotDecide() {
+        val r = FrameRecognizer(
+            NameMatcher(listOf("alquimistasamita" to "Samite Alchemist", "alibaba" to "Ali Baba")), SETS,
+            printingsOf = { PRINTINGS["Shock"].orEmpty() },
+            nameLanguages = { mapOf("alquimistasamita" to listOf("pt", "es"))[it] },
+        )
+        val spanish = listOf(
+            line("Aleuinnista Samir", 50), line("Iyocar alqrurirriista", 500),
+            line("Previene hasta 4 puntos de", 540), line("dano a una criatura que tu contro-", 570),
+            line("las. Gira esa criatura. La criatura", 600), line("no se endereza durante tu próxima", 630),
+        )
+        assertEquals("es", r.recognize(spanish)!!.lang)
+        val aliBaba = listOf(
+            line("Ali Baba", 50), line("Invoear Ali Baba", 500),
+            line("Gira el muro objetivo.", 540), line("«Cuando llegó a la entrada de la", 570),
+            line("caverna, pronunció las palabras", 600), line("mágicas: ¡Ábrete, Sésamo!» Las Mil y Una Noches", 630),
+        )
+        assertEquals("es", r.recognize(aliBaba)!!.lang)
+        val english = listOf(
+            line("Ali Baba", 50), line("Summon Ali Baba", 500),
+            line("Tap target wall.", 540), line("Until end of turn, the player", 570),
+        )
+        assertEquals("en", r.recognize(english)!!.lang)
+    }
+
+    /**
+     * El nombre partido en dos líneas no es su última palabra ("pantano" sola es Swamp); y el
+     * nombre de otra carta asomando por encima no tapa el de esta, exacto sobre su línea de tipo.
+     */
+    @Test fun nameOverTwoLinesAndNeighbourCardAbove() {
+        val r = FrameRecognizer(
+            NameMatcher(listOf(
+                "viboradepantano" to "Marsh Viper", "pantano" to "Swamp",
+                "alibaba" to "Ali Baba", "comercianteenano" to "Dwarven Trader",
+            )), SETS,
+            printingsOf = { listOf(card(it, "4ed", "1", "1995-04-01", eur = 0.1, setSize = null)) },
+        )
+        val viper = listOf(
+            line("Víbora de", 50), line("pantano", 80), line("Invocar vibora", 500),
+            line("Si la Vibora de pantano daña al oponente, éste", 540),
+        )
+        assertEquals("Marsh Viper", r.recognize(viper)!!.name)
+        val trader = listOf(
+            line("Hlí Babá", 20), line("Comerciante enano", 60), line("Invocar enano", 500),
+            line("«No venderian a sus familias...", 540),
+        )
+        assertEquals("Dwarven Trader", r.recognize(trader)!!.name)
+    }
+
     /** Revised lleva "Illus. ©" y ninguna línea de Wizards; 4ª edición, "© 1995 Wizards of the Coast". */
     @Test fun revisedAndFourthEditionByTheirFooter() {
         val drain = listOf(
@@ -316,6 +391,8 @@ class FrameRecognizerTest {
             FrameRecognizer.resolve(drain, FrameRecognizer.parseCollector(footer.mapIndexed { i, t -> line(t, 900 + 20 * i) }, SETS)).first.setCode
         assertEquals("3ed", pick("toughness.", "IIus. ODouglas Shuler"))
         assertEquals("3ed", pick("Iis, �-Ron Spencer"))
+        assertEquals("3ed", pick("IIfus. OrAnson Maddocks"))
+        assertEquals("4ed", pick("Illus. Omaha Perez")) // un ilustrador que empieza por O no es el ©
         assertEquals("4ed", pick("Illus. Douglas Shuler", "1995 Wzrds of the Coastr Idg Todos loderechos"))
         assertEquals("4ed", pick("Illus. Douglas Shuler")) // sin pistas: la más barata
     }
@@ -344,6 +421,25 @@ class FrameRecognizerTest {
         assertEquals("3ed", revised.printing.setCode)
         assertFalse(revised.exact)
         assertEquals("leb", r.recognize(lines, sampler(white = false))!!.printing.setCode)
+
+        // Mantel de cuadros claro (no es borde blanco: no es liso) y borde negro.
+        val tablecloth = com.hernan.mtgscanner.scan.ArtSampler { x, _ ->
+            when {
+                x < 62 -> if ((x / 3) % 2 == 0) 0xE8E4E0 else 0xC84040
+                x < 81 -> 0x262626
+                else -> 0x787878
+            }
+        }
+        assertEquals("leb", r.recognize(lines, tablecloth)!!.printing.setCode)
+        // Poca luz: el borde blanco se ve gris (no llega a blanco), pero más claro que la mesa y el marco.
+        val dim = com.hernan.mtgscanner.scan.ArtSampler { x, _ ->
+            when {
+                x < 62 -> 0x50463C
+                x < 81 -> 0x8C8C8C
+                else -> 0x464646
+            }
+        }
+        assertEquals("3ed", r.recognize(lines, dim)!!.printing.setCode)
     }
 
     /** "Braingeyser" es la carta de Beta, no la cara de "Dirgur Focusmage // Braingeyser". */

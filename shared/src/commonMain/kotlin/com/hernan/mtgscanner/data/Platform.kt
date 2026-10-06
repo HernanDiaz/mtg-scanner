@@ -10,6 +10,8 @@ expect fun nfkd(s: String): String
 expect class ConcurrentCache<K : Any, V : Any>() {
     fun getOrPut(key: K, compute: () -> V): V
     fun getIfPresent(key: K): V?
+    fun size(): Int
+    fun clear()
 }
 
 /** "1.50": número con [decimals] decimales y punto, sin depender del idioma del móvil. */

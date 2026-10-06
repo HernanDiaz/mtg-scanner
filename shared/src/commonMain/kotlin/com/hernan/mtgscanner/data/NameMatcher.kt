@@ -90,14 +90,25 @@ class NameMatcher(entries: List<Pair<String, String>>) {
      * distancia, el de longitud más parecida: el OCR suele cambiar una letra por otra
      * ("Ierror" es "Terror", no "Error").
      */
-    private fun nearest(q: String, maxDist: Int, keep: Int = 1): List<Pair<String, Int>> {
+    private fun nearest(q: String, maxDist: Int, keep: Int = 1): List<Pair<String, Int>> =
+        // Con la carta quieta el OCR lee lo mismo fotograma tras fotograma: se recuerda.
+        recent.getOrPut("$q|$maxDist|$keep") {
+            if (recent.size() > RECENT_MAX) recent.clear()
+            nearestUncached(q, maxDist, keep)
+        }
+
+    private val recent = ConcurrentCache<String, List<Pair<String, Int>>>()
+
+    private fun nearestUncached(q: String, maxDist: Int, keep: Int): List<Pair<String, Int>> {
         val best = ArrayList<Pair<String, Int>>(keep + 1)
         var limit = maxDist
         val lo = maxOf(0, q.length - maxDist)
         val hi = minOf(byLength.size - 1, q.length + maxDist)
+        val rowA = IntArray(hi + 1)
+        val rowB = IntArray(hi + 1)
         for (len in lo..hi) {
             for (cand in byLength[len]) {
-                val d = boundedLevenshtein(q, cand, limit)
+                val d = boundedLevenshtein(q, cand, limit, rowA, rowB)
                 if (d > limit) continue
                 best.add(cand to d)
                 best.sortWith(compareBy({ it.second }, { kotlin.math.abs(it.first.length - q.length) }))
@@ -125,6 +136,8 @@ class NameMatcher(entries: List<Pair<String, String>>) {
 
     companion object {
         private const val SHORT_NAME = 4
+        /** Búsquedas recordadas: de sobra para las líneas de unos cuantos fotogramas. */
+        private const val RECENT_MAX = 2000
 
         /** Debe coincidir con norm_name() de tools/build_catalog.py. */
         fun normalize(s: String): String {
@@ -137,23 +150,44 @@ class NameMatcher(entries: List<Pair<String, String>>) {
             return sb.toString()
         }
 
-        /** Levenshtein que abandona en cuanto supera [max]; devuelve max+1 en ese caso. */
-        fun boundedLevenshtein(a: String, b: String, max: Int): Int {
+        /**
+         * Levenshtein que abandona en cuanto supera [max]; devuelve max+1 en ese caso. Solo
+         * calcula la banda |i - j| <= max (fuera de ella la distancia ya pasa de [max]) y no crea
+         * nada por llamada si se le dan las filas ([rowA], [rowB], de al menos b.length + 1): se
+         * llama cientos de miles de veces por fotograma, y en el iPhone (Kotlin/Native) crear dos
+         * arrays cada vez era lo que más tardaba.
+         */
+        fun boundedLevenshtein(
+            a: String, b: String, max: Int,
+            rowA: IntArray = IntArray(b.length + 1), rowB: IntArray = IntArray(b.length + 1),
+        ): Int {
             if (max < 0 || kotlin.math.abs(a.length - b.length) > max) return max + 1
-            var prev = IntArray(b.length + 1) { it }
-            var cur = IntArray(b.length + 1)
+            val over = max + 1
+            var prev = rowA
+            var cur = rowB
+            for (j in 0..b.length) prev[j] = if (j <= max) j else over
             for (i in 1..a.length) {
-                cur[0] = i
-                var rowMin = cur[0]
-                for (j in 1..b.length) {
-                    val cost = if (a[i - 1] == b[j - 1]) 0 else 1
-                    cur[j] = minOf(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost)
-                    if (cur[j] < rowMin) rowMin = cur[j]
+                val from = maxOf(1, i - max)
+                val to = minOf(b.length, i + max)
+                cur[from - 1] = if (from == 1) minOf(i, over) else over
+                var rowMin = cur[from - 1]
+                val ai = a[i - 1]
+                for (j in from..to) {
+                    val cost = if (ai == b[j - 1]) 0 else 1
+                    var v = prev[j - 1] + cost
+                    val del = prev[j] + 1
+                    if (del < v) v = del
+                    val ins = cur[j - 1] + 1
+                    if (ins < v) v = ins
+                    if (v > over) v = over
+                    cur[j] = v
+                    if (v < rowMin) rowMin = v
                 }
-                if (rowMin > max) return max + 1
+                if (to < b.length) cur[to + 1] = over
+                if (rowMin > max) return over
                 val t = prev; prev = cur; cur = t
             }
-            return if (prev[b.length] > max) max + 1 else prev[b.length]
+            return if (prev[b.length] > max) over else prev[b.length]
         }
     }
 }

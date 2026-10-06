@@ -9,6 +9,8 @@ actual class ConcurrentCache<K : Any, V : Any> actual constructor() {
     private val map = ConcurrentHashMap<K, V>()
     actual fun getOrPut(key: K, compute: () -> V): V = map.getOrPut(key, compute)
     actual fun getIfPresent(key: K): V? = map[key]
+    actual fun size(): Int = map.size
+    actual fun clear() = map.clear()
 }
 
 actual fun nowMillis(): Long = System.currentTimeMillis()

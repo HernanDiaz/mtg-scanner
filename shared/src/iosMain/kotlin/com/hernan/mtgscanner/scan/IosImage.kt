@@ -14,6 +14,7 @@ import platform.CoreGraphics.CGImageGetHeight
 import platform.CoreGraphics.CGImageGetWidth
 import platform.CoreGraphics.CGImageRef
 import platform.CoreGraphics.CGImageRelease
+import platform.CoreGraphics.CGImageRetain
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGSizeMake
 import platform.Foundation.NSData
@@ -30,6 +31,8 @@ import platform.posix.memcpy
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.experimental.ExperimentalNativeApi
+import kotlin.native.ref.createCleaner
 
 /**
  * Una imagen derecha lista para reconocer ([cgImage], para Vision) y sus píxeles para el
@@ -47,8 +50,12 @@ class PreparedImage(val cgImage: CGImageRef, val width: Int, val height: Int) : 
         return ((p[i].toInt() and 0xFF) shl 16) or ((p[i + 1].toInt() and 0xFF) shl 8) or (p[i + 2].toInt() and 0xFF)
     }
 
-    /** Copia del fotograma que sigue valiendo después (para guardarlo como foto). */
-    fun frame(): ScanFrame = IosFrame(pixels.copyOf(), width, height)
+    /**
+     * El fotograma, que sigue valiendo después (para guardarlo como foto). Retiene la imagen en
+     * vez de copiar sus píxeles: con las fotos de cartas activadas se pide en cada fotograma
+     * leído y copiar 8 MB cada vez frenaba el escáner; el JPEG solo se hace si se guarda.
+     */
+    fun frame(): ScanFrame = CgFrame(cgImage, width, height)
 
     companion object {
         /** Igual que las evaluaciones de Android (fitTo(1920)). */
@@ -85,33 +92,28 @@ class PreparedImage(val cgImage: CGImageRef, val width: Int, val height: Int) : 
     }
 }
 
-/** Un fotograma de iPhone (píxeles RGBA) para guardarlo como foto. */
-class IosFrame(private val pixels: ByteArray, override val width: Int, override val height: Int) : ScanFrame {
+/**
+ * Un fotograma de iPhone para guardarlo como foto: la imagen retenida, que se suelta cuando
+ * este objeto deja de usarse.
+ */
+@OptIn(ExperimentalNativeApi::class)
+class CgFrame(cgImage: CGImageRef, override val width: Int, override val height: Int) : ScanFrame {
+    private val cg: CGImageRef = CGImageRetain(cgImage)!!
+    @Suppress("unused") // existe para soltar la imagen
+    private val cleaner = createCleaner(cg) { CGImageRelease(it) }
 
     override fun jpeg(maxSide: Int, quality: Int): ByteArray {
-        val space = CGColorSpaceCreateDeviceRGB()
-        val cg = pixels.usePinned { pin ->
-            val ctx = CGBitmapContextCreate(pin.addressOf(0), width.toULong(), height.toULong(), 8u, (width * 4).toULong(), space,
-                CGImageAlphaInfo.kCGImageAlphaNoneSkipLast.value)
-            CGBitmapContextCreateImage(ctx).also { CGContextRelease(ctx) }
+        var image = UIImage.imageWithCGImage(cg)
+        val side = max(width, height)
+        if (side > maxSide) {
+            val k = maxSide.toDouble() / side
+            val w = width * k
+            val h = height * k
+            val format = UIGraphicsImageRendererFormat.defaultFormat().apply { scale = 1.0 }
+            image = UIGraphicsImageRenderer(size = CGSizeMake(w, h), format = format)
+                .imageWithActions { _ -> image.drawInRect(CGRectMake(0.0, 0.0, w, h)) }
         }
-        CGColorSpaceRelease(space)
-        cg ?: return ByteArray(0)
-        try {
-            var image = UIImage.imageWithCGImage(cg)
-            val side = max(width, height)
-            if (side > maxSide) {
-                val k = maxSide.toDouble() / side
-                val w = width * k
-                val h = height * k
-                val format = UIGraphicsImageRendererFormat.defaultFormat().apply { scale = 1.0 }
-                image = UIGraphicsImageRenderer(size = CGSizeMake(w, h), format = format)
-                    .imageWithActions { _ -> image.drawInRect(CGRectMake(0.0, 0.0, w, h)) }
-            }
-            return UIImageJPEGRepresentation(image, quality / 100.0)?.toByteArray() ?: ByteArray(0)
-        } finally {
-            CGImageRelease(cg)
-        }
+        return UIImageJPEGRepresentation(image, quality / 100.0)?.toByteArray() ?: ByteArray(0)
     }
 }
 
