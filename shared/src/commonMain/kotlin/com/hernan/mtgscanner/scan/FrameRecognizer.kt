@@ -143,7 +143,7 @@ class FrameRecognizer(
             // Solo la línea superior: en el texto de reglas daría falsos positivos
             // ("be regenerated" -> "Regenerate").
             found = names.matchRelaxed(sorted[0].text) ?: basicLand(sorted, zone)
-                ?: art?.let { nameByArt(sorted, it) }
+                ?: nameInRulesText(sorted, zone) ?: art?.let { nameByArt(sorted, it) }
             nameIndex = 0
         }
         // Nombre ilegible del todo (las duales de Beta: blanco sobre gris): la ilustración
@@ -645,6 +645,24 @@ class FrameRecognizer(
     }
 
     /**
+     * Título muy mal leído ("tareblast", "Merscinc", "HbadesaL"): las cartas antiguas se nombran
+     * a sí mismas en el texto ("Fireblast deals 4 damage", "las abadesas son..."). Entre los
+     * nombres más parecidos al título, el único que aparece escrito tal cual en el texto.
+     */
+    private fun nameInRulesText(sorted: List<OcrLine>, zone: Int): NameMatcher.Match? {
+        val body = NameMatcher.normalize(sorted.drop(zone).joinToString(" ") { it.text })
+        if (body.length < RULES_NAME_MIN) return null
+        val hits = sorted.take(minOf(zone, 2)).flatMap { line ->
+            val words = line.words
+            // La línea entera y sin la última palabra (el coste de maná leído como letras).
+            (listOf(line.text) + if (words.size > 1) listOf(words.dropLast(1).joinToString(" ")) else emptyList())
+                .flatMap { names.closest(it, RULES_NAME_CANDIDATES) }
+        }.filter { it.key.length >= RULES_NAME_MIN && it.key in body }
+            .distinctBy { wholeCardNames(it).sorted() }
+        return hits.singleOrNull()
+    }
+
+    /**
      * Sin ningún nombre leído: la línea de tipo ("Land", "Encantamiento") entre las primeras,
      * con texto debajo; la ilustración es el recuadro de encima, tan ancho como el texto.
      * Se busca en todas las ilustraciones del catálogo y solo vale si una carta destaca
@@ -811,6 +829,9 @@ class FrameRecognizer(
          * carta encontrada buscando la ilustración si esta se parece tanto más.
          */
         private const val PARTIAL_NAME_LETTERS = 5
+        /** Nombre buscado en el texto de reglas: candidatos y letras mínimas (ni "Fog" ni "Shock"). */
+        private const val RULES_NAME_CANDIDATES = 8
+        private const val RULES_NAME_MIN = 6
         private const val PARTIAL_NAME_ART_GAP = 0.3
 
         /**

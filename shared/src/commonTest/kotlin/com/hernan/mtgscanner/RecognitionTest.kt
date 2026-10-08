@@ -381,6 +381,23 @@ class FrameRecognizerTest {
         assertEquals("Dwarven Trader", r.recognize(trader)!!.name)
     }
 
+    /** Título ilegible, pero la carta se nombra en su texto: "Fireblast deals 4 damage". */
+    @Test fun nameFoundInRulesText() {
+        val r = FrameRecognizer(
+            NameMatcher(listOf("fireblast" to "Fireblast", "firebolt" to "Firebolt", "tarmogoyf" to "Tarmogoyf")), SETS,
+            printingsOf = { listOf(card(it, "vis", "79", "1997-02-03", eur = 1.0, setSize = null)) },
+        )
+        val lines = listOf(
+            line("taveblazt", 50), line("Instant", 500),
+            line("You may sacrifice two mountains instead", 540),
+            line("of paying Fireblast's casting cost.", 570),
+            line("Fireblast deals 4 damage to target", 600),
+        )
+        assertEquals("Fireblast", r.recognize(lines)!!.name)
+        // Sin el nombre en el texto, no se inventa nada.
+        assertNull(r.recognize(lines.take(3)))
+    }
+
     /** Revised lleva "Illus. ©" y ninguna línea de Wizards; 4ª edición, "© 1995 Wizards of the Coast". */
     @Test fun revisedAndFourthEditionByTheirFooter() {
         val drain = listOf(
