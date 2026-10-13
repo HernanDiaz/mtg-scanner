@@ -29,7 +29,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -156,7 +155,7 @@ private fun DeckCheckDialog(vm: WishlistViewModel, currency: Currency, onDismiss
                 val r = result
                 if (r == null) {
                     Text(stringResource(Res.string.check_deck_help), style = MaterialTheme.typography.bodySmall)
-                    OutlinedTextField(
+                    TextInput(
                         value = text, onValueChange = { text = it },
                         placeholder = { Text("4 Lightning Bolt\n4 Counterspell (EMA) 43\n1 Sol Ring") },
                         modifier = Modifier.fillMaxWidth().weight(1f).padding(vertical = 8.dp),

@@ -55,7 +55,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -287,7 +286,7 @@ fun CollectionScreen(vm: CollectionViewModel = LocalServices.current.let { s -> 
                 // llega un instante después), en iPhone el cursor volvería atrás al escribir
                 // ("sandra" -> "andras").
                 var query by remember { mutableStateOf(ui.filter.query) }
-                OutlinedTextField(
+                TextInput(
                     value = query, onValueChange = { query = it; vm.setQuery(it) }, singleLine = true,
                     placeholder = { Text(stringResource(Res.string.search_collection)) },
                     leadingIcon = { Icon(Icons.Default.Search, null) },
@@ -796,7 +795,7 @@ private fun MoveManyDialog(
                         HorizontalDivider()
                     }
                 }
-                OutlinedTextField(
+                TextInput(
                     value = newName, onValueChange = { newName = it }, singleLine = true,
                     label = { Text(stringResource(Res.string.or_to_new_deck)) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 )
@@ -847,7 +846,7 @@ private fun MoveToDeckDialog(
                         HorizontalDivider()
                     }
                 }
-                OutlinedTextField(
+                TextInput(
                     value = newName, onValueChange = { newName = it }, singleLine = true,
                     label = { Text(stringResource(Res.string.or_to_new_deck)) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 )
@@ -867,7 +866,7 @@ private fun DeckNameDialog(title: String, initial: String, onConfirm: (String) -
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            OutlinedTextField(value = name, onValueChange = { name = it }, singleLine = true,
+            TextInput(value = name, onValueChange = { name = it }, singleLine = true,
                 label = { Text(stringResource(Res.string.deck_name)) }, modifier = Modifier.fillMaxWidth())
         },
         confirmButton = { TextButton(onClick = { onConfirm(name) }, enabled = name.isNotBlank()) { Text(stringResource(Res.string.save)) } },
@@ -946,7 +945,7 @@ private fun PrintingPicker(
                         FilterChip(selected = lang == code, onClick = { onLangChange(code) }, label = { Text(stringResource(label)) })
                     }
                 }
-                OutlinedTextField(
+                TextInput(
                     value = query, onValueChange = { query = it }, singleLine = true,
                     placeholder = { Text(stringResource(Res.string.search_edition)) },
                     leadingIcon = { Icon(Icons.Default.Search, null) },
@@ -1046,7 +1045,7 @@ private fun ManualAddDialog(vm: CollectionViewModel, currency: Currency, onDismi
         title = { Text(stringResource(Res.string.add_card)) },
         text = {
             Column {
-                OutlinedTextField(value = query, onValueChange = { query = it }, singleLine = true,
+                TextInput(value = query, onValueChange = { query = it }, singleLine = true,
                     label = { Text(stringResource(Res.string.card_name_hint)) }, modifier = Modifier.fillMaxWidth())
                 LazyColumn(Modifier.heightIn(max = 360.dp)) {
                     items(results) { n ->

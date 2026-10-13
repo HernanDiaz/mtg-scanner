@@ -2,7 +2,6 @@ package com.hernan.mtgscanner.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -154,7 +153,7 @@ private fun ScanDeckDialog(
                     Text((if (d.id == current) "✓ " else "") + stringResource(Res.string.deck_with_count, d.name, d.cards),
                         Modifier.fillMaxWidth().clickable { onPick(d.id) }.padding(vertical = 12.dp))
                 }
-                OutlinedTextField(
+                TextInput(
                     value = newName, onValueChange = { newName = it }, singleLine = true,
                     label = { Text(stringResource(Res.string.or_new_deck)) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 )
