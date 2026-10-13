@@ -310,4 +310,6 @@
     <string name="auto_backup_photos_explain">Фото карт сохраняются во второй файл (zip со списком и фото) и только когда меняются карты или фото. Он может занимать десятки МБ.</string>
     <string name="auto_backup_photos_file">Фото: %1$s</string>
     <string name="auto_backup_photos_last">Последняя копия: %1$s (%2$d фото)</string>
+    <string name="language_menu">Язык…</string>
+    <string name="language_system">Язык телефона</string>
 </resources>

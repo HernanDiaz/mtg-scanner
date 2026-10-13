@@ -295,4 +295,6 @@
     <string name="auto_backup_photos_explain">カードの写真は2つ目のファイル (リストと写真のzip) に入れ、カードか写真が変わったときだけ保存します。数十MBになることがあります。</string>
     <string name="auto_backup_photos_file">写真: %1$s</string>
     <string name="auto_backup_photos_last">前回のコピー: %1$s (%2$d枚)</string>
+    <string name="language_menu">言語…</string>
+    <string name="language_system">端末の言語</string>
 </resources>

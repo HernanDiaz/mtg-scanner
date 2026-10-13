@@ -49,7 +49,7 @@ class IosServices : AppServices {
     }
 
     override val englishExport: Boolean
-        get() = (NSLocale.preferredLanguages.firstOrNull() as? String)?.startsWith("es") != true
+        get() = (settings.appLanguage.value ?: NSLocale.preferredLanguages.firstOrNull() as? String)?.startsWith("es") != true
 
     init {
         // Valor según el estado: la colección lo aplica al calcular totales y filas (como App en Android).

@@ -299,4 +299,6 @@
     <string name="auto_backup_photos_explain">Las fotos van en un segundo fichero (un zip con la lista y las fotos), que solo se guarda cuando cambian las cartas o las fotos. Puede ocupar decenas de MB.</string>
     <string name="auto_backup_photos_file">Fotos: %1$s</string>
     <string name="auto_backup_photos_last">Última copia: %1$s (%2$d fotos)</string>
+    <string name="language_menu">Idioma…</string>
+    <string name="language_system">Idioma del móvil</string>
 </resources>

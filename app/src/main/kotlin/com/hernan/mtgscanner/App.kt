@@ -48,7 +48,7 @@ class App : Application(), SingletonImageLoader.Factory, AppServices {
     override val cardPhotos by lazy { CardPhotos(java.io.File(noBackupFilesDir, "card_photos").path) }
 
     /** Cabeceras del CSV en inglés salvo con la app en español (el importador entiende ambas). */
-    override val englishExport get() = resources.configuration.locales[0].language != "es"
+    override val englishExport get() = (settings.appLanguage.value ?: resources.configuration.locales[0].language) != "es"
 
     override fun onCreate() {
         super.onCreate()

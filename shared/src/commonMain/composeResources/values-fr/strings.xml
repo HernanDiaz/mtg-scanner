@@ -300,4 +300,6 @@
     <string name="auto_backup_photos_explain">Les photos des cartes vont dans un second fichier (un zip avec la liste et les photos), enregistré seulement quand les cartes ou les photos changent. Il peut peser des dizaines de Mo.</string>
     <string name="auto_backup_photos_file">Photos : %1$s</string>
     <string name="auto_backup_photos_last">Dernière copie : %1$s (%2$d photos)</string>
+    <string name="language_menu">Langue…</string>
+    <string name="language_system">Langue du téléphone</string>
 </resources>

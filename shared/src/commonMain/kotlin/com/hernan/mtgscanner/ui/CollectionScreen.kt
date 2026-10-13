@@ -121,6 +121,7 @@ fun CollectionScreen(vm: CollectionViewModel = LocalServices.current.let { s -> 
     var fileMenu by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
     var showConditionPricing by remember { mutableStateOf(false) }
+    var showLanguage by remember { mutableStateOf(false) }
     var showAutoBackup by remember { mutableStateOf(false) }
     var showTestPhotos by remember { mutableStateOf(false) }
     var showCardPhotos by remember { mutableStateOf(false) }
@@ -232,6 +233,10 @@ fun CollectionScreen(vm: CollectionViewModel = LocalServices.current.let { s -> 
                             DropdownMenuItem(
                                 text = { Text(stringResource(Res.string.condition_pricing_menu)) },
                                 onClick = { fileMenu = false; showConditionPricing = true },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(Res.string.language_menu)) },
+                                onClick = { fileMenu = false; showLanguage = true },
                             )
                         }
                     }
@@ -465,6 +470,7 @@ fun CollectionScreen(vm: CollectionViewModel = LocalServices.current.let { s -> 
     if (searching) {
         ManualAddDialog(vm, ui.currency, onDismiss = { searching = false })
     }
+    if (showLanguage) LanguageDialog(onDismiss = { showLanguage = false })
     if (showConditionPricing) {
         ConditionPricingDialog(
             enabled = conditionPricing, factors = conditionFactors,

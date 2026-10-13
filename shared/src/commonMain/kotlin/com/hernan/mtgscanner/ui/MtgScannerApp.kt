@@ -15,7 +15,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -28,9 +30,12 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 fun MtgScannerApp(services: AppServices, scanner: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalServices provides services) {
+    var tab by rememberSaveable { mutableIntStateOf(0) }
+    // Idioma elegido en la app (o el del móvil): al cambiarlo se vuelve a componer todo.
+    val language by services.settings.appLanguage.collectAsState()
+    CompositionLocalProvider(LocalServices provides services, LocalAppLocale provides language) {
+        key(language) {
         MaterialTheme(colorScheme = darkColorScheme()) {
-            var tab by rememberSaveable { mutableIntStateOf(0) }
             Scaffold(
                 bottomBar = {
                     NavigationBar {
@@ -60,6 +65,7 @@ fun MtgScannerApp(services: AppServices, scanner: @Composable () -> Unit) {
                     }
                 }
             }
+        }
         }
     }
 }

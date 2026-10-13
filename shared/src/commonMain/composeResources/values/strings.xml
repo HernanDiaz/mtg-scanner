@@ -302,4 +302,6 @@
     <string name="auto_backup_photos_explain">Card photos go in a second file (a zip with the list and the photos), saved only when cards or photos change. It can take tens of MB.</string>
     <string name="auto_backup_photos_file">Photos: %1$s</string>
     <string name="auto_backup_photos_last">Last copy: %1$s (%2$d photos)</string>
+    <string name="language_menu">Language…</string>
+    <string name="language_system">Phone language</string>
 </resources>

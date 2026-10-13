@@ -33,6 +33,15 @@ class Settings(private val prefs: Prefs = platformPrefs("settings")) {
         _priceKind.value = k
     }
 
+    /** Idioma de la app elegido en ella ("en", "es"...); null = el del móvil. */
+    private val _appLanguage = MutableStateFlow(prefs.getString("app_language", null))
+    val appLanguage: StateFlow<String?> = _appLanguage
+
+    fun setAppLanguage(lang: String?) {
+        prefs.edit().putString("app_language", lang).apply()
+        _appLanguage.value = lang
+    }
+
     /** Modo de prueba: guardar el fotograma de cada carta escaneada ([TestPhotos]). */
     private val _testPhotos = MutableStateFlow(prefs.getBoolean("test_photos", false))
     val testPhotos: StateFlow<Boolean> = _testPhotos

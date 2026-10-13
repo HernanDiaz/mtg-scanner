@@ -295,4 +295,6 @@
     <string name="auto_backup_photos_explain">卡牌照片放在第二个文件（包含列表和照片的 zip）中，仅在卡牌或照片变化时保存。可能有几十 MB。</string>
     <string name="auto_backup_photos_file">照片：%1$s</string>
     <string name="auto_backup_photos_last">上次副本：%1$s（%2$d 张照片）</string>
+    <string name="language_menu">语言…</string>
+    <string name="language_system">手机语言</string>
 </resources>

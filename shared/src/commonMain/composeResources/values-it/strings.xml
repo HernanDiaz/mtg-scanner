@@ -300,4 +300,6 @@
     <string name="auto_backup_photos_explain">Le foto delle carte vanno in un secondo file (uno zip con l’elenco e le foto), salvato solo quando cambiano le carte o le foto. Può occupare decine di MB.</string>
     <string name="auto_backup_photos_file">Foto: %1$s</string>
     <string name="auto_backup_photos_last">Ultima copia: %1$s (%2$d foto)</string>
+    <string name="language_menu">Lingua…</string>
+    <string name="language_system">Lingua del telefono</string>
 </resources>
