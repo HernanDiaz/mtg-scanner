@@ -41,6 +41,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -217,14 +218,24 @@ private fun CardGuide() {
 @Composable
 expect fun CameraView(vm: ScannerViewModel, recognizer: FrameRecognizer, torch: Boolean)
 
-/** Sin permiso para la cámara: explicación y botón para pedirlo. */
+/**
+ * Sin permiso para la cámara. Con [onRequest]: explicación y botón; el permiso solo se pide
+ * cuando el usuario lo toca, nunca al abrir la app. Sin él (denegado en iPhone): solo un texto
+ * informativo, sin insistir ni abrir Ajustes (norma 5.1.1 de Apple), y la alternativa de
+ * añadir cartas a mano.
+ */
 @Composable
-fun CameraPermissionNeeded(onRequest: () -> Unit) {
+fun CameraPermissionNeeded(onRequest: (() -> Unit)?) {
     Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(stringResource(Res.string.camera_needed))
-        Spacer(Modifier.size(12.dp))
-        Button(onClick = onRequest) { Text(stringResource(Res.string.grant_permission)) }
+        if (onRequest != null) {
+            Text(stringResource(Res.string.camera_needed), textAlign = TextAlign.Center)
+            Spacer(Modifier.size(12.dp))
+            Button(onClick = onRequest) { Text(stringResource(Res.string.camera_start)) }
+        } else {
+            Text(stringResource(Res.string.camera_denied), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center,
+                color = Color.White.copy(alpha = 0.7f))
+        }
     }
 }
 

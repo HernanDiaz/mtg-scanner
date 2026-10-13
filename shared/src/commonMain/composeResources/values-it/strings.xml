@@ -26,7 +26,8 @@
 
     <!-- Escáner -->
     <string name="camera_needed">L’app ha bisogno della fotocamera per scansionare le carte.</string>
-    <string name="grant_permission">Concedi il permesso</string>
+    <string name="camera_start">Attiva la fotocamera</string>
+    <string name="camera_denied">La fotocamera non è disponibile. Puoi consentirla in Impostazioni o aggiungere carte a mano dalla collezione.</string>
     <string name="loading_catalog">Caricamento del catalogo…</string>
     <string name="point_at_card">Inquadra una carta</string>
     <string name="foil">Foil</string>

@@ -30,7 +30,8 @@
 
     <!-- Escáner -->
     <string name="camera_needed">Для сканирования карт нужна камера.</string>
-    <string name="grant_permission">Разрешить</string>
+    <string name="camera_start">Включить камеру</string>
+    <string name="camera_denied">Камера недоступна. Её можно разрешить в Настройках или добавлять карты вручную в коллекции.</string>
     <string name="loading_catalog">Загрузка каталога…</string>
     <string name="point_at_card">Наведите камеру на карту</string>
     <string name="foil">Фойл</string>

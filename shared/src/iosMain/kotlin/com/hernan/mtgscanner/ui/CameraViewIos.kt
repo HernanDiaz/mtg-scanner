@@ -44,9 +44,6 @@ import platform.CoreImage.CIImage
 import platform.CoreImage.createCGImage
 import platform.CoreMedia.CMSampleBufferGetImageBuffer
 import platform.CoreMedia.CMSampleBufferRef
-import platform.Foundation.NSURL
-import platform.UIKit.UIApplication
-import platform.UIKit.UIApplicationOpenSettingsURLString
 import platform.UIKit.UIView
 import platform.darwin.NSObject
 import platform.darwin.dispatch_async
@@ -56,23 +53,25 @@ import kotlin.time.TimeSource
 
 @Composable
 actual fun CameraView(vm: ScannerViewModel, recognizer: FrameRecognizer, torch: Boolean) {
+    // Norma 5.1.1 de Apple: el permiso se pide solo cuando el usuario toca el botón (nunca al
+    // abrir la app); si lo deniega no se insiste ni se abre Ajustes: solo un texto informativo.
     var status by remember { mutableStateOf(AVCaptureDevice.authorizationStatusForMediaType(AVMediaTypeVideo)) }
-    fun request() {
-        if (status == AVAuthorizationStatusNotDetermined) {
-            AVCaptureDevice.requestAccessForMediaType(AVMediaTypeVideo) { _ ->
-                dispatch_async(dispatch_get_main_queue()) { status = AVCaptureDevice.authorizationStatusForMediaType(AVMediaTypeVideo) }
+    when (status) {
+        AVAuthorizationStatusAuthorized -> Unit
+        AVAuthorizationStatusNotDetermined -> {
+            CameraPermissionNeeded {
+                AVCaptureDevice.requestAccessForMediaType(AVMediaTypeVideo) { _ ->
+                    dispatch_async(dispatch_get_main_queue()) {
+                        status = AVCaptureDevice.authorizationStatusForMediaType(AVMediaTypeVideo)
+                    }
+                }
             }
-        } else {
-            // Denegado antes: iOS ya no vuelve a preguntar, se cambia en Ajustes.
-            NSURL.URLWithString(UIApplicationOpenSettingsURLString)?.let {
-                UIApplication.sharedApplication.openURL(it, options = emptyMap<Any?, Any?>(), completionHandler = null)
-            }
+            return
         }
-    }
-    LaunchedEffect(Unit) { if (status == AVAuthorizationStatusNotDetermined) request() }
-    if (status != AVAuthorizationStatusAuthorized) {
-        CameraPermissionNeeded(::request)
-        return
+        else -> { // denegado o restringido
+            CameraPermissionNeeded(onRequest = null)
+            return
+        }
     }
 
     val camera = remember(recognizer) { IosCamera(vm, recognizer) }

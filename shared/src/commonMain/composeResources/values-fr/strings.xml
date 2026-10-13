@@ -26,7 +26,8 @@
 
     <!-- Escáner -->
     <string name="camera_needed">L’app a besoin de l’appareil photo pour scanner les cartes.</string>
-    <string name="grant_permission">Autoriser</string>
+    <string name="camera_start">Activer l’appareil photo</string>
+    <string name="camera_denied">L’appareil photo n’est pas disponible. Vous pouvez l’autoriser dans Réglages ou ajouter des cartes à la main depuis la collection.</string>
     <string name="loading_catalog">Chargement du catalogue…</string>
     <string name="point_at_card">Visez une carte</string>
     <string name="foil">Foil</string>

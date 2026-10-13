@@ -24,7 +24,8 @@
 
     <!-- Escáner -->
     <string name="camera_needed">扫描卡牌需要使用相机。</string>
-    <string name="grant_permission">授予权限</string>
+    <string name="camera_start">使用相机</string>
+    <string name="camera_denied">相机不可用。你可以在“设置”中允许，或在收藏中手动添加卡牌。</string>
     <string name="loading_catalog">正在加载目录…</string>
     <string name="point_at_card">将相机对准一张牌</string>
     <string name="foil">闪卡</string>

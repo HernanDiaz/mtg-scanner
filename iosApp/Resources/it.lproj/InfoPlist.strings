@@ -1,2 +1,2 @@
 "CFBundleDisplayName" = "MTG Scanner";
-"NSCameraUsageDescription" = "La fotocamera serve per scansionare le tue carte Magic.";
+"NSCameraUsageDescription" = "MTG Scanner usa la fotocamera per leggere nome, espansione e numero delle carte Magic che inquadri e aggiungerle alla tua collezione. Le immagini vengono elaborate sul tuo iPhone.";

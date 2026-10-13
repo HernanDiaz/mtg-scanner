@@ -24,7 +24,8 @@
 
     <!-- Escáner -->
     <string name="camera_needed">カードをスキャンするにはカメラが必要です。</string>
-    <string name="grant_permission">許可する</string>
+    <string name="camera_start">カメラを使う</string>
+    <string name="camera_denied">カメラを使用できません。設定で許可するか、コレクションから手動でカードを追加できます。</string>
     <string name="loading_catalog">カタログを読み込み中…</string>
     <string name="point_at_card">カードにカメラを向けてください</string>
     <string name="foil">フォイル</string>

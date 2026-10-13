@@ -28,7 +28,8 @@
 
     <!-- Escáner -->
     <string name="camera_needed">The app needs the camera to scan cards.</string>
-    <string name="grant_permission">Grant permission</string>
+    <string name="camera_start">Start camera</string>
+    <string name="camera_denied">The camera is not available. You can allow it in Settings, or add cards by hand from the collection.</string>
     <string name="loading_catalog">Loading catalog…</string>
     <string name="point_at_card">Point at a card</string>
     <string name="foil">Foil</string>

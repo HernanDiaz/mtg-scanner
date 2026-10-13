@@ -26,7 +26,8 @@
 
     <!-- Escáner -->
     <string name="camera_needed">Die App braucht die Kamera, um Karten zu scannen.</string>
-    <string name="grant_permission">Erlauben</string>
+    <string name="camera_start">Kamera starten</string>
+    <string name="camera_denied">Die Kamera ist nicht verfügbar. Du kannst sie in den Einstellungen erlauben oder Karten in der Sammlung von Hand hinzufügen.</string>
     <string name="loading_catalog">Katalog wird geladen…</string>
     <string name="point_at_card">Auf eine Karte richten</string>
     <string name="foil">Foil</string>

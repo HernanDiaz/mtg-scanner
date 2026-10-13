@@ -1,2 +1,2 @@
 "CFBundleDisplayName" = "MTG Scanner";
-"NSCameraUsageDescription" = "相机用于扫描你的万智牌卡牌。";
+"NSCameraUsageDescription" = "MTG Scanner 使用相机读取你对准的万智牌卡牌的名称、系列和编号，并将其加入你的收藏。图像在你的 iPhone 上处理。";

@@ -38,7 +38,7 @@ actual fun CameraView(vm: ScannerViewModel, recognizer: FrameRecognizer, torch: 
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
     }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
-    LaunchedEffect(Unit) { if (!granted) launcher.launch(Manifest.permission.CAMERA) }
+    // El permiso se pide solo al tocar el botón, no al abrir la app.
     if (!granted) {
         CameraPermissionNeeded { launcher.launch(Manifest.permission.CAMERA) }
         return
