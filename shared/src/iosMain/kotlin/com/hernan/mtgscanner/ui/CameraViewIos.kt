@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.UIKitView
 import com.hernan.mtgscanner.scan.FrameRecognizer
 import com.hernan.mtgscanner.scan.GuideRegion
+import com.hernan.mtgscanner.scan.OcrLine
 import com.hernan.mtgscanner.scan.PreparedImage
 import com.hernan.mtgscanner.scan.recognizeText
 import platform.AVFoundation.AVAuthorizationStatusAuthorized
@@ -37,6 +38,8 @@ import platform.AVFoundation.isFocusModeSupported
 import platform.AVFoundation.requestAccessForMediaType
 import platform.AVFoundation.torchMode
 import platform.AVFoundation.videoZoomFactor
+import platform.CoreGraphics.CGImageCreateWithImageInRect
+import platform.CoreGraphics.CGImageRef
 import platform.CoreGraphics.CGImageRelease
 import platform.CoreImage.CIContext
 import platform.CoreGraphics.CGRectMake
@@ -141,6 +144,28 @@ private class IosCamera(private val vm: ScannerViewModel, private val recognizer
         d.unlockForConfiguration()
     }
 
+    /**
+     * El OCR solo de la zona del marco guía (Vision tarda según los píxeles que lee; el texto de
+     * fuera se descarta igualmente), con las líneas devueltas en coordenadas de la imagen entera.
+     */
+    private fun recognizeTextIn(cg: CGImageRef, width: Int, height: Int, guide: GuideRegion.Rect?): List<OcrLine> {
+        if (guide == null) return recognizeText(cg, width, height)
+        val left = guide.left.toInt().coerceIn(0, width - 1)
+        val top = guide.top.toInt().coerceIn(0, height - 1)
+        val right = guide.right.toInt().coerceIn(left + 1, width)
+        val bottom = guide.bottom.toInt().coerceIn(top + 1, height)
+        val crop = CGImageCreateWithImageInRect(
+            cg, CGRectMake(left.toDouble(), top.toDouble(), (right - left).toDouble(), (bottom - top).toDouble()),
+        ) ?: return recognizeText(cg, width, height)
+        try {
+            return recognizeText(crop, right - left, bottom - top).map {
+                it.copy(left = it.left + left, top = it.top + top, right = it.right + left, bottom = it.bottom + top)
+            }
+        } finally {
+            CGImageRelease(crop)
+        }
+    }
+
     private inner class FrameDelegate : NSObject(), AVCaptureVideoDataOutputSampleBufferDelegateProtocol {
         override fun captureOutput(output: AVCaptureOutput, didOutputSampleBuffer: CMSampleBufferRef?, fromConnection: AVCaptureConnection) {
             val started = TimeSource.Monotonic.markNow()
@@ -150,9 +175,10 @@ private class IosCamera(private val vm: ScannerViewModel, private val recognizer
             val cg = ciContext.createCGImage(ci, fromRect = ci.extent) ?: return
             try {
                 val image = PreparedImage.from(cg)
-                var lines = recognizeText(cg, image.width, image.height)
+                val guide = vm.viewSize?.let { (w, h) -> GuideRegion.inImage(w, h, image.width, image.height) }
+                var lines = recognizeTextIn(cg, image.width, image.height, guide)
                 val ocrDone = TimeSource.Monotonic.markNow()
-                vm.viewSize?.let { (w, h) -> lines = GuideRegion.filter(lines, GuideRegion.inImage(w, h, image.width, image.height)) }
+                guide?.let { lines = GuideRegion.filter(lines, it) }
                 val result = recognizer.recognize(lines, image)
                 vm.reportTiming((ocrDone - started).inWholeMilliseconds, ocrDone.elapsedNow().inWholeMilliseconds)
                 vm.onFrame(result, lines.minByOrNull { it.top }?.text) { image.frame() }

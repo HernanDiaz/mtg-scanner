@@ -639,30 +639,31 @@ class ScanSessionTest {
     private fun frame(name: String, exact: Boolean) =
         FrameResult(name, PRINTINGS.getValue(name)[0], exact, CollectorInfo())
 
-    @Test fun needsTwoFramesThenLocks() {
+    @Test fun exactReadingIsAddedAtOnceThenLocks() {
         val s = ScanSession()
-        assertNull(s.onFrame(frame("Shock", true), 0))
-        assertNotNull(s.onFrame(frame("Shock", true), 100))
+        assertNotNull(s.onFrame(frame("Shock", true), 0))
         // Sigue en cámara: no se vuelve a contar.
+        assertNull(s.onFrame(frame("Shock", true), 100))
         assertNull(s.onFrame(frame("Shock", true), 200))
-        assertNull(s.onFrame(frame("Shock", true), 300))
+    }
+
+    @Test fun ambiguousNeedsTwoFrames() {
+        val s = ScanSession(ambiguousWaitMs = 0)
+        assertNull(s.onFrame(frame("Shock", false), 0))
+        assertNotNull(s.onFrame(frame("Shock", false), 100))
     }
 
     @Test fun sameCardAgainAfterRemoving() {
         val s = ScanSession()
-        s.onFrame(frame("Shock", true), 0)
-        assertNotNull(s.onFrame(frame("Shock", true), 100))
+        assertNotNull(s.onFrame(frame("Shock", true), 0))
         s.onFrame(null, 1200) // la carta ha salido
-        assertNull(s.onFrame(frame("Shock", true), 1300))
-        assertNotNull(s.onFrame(frame("Shock", true), 1400))
+        assertNotNull(s.onFrame(frame("Shock", true), 1300))
     }
 
     @Test fun differentCardIsAddedImmediately() {
         val s = ScanSession()
         s.onFrame(frame("Shock", true), 0)
-        s.onFrame(frame("Shock", true), 100)
-        assertNull(s.onFrame(frame("Lightning Bolt", true), 200))
-        assertEquals("Lightning Bolt", s.onFrame(frame("Lightning Bolt", true), 300)!!.name)
+        assertEquals("Lightning Bolt", s.onFrame(frame("Lightning Bolt", true), 100)!!.name)
     }
 
     @Test fun ambiguousWaitsForExactReading() {
@@ -676,30 +677,36 @@ class ScanSessionTest {
     @Test fun samePrintingStaysLocked() {
         val s = ScanSession()
         val bolt = FrameResult("Lightning Bolt", BOLTS[2], true, CollectorInfo())
-        s.onFrame(bolt, 0)
-        assertNotNull(s.onFrame(bolt, 100))
-        for (t in 200..3000 step 100) assertNull(s.onFrame(bolt, t.toLong()))
+        assertNotNull(s.onFrame(bolt, 0))
+        for (t in 100..3000 step 100) assertNull(s.onFrame(bolt, t.toLong()))
     }
 
     @Test fun otherExactPrintingOfSameNameIsANewCard() {
-        // Pantano de una edición y luego pantano de otra, sin retirar la mano.
+        // Pantano de una edición y luego pantano de otra, sin retirar la mano: la otra
+        // impresión necesita dos fotogramas (un número mal leído un instante no cuenta).
         val s = ScanSession()
         val a = FrameResult("Lightning Bolt", BOLTS[2], true, CollectorInfo())
         val b = FrameResult("Lightning Bolt", BOLTS[3], true, CollectorInfo())
-        s.onFrame(a, 0)
-        assertNotNull(s.onFrame(a, 100))
-        assertNull(s.onFrame(b, 200))
-        assertEquals(BOLTS[3].id, s.onFrame(b, 300)!!.printing.id)
+        assertNotNull(s.onFrame(a, 0))
+        assertNull(s.onFrame(b, 100))
+        assertEquals(BOLTS[3].id, s.onFrame(b, 200)!!.printing.id)
+    }
+
+    @Test fun numberMisreadForOneFrameIsNotAnotherCard() {
+        val s = ScanSession()
+        val a = FrameResult("Lightning Bolt", BOLTS[2], true, CollectorInfo())
+        val misread = FrameResult("Lightning Bolt", BOLTS[3], true, CollectorInfo())
+        assertNotNull(s.onFrame(a, 0))
+        assertNull(s.onFrame(misread, 100)) // un fotograma con el número mal leído
+        for (t in 200..1000 step 100) assertNull(s.onFrame(a, t.toLong()))
     }
 
     @Test fun shortGapBetweenIdenticalCopies() {
         val s = ScanSession()
-        s.onFrame(frame("Shock", true), 0)
-        assertNotNull(s.onFrame(frame("Shock", true), 100))
+        assertNotNull(s.onFrame(frame("Shock", true), 0))
         s.onFrame(null, 400)
         s.onFrame(null, 750) // la mano tapa el marco ~0,6 s mientras se cambia la carta
-        assertNull(s.onFrame(frame("Shock", true), 850))
-        assertNotNull(s.onFrame(frame("Shock", true), 950))
+        assertNotNull(s.onFrame(frame("Shock", true), 850))
     }
 
     @Test fun pendingAmbiguousCardIsAddedWhenNextCardArrives() {
@@ -722,8 +729,8 @@ class ScanSessionTest {
 
     @Test fun singleMisreadIsNeverAdded() {
         val s = ScanSession()
-        s.onFrame(frame("Shock", true), 0)                 // una sola lectura suelta
-        assertNull(s.onFrame(frame("Lightning Bolt", true), 200))
+        s.onFrame(frame("Shock", false), 0)                 // una sola lectura suelta, dudosa
+        assertNull(s.onFrame(frame("Lightning Bolt", false), 200))
         assertNull(s.onFrame(null, 800))
     }
 

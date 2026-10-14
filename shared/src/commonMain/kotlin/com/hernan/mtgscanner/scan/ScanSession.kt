@@ -3,7 +3,8 @@ package com.hernan.mtgscanner.scan
 /**
  * Decide cuándo un fotograma reconocido se convierte en una carta añadida,
  * sin que el usuario toque nada:
- *  - Una carta se acepta cuando se lee igual en 2 fotogramas seguidos
+ *  - Una lectura exacta (edición y número confirman el nombre) se acepta al
+ *    momento; las demás, cuando se leen igual en 2 fotogramas seguidos
  *    (filtra lecturas erróneas sueltas).
  *  - Si la impresión es ambigua, se espera un poco a que el OCR lea la línea
  *    de coleccionista; si no llega, se añade la más probable marcada para revisar.
@@ -54,7 +55,13 @@ class ScanSession(
             candidateFrames = 1
             candidateSince = now
             candidateLastSeen = now
-            return flushed
+            if (flushed != null) return flushed
+            // Una lectura exacta (nombre confirmado por edición y número) de otra carta no es un
+            // error suelto: se acepta ya, sin esperar al segundo fotograma. En un móvil lento
+            // (iPhone: ~1 s por fotograma) es la mitad de espera entre carta y carta. Otra
+            // impresión del mismo nombre que la que está en cámara sí espera: un número mal leído
+            // un instante ("371" por "372") contaría otro pantano.
+            return if (frame.exact && frame.name != lockedName) accept(frame, now) else null
         }
 
         candidateFrames++
@@ -63,14 +70,19 @@ class ScanSession(
         if (frame.exact || !current.exact) candidate = frame
         val best = candidate!!
 
-        if (candidateFrames >= confirmFrames && (best.exact || now - candidateSince >= ambiguousWaitMs)) {
-            lockedName = best.name
-            lockedPrintingId = if (best.exact) best.printing.id else null
-            lockedLastSeen = now
-            candidate = null
-            return best
+        if (best.exact || (candidateFrames >= confirmFrames && now - candidateSince >= ambiguousWaitMs)) {
+            return accept(best, now)
         }
         return null
+    }
+
+    /** Añade [card] y la bloquea para no volver a contarla mientras siga en cámara. */
+    private fun accept(card: FrameResult, now: Long): FrameResult {
+        lockedName = card.name
+        lockedPrintingId = if (card.exact) card.printing.id else null
+        lockedLastSeen = now
+        candidate = null
+        return card
     }
 
     /**
