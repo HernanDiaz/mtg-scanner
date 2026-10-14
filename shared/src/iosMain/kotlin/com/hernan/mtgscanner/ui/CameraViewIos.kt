@@ -48,6 +48,9 @@ import platform.CoreImage.createCGImage
 import platform.CoreMedia.CMSampleBufferGetImageBuffer
 import platform.CoreMedia.CMSampleBufferRef
 import platform.UIKit.UIView
+import kotlinx.cinterop.autoreleasepool
+import platform.CoreVideo.kCVPixelFormatType_32BGRA
+import platform.Foundation.NSNumber
 import platform.darwin.NSObject
 import platform.darwin.dispatch_async
 import platform.darwin.dispatch_get_main_queue
@@ -128,6 +131,9 @@ private class IosCamera(private val vm: ScannerViewModel, private val recognizer
         }
         val output = AVCaptureVideoDataOutput().apply {
             alwaysDiscardsLateVideoFrames = true
+            // BGRA para copiar los píxeles directamente (PreparedImage.fromCamera).
+            // "PixelFormatType" es el valor de kCVPixelBufferPixelFormatTypeKey.
+            videoSettings = mapOf<Any?, Any?>("PixelFormatType" to NSNumber(unsignedInt = kCVPixelFormatType_32BGRA))
             setSampleBufferDelegate(delegate, queue)
         }
         if (session.canAddOutput(output)) session.addOutput(output)
@@ -168,13 +174,20 @@ private class IosCamera(private val vm: ScannerViewModel, private val recognizer
 
     private inner class FrameDelegate : NSObject(), AVCaptureVideoDataOutputSampleBufferDelegateProtocol {
         override fun captureOutput(output: AVCaptureOutput, didOutputSampleBuffer: CMSampleBufferRef?, fromConnection: AVCaptureConnection) {
+            autoreleasepool { process(didOutputSampleBuffer) }
+        }
+
+        private fun process(sampleBuffer: CMSampleBufferRef?) {
             val started = TimeSource.Monotonic.markNow()
-            val pixels = CMSampleBufferGetImageBuffer(didOutputSampleBuffer) ?: return
-            // El sensor da la imagen apaisada: se gira a vertical (kCGImagePropertyOrientationRight).
-            val ci = CIImage.imageWithCVPixelBuffer(pixels).imageByApplyingOrientation(ORIENTATION_RIGHT)
-            val cg = ciContext.createCGImage(ci, fromRect = ci.extent) ?: return
+            val pixels = CMSampleBufferGetImageBuffer(sampleBuffer) ?: return
+            val image = PreparedImage.fromCamera(pixels) ?: run {
+                // Por si la cámara no diera BGRA: girado con Core Image (más lento de soltar).
+                // El sensor da la imagen apaisada: se gira a vertical (kCGImagePropertyOrientationRight).
+                val ci = CIImage.imageWithCVPixelBuffer(pixels).imageByApplyingOrientation(ORIENTATION_RIGHT)
+                PreparedImage.from(ciContext.createCGImage(ci, fromRect = ci.extent) ?: return)
+            }
+            val cg = image.cgImage
             try {
-                val image = PreparedImage.from(cg)
                 val guide = vm.viewSize?.let { (w, h) -> GuideRegion.inImage(w, h, image.width, image.height) }
                 var lines = recognizeTextIn(cg, image.width, image.height, guide)
                 val ocrDone = TimeSource.Monotonic.markNow()

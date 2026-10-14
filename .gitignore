@@ -25,3 +25,9 @@ iosApp/*.xcodeproj
 iosApp/Info.plist
 # El catálogo para iOS se descarga de la release "catalog" (tools/publish_catalog.sh)
 iosApp/Resources/catalog.sqlite
+
+# Grabaciones y material para la App Store (pesan mucho)
+*.mp4
+*.mov
+*.MOV
+store/

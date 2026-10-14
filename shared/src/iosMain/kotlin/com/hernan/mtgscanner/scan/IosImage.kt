@@ -1,9 +1,16 @@
 package com.hernan.mtgscanner.scan
 
 import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.useContents
 import kotlinx.cinterop.usePinned
+import platform.CoreFoundation.CFDataCreate
+import platform.CoreFoundation.CFRelease
 import platform.CoreGraphics.CGBitmapContextCreate
+import platform.CoreGraphics.CGColorRenderingIntent
+import platform.CoreGraphics.CGDataProviderCreateWithCFData
+import platform.CoreGraphics.CGDataProviderRelease
+import platform.CoreGraphics.CGImageCreate
 import platform.CoreGraphics.CGBitmapContextCreateImage
 import platform.CoreGraphics.CGColorSpaceCreateDeviceRGB
 import platform.CoreGraphics.CGColorSpaceRelease
@@ -17,6 +24,16 @@ import platform.CoreGraphics.CGImageRelease
 import platform.CoreGraphics.CGImageRetain
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGSizeMake
+import platform.CoreVideo.CVPixelBufferGetBaseAddress
+import platform.CoreVideo.CVPixelBufferGetBytesPerRow
+import platform.CoreVideo.CVPixelBufferGetHeight
+import platform.CoreVideo.CVPixelBufferGetPixelFormatType
+import platform.CoreVideo.CVPixelBufferGetWidth
+import platform.CoreVideo.CVPixelBufferLockBaseAddress
+import platform.CoreVideo.CVPixelBufferRef
+import platform.CoreVideo.CVPixelBufferUnlockBaseAddress
+import platform.CoreVideo.kCVPixelBufferLock_ReadOnly
+import platform.CoreVideo.kCVPixelFormatType_32BGRA
 import platform.Foundation.NSData
 import platform.UIKit.UIGraphicsImageRenderer
 import platform.UIKit.UIGraphicsImageRendererFormat
@@ -39,10 +56,14 @@ import kotlin.native.ref.createCleaner
  * [ArtSampler] (ilustración, borde y símbolo de edición), que se leen solo si hacen falta.
  * [cgImage] solo vale mientras dura el reconocimiento de ese fotograma.
  */
-class PreparedImage(val cgImage: CGImageRef, val width: Int, val height: Int) : ArtSampler {
+class PreparedImage(
+    val cgImage: CGImageRef, val width: Int, val height: Int,
+    /** Los píxeles RGBA, si ya se tienen (fotogramas de la cámara). */
+    private val knownPixels: ByteArray? = null,
+) : ArtSampler {
 
     /** RGBA, la primera fila en memoria es la de arriba. */
-    private val pixels: ByteArray by lazy { rgba(cgImage, width, height) }
+    private val pixels: ByteArray by lazy { knownPixels ?: rgba(cgImage, width, height) }
 
     override fun rgb(x: Int, y: Int): Int {
         val p = pixels
@@ -76,6 +97,63 @@ class PreparedImage(val cgImage: CGImageRef, val width: Int, val height: Int) : 
         }
 
         fun from(cg: CGImageRef) = PreparedImage(cg, CGImageGetWidth(cg).toInt(), CGImageGetHeight(cg).toInt())
+
+        /**
+         * Un fotograma de la cámara (BGRA y apaisado, como sale del sensor) copiado y girado a
+         * vertical. Se copia en vez de envolverlo en un CIImage: desde Kotlin ese objeto no se
+         * suelta hasta que pasa el recolector de memoria (segundos), y mientras tanto retiene el
+         * fotograma; la cámara tiene pocos y deja de entregar más (el escáner se paraba ~9 s
+         * entre carta y carta). null si el fotograma no es BGRA. Hay que soltar [cgImage].
+         */
+        fun fromCamera(pb: CVPixelBufferRef): PreparedImage? {
+            if (CVPixelBufferGetPixelFormatType(pb) != kCVPixelFormatType_32BGRA) return null
+            CVPixelBufferLockBaseAddress(pb, kCVPixelBufferLock_ReadOnly)
+            val raw: ByteArray
+            val w: Int
+            val h: Int
+            val bpr: Int
+            try {
+                w = CVPixelBufferGetWidth(pb).toInt()
+                h = CVPixelBufferGetHeight(pb).toInt()
+                bpr = CVPixelBufferGetBytesPerRow(pb).toInt()
+                val base = CVPixelBufferGetBaseAddress(pb) ?: return null
+                raw = ByteArray(bpr * h)
+                raw.usePinned { memcpy(it.addressOf(0), base, (bpr * h).toULong()) }
+            } finally {
+                CVPixelBufferUnlockBaseAddress(pb, kCVPixelBufferLock_ReadOnly)
+            }
+            // Girado 90 grados a la derecha: la imagen vertical mide h x w. BGRA -> RGBA.
+            val uw = h
+            val uh = w
+            val out = ByteArray(uw * uh * 4)
+            val step = uw * 4
+            for (ry in 0 until h) {
+                var src = ry * bpr
+                var dst = (h - 1 - ry) * 4
+                for (rx in 0 until w) {
+                    out[dst] = raw[src + 2]
+                    out[dst + 1] = raw[src + 1]
+                    out[dst + 2] = raw[src]
+                    out[dst + 3] = -1
+                    src += 4
+                    dst += step
+                }
+            }
+            return fromRgba(out, uw, uh)
+        }
+
+        /** Imagen de unos píxeles RGBA (copiados: la imagen no depende del array). */
+        private fun fromRgba(rgba: ByteArray, w: Int, h: Int): PreparedImage {
+            val space = CGColorSpaceCreateDeviceRGB()
+            val data = rgba.usePinned { CFDataCreate(null, it.addressOf(0).reinterpret(), rgba.size.toLong()) }
+            val provider = CGDataProviderCreateWithCFData(data)
+            val cg = CGImageCreate(w.toULong(), h.toULong(), 8u, 32u, (w * 4).toULong(), space,
+                CGImageAlphaInfo.kCGImageAlphaNoneSkipLast.value, provider, null, false, CGColorRenderingIntent.kCGRenderingIntentDefault)
+            CGDataProviderRelease(provider)
+            CFRelease(data)
+            CGColorSpaceRelease(space)
+            return PreparedImage(cg ?: error("No se puede crear la imagen"), w, h, rgba)
+        }
 
         private fun rgba(cg: CGImageRef, w: Int, h: Int): ByteArray {
             val pixels = ByteArray(w * h * 4)
