@@ -53,7 +53,8 @@ fun ScannerScreen(vm: ScannerViewModel = LocalServices.current.let { s -> viewMo
     val ui by vm.ui.collectAsStateWithLifecycle()
     val recognizer by vm.recognizer.collectAsStateWithLifecycle()
     val currency by vm.settings.currency.collectAsStateWithLifecycle()
-    val testing by vm.settings.testPhotos.collectAsStateWithLifecycle()
+    val testingPref by vm.settings.testPhotos.collectAsStateWithLifecycle()
+    val testing = testingPref && vm.hasTestPhotos
     var choosingDeck by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<com.hernan.mtgscanner.data.CardPrinting?>(null) }
 

@@ -41,9 +41,8 @@ class IosServices : AppServices {
     override val files: PlatformFiles = IosFiles()
     // Las fotos van en Application Support: no es la carpeta que se ve en Archivos.
     override val cardPhotos: CardPhotos by lazy { CardPhotos("${dir(NSApplicationSupportDirectory)}/card_photos") }
-    override val testPhotos: TestPhotos by lazy {
-        TestPhotos("${dir(NSApplicationSupportDirectory)}/test_photos", files, collection::entriesNow)
-    }
+    // Las fotos de prueba son una herramienta de depuración: no van en la app publicada.
+    override val testPhotos: TestPhotos? = null
     override val autoBackup: AutoBackup by lazy {
         AutoBackup(this, IosBackupTarget(), IosBackupScheduler(scope, collection) { autoBackup })
     }

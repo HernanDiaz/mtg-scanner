@@ -42,8 +42,10 @@ class App : Application(), SingletonImageLoader.Factory, AppServices {
     override val prices by lazy { PriceUpdater(collection, CardmarketPrices(cacheDir.path)) }
     override val autoBackup by lazy { AutoBackup(this, AndroidBackupTarget(this), WorkManagerBackupScheduler(this)) }
     override val files by lazy { AndroidFiles(this) }
+    /** Herramienta de depuración: solo en las builds de depuración, no en la versión publicada. */
     override val testPhotos by lazy {
-        TestPhotos(java.io.File(noBackupFilesDir, "test_photos").path, files, collection::entriesNow)
+        val debuggable = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        if (debuggable) TestPhotos(java.io.File(noBackupFilesDir, "test_photos").path, files, collection::entriesNow) else null
     }
     override val cardPhotos by lazy { CardPhotos(java.io.File(noBackupFilesDir, "card_photos").path) }
 

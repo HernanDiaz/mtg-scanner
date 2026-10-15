@@ -75,6 +75,8 @@ class ScannerViewModel(private val app: AppServices) : ViewModel() {
     private val clock = TimeSource.Monotonic.markNow()
 
     private val testPhotos = app.testPhotos
+    /** Hay modo de prueba (solo en las builds de depuración de Android). */
+    val hasTestPhotos get() = testPhotos != null
     /** Último fotograma en que se leyó cada nombre (con fotos de cartas o de prueba). */
     private val recentFrames = LinkedHashMap<String, ScanFrame>()
     @Volatile private var captureNext = false
@@ -123,7 +125,7 @@ class ScannerViewModel(private val app: AppServices) : ViewModel() {
      * en cada móvil qué parte es la lenta.
      */
     fun reportTiming(ocrMs: Long, recognizeMs: Long) {
-        if (!settings.testPhotos.value) {
+        if (!settings.testPhotos.value || testPhotos == null) {
             if (_ui.value.timing != null) _ui.update { it.copy(timing = null) }
             return
         }
