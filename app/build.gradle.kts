@@ -1,6 +1,13 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+}
+
+// Clave de subida a Google Play: keystore.properties (no va al repositorio) apunta al .jks.
+val uploadKey = Properties().apply {
+    rootProject.file("keystore.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
 }
 
 android {
@@ -10,10 +17,19 @@ android {
     defaultConfig {
         applicationId = "com.hernan.mtgscanner"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (uploadKey.isNotEmpty()) create("upload") {
+            storeFile = file(uploadKey.getProperty("storeFile"))
+            storePassword = uploadKey.getProperty("storePassword")
+            keyAlias = uploadKey.getProperty("keyAlias")
+            keyPassword = uploadKey.getProperty("keyPassword")
+        }
     }
 
     buildTypes {
@@ -23,6 +39,7 @@ android {
         }
         release {
             ndk { abiFilters += listOf("arm64-v8a") }
+            signingConfigs.findByName("upload")?.let { signingConfig = it }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

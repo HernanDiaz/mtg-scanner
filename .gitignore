@@ -31,3 +31,4 @@ iosApp/Resources/catalog.sqlite
 *.mov
 *.MOV
 store/
+/keystore.properties
